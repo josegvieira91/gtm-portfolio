@@ -93,12 +93,17 @@ const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT }).re
     {diagram.edges.map((edge: DiagramEdge) => (
       <SchematicEdge edge={edge} fromPos={positions[edge.from]} toPos={positions[edge.to]} />
     ))}
-    {diagram.nodes.map((node: DiagramNode) => (
-      <SchematicNode node={node} pos={positions[node.id]} width={LAYOUT.nodeWidth} height={LAYOUT.nodeHeight} />
-    ))}
+    {/* Paint order is load-bearing: the packet sits ABOVE edges (it travels
+        along them) but BELOW nodes, so on arrival it docks INTO the unit —
+        the node's opaque body occludes it — instead of parking on top of
+        the tool's logo chip (Gate 2 follow-up: the packet's settle position
+        is a node CENTER, exactly where SchematicNode paints the logo). */}
     {restPos && (
       <circle data-packet cx={restPos.x} cy={restPos.y} r={Math.max(3, LAYOUT.nodeHeight * 0.08)} class="fill-blueprint-accent" />
     )}
+    {diagram.nodes.map((node: DiagramNode) => (
+      <SchematicNode node={node} pos={positions[node.id]} width={LAYOUT.nodeWidth} height={LAYOUT.nodeHeight} />
+    ))}
   </svg>
   <script type="application/json" data-diagram set:html={diagramPayload} />
 </div>
