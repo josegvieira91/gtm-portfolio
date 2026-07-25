@@ -24,8 +24,53 @@ const mobilePin = SCHEMATIC_CONFIG.mobilePin === 'pin';
 const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 ---
 
-<section id={id} data-pin-section class="grid gap-6 md:grid-cols-[60%_1fr] md:gap-8">
-  <div class="md:py-16">
+{/* 02-07 Gate 2 fix: mobile-only. When GSAP pins this section (ScrollTrigger's
+    default `start: "top top"`), it locks to the viewport's literal y=0 —
+    exactly where iOS's Dynamic Island / status bar sits. `env(safe-area-inset-top)`
+    (needs `viewport-fit=cover` on the viewport meta, set in BaseLayout.astro)
+    pushes the pinned content below that safe area on notched devices and
+    resolves to 0 everywhere else, so this is a no-op on non-notched phones.
+    `md:pt-0` keeps desktop pin behavior byte-identical — untouched per the
+    gate instruction. */}
+<section
+  id={id}
+  data-pin-section
+  class="grid gap-6 pt-[env(safe-area-inset-top)] md:grid-cols-[60%_1fr] md:gap-8 md:pt-0"
+>
+  {/* 02-07 Gate 2 fix (horizontal mobile clip): CSS Grid items default to
+      `min-width: auto`, which refuses to shrink below the child SVG's own
+      intrinsic content size — on a narrow viewport this held the diagram at
+      its full ~880px-wide intrinsic size and clipped both edges instead of
+      letting `w-full` (on the SVG itself) actually scale it down. `min-w-0`
+      removes that floor so the SVG's own width:100% can shrink to the real
+      track width; harmless on desktop since the 60% track is already wider
+      than the SVG's natural size there (no visible change confirmed).
+
+      02-07 Gate 2 fix (desktop layout broken): the pinned section's own
+      grid row stretches to match its tallest sibling (the callout column's
+      `gap-[60vh]` stack, several viewport-heights tall) — GSAP's `pin:true`
+      with a fixed `end` distance decoupled from that real DOM height
+      (see timeline.ts) released the pin early, mid-scroll, producing the
+      clipped/jumping look. Native `md:sticky md:top-0` replaces the GSAP
+      pin for desktop only: it sticks to the viewport top for exactly as
+      long as its (already-correctly-sized) grid cell is scrolling through,
+      by construction — no separate distance to keep in sync. Mobile pin
+      (already spike-verified smooth) is untouched: `sticky` only applies
+      at md+.
+
+      `md:self-start` is required alongside `sticky` here: CSS Grid's
+      default `align-items: stretch` was stretching THIS item's own box to
+      match the taller callout-column sibling's row height (verified via
+      real headless measurement: the wrapper's own rect was 3130px tall,
+      identical to the row) — sticky has nothing to visually "stick within"
+      when the sticky element's own box already spans the entire
+      scrollable distance. `self-start` keeps this item at its natural
+      (short, SVG-sized) height while the grid ROW itself stays tall
+      (still governed by the callout column) — exactly the
+      short-child-inside-tall-area relationship sticky positioning needs.
+      Re-verified after adding this: wrapper top stays pinned at 0px across
+      the full scroll range instead of tracking scrollY 1:1. */}
+  <div class="min-w-0 md:sticky md:top-0 md:self-start md:py-16">
     <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} />
   </div>
 
