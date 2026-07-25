@@ -140,7 +140,7 @@ target for that data.
 
 ```bash
 npm run seed:generate      # if scripts/seed-data/output/ is empty or stale
-npm run import:hubspot     # HubSpot: batch-upserts companies then contacts, associates by domain
+npm run import:hubspot     # HubSpot: upserts companies then contacts, associates by domain
 npm run import:salesforce  # Salesforce: bulk-imports Accounts then Contacts, prints storage before/after
 npm run verify:imports     # fetches counts + one sample contact from each CRM, asserts the email
                             #   reads as @<slug>.example.com
@@ -154,10 +154,20 @@ constraint for Case 7 if it happens.
 ### How the scripts work
 
 - **HubSpot** (`scripts/seed-data/import-hubspot.mjs`) — HubSpot CRM Objects API, dated version
-  `2026-03`. Batch-upserts `companies.csv` with `idProperty=domain`, then `contacts.csv` with
-  `idProperty=email`, then bulk-associates each contact to its company (unlabeled default
-  association) using the domain/company IDs echoed back by the upsert responses. Chunked at 100
-  records per batch, HubSpot's per-request limit.
+  `2026-03`. Contacts use batch/upsert with `idProperty=email` (email is unique by default on
+  every portal). Companies do NOT use batch/upsert — **corrected during the live import run on
+  2026-07-25**: the "Vieira GTM Lab" portal's default `domain` property on Companies isn't
+  flagged `hasUniqueValue: true`, so `batch/upsert` with `idProperty=domain` fails with HTTP 400
+  `VALIDATION_ERROR` ("Unable to perform update/upsert by non-unique property domain"). Fixing
+  that flag needs the `crm.schemas.companies.write` scope, broader than this private app was
+  granted. Companies are instead searched by domain (`crm.objects.companies.read`) and routed to
+  `batch/create` or `batch/update` — same idempotent end state, no schema change, no new scope.
+  Also corrected live: HubSpot's `industry` property on Companies is a fixed enum that rejected
+  the generator's free-text values (e.g. "Healthcare Technology"); `lib/industry-map.mjs`
+  translates the generator's vocabulary to a valid enum value at the import boundary, without
+  touching the already-gated `companies.csv`. Finally, bulk-associates each contact to its
+  company (unlabeled default association) using the domain/company IDs resolved above. Chunked
+  at 100 records per batch, HubSpot's per-request limit.
 - **Salesforce** (`scripts/seed-data/import-salesforce.mjs`) — drives the Salesforce CLI's Bulk
   API 2.0 commands (`sf data import bulk`). Standard Account/Contact objects have no built-in
   External ID field on Website/Email (that needs a custom field + Setup change), so
@@ -166,10 +176,20 @@ constraint for Case 7 if it happens.
   scoped to `*.example.com` and skips rows that already exist, so a re-run after a re-seed only
   inserts the delta. Contacts are matched to Accounts via the Account IDs returned by the
   Account import job (or the pre-existing-record query, on a re-run) — no lookup-by-name step
-  needed.
+  needed. `Industry` is also translated via `lib/industry-map.mjs` — Salesforce's
+  `Account.Industry` picklist is unrestricted (confirmed via `sf sobject describe`), so it would
+  silently accept the generator's raw vocabulary, but that wouldn't match any real picklist value
+  in the UI. Also corrected live: `sf data bulk results` always writes its success/failed record
+  CSVs into the process's current working directory with no way to redirect via flag, which was
+  leaving untracked `<jobId>-success-records.csv` files at the repo root; the script now runs
+  that specific command with `cwd` set to its own tmpdir (cleaned up after) and resolves the
+  relative path the CLI returns against that same tmpdir before reading it.
 - **Verify** (`scripts/seed-data/verify-imports.mjs`) — queries both CRMs for record counts and
   one sample contact each, asserting the sample's email matches `@<slug>.example.com`. Exits
-  non-zero (`VERIFY_FAILED`) if any check fails.
+  non-zero (`VERIFY_FAILED`) if any check fails. **Corrected during the live run:** the HubSpot
+  search was unscoped, so it counted and could sample the portal's own default demo company
+  (`hubspot.com`) and demo contacts that ship with every new HubSpot portal — now scoped to
+  `*.example.com` the same way the Salesforce SOQL queries already were.
 
 ### API surface note
 
