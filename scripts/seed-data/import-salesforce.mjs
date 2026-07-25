@@ -43,8 +43,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, isAbsolute } from 'node:path';
 import { parseCsv, writeCsv } from './lib/csv.mjs';
+import { INDUSTRY_TO_SALESFORCE, mapIndustry } from './lib/industry-map.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -61,10 +62,11 @@ function sfArgs(args) {
   return TARGET_ORG ? [...args, '--target-org', TARGET_ORG] : args;
 }
 
-function sfJson(args) {
+function sfJson(args, execOptions = {}) {
   const out = execFileSync('sf', [...sfArgs(args), '--json'], {
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
+    ...execOptions,
   });
   return JSON.parse(out);
 }
@@ -199,15 +201,27 @@ function runBulkImport(sobject, rows, headers) {
 
   let resultsInfo;
   try {
-    resultsInfo = sfJson(['data', 'bulk', 'results', '--job-id', jobId]);
+    // `sf data bulk results` has no --output-dir flag — it always writes its success/failed
+    // record CSVs into the process's current working directory. Discovered during the live
+    // import run on 2026-07-25: without this `cwd` override, that meant the project root, which
+    // left untracked "<jobId>-success-records.csv" files sitting in the repo. Running it with
+    // cwd set to our own tmpdir (already cleaned up via rmSync below) keeps the repo clean.
+    resultsInfo = sfJson(['data', 'bulk', 'results', '--job-id', jobId], { cwd: dir });
   } catch (err) {
     console.error(`  Could not fetch bulk results for job ${jobId}: ${err.message}`);
     rmSync(dir, { recursive: true, force: true });
     return { successIds: new Map(), errors: rows };
   }
 
-  const successFile = findCsvPath(resultsInfo.result, ['success']);
-  const failedFile = findCsvPath(resultsInfo.result, ['fail']);
+  // `sf data bulk results --json` returns the result file paths as filenames RELATIVE to the
+  // subprocess's cwd (confirmed live 2026-07-25 — the field is `successFilePath` /
+  // `failedFilePath`, holding e.g. "<jobId>-success-records.csv", not an absolute path). Since
+  // that subprocess ran with cwd: dir (see above), resolve against `dir` here too — using the
+  // raw string as-is would resolve against this parent process's own cwd instead and silently
+  // fail the existsSync check.
+  const resolveResultPath = (p) => (p && !isAbsolute(p) ? join(dir, p) : p);
+  const successFile = resolveResultPath(findCsvPath(resultsInfo.result, ['success']));
+  const failedFile = resolveResultPath(findCsvPath(resultsInfo.result, ['fail']));
 
   const successIds = new Map(); // matchKey (Website or Email) -> Salesforce Id
   let successCount = 0;
@@ -274,7 +288,13 @@ function main() {
   const accountRows = newCompanies.map((c) => ({
     Name: c.name,
     Website: c.domain,
-    Industry: c.industry,
+    // Account.Industry is a standard Salesforce picklist. It's unrestricted (confirmed via
+    // `sf sobject describe --sobject Account`), so arbitrary text would be silently accepted
+    // rather than rejected — but the generator's free-text vocabulary ("Healthcare Technology")
+    // doesn't match any of the org's real picklist values, which would look wrong in the UI on
+    // camera. Mapped to the closest real value the same way import-hubspot.mjs maps to its own
+    // enum, since HubSpot's field IS restricted and caught this during the live import run.
+    Industry: mapIndustry(INDUSTRY_TO_SALESFORCE, c.industry, 'Salesforce'),
     NumberOfEmployees: c.employee_count,
     BillingCountry: c.country,
   }));
