@@ -1,15 +1,18 @@
 ---
+// SITE-01: home = BlueprintHero (D-09 self-drawing GTM machine) + MachineWall
+// (D-10, all 10 real-titled cards + working tool filter). Phase 1 placeholder
+// copy retired here.
 import BaseLayout from '../layouts/BaseLayout.astro';
+import BlueprintHero from '../components/home/BlueprintHero.astro';
+import MachineWall from '../components/home/MachineWall.astro';
 ---
 
-<BaseLayout title="José Vieira — GTM Engineer">
-  <main class="flex min-h-screen items-center justify-center">
-    <div class="max-w-xl px-6 text-center">
-      <h1 class="text-2xl font-semibold">José Vieira — GTM Engineer</h1>
-      <p class="mt-4 text-blueprint-dim">
-        This portfolio is in progress. It will show ten GTM automation systems built for
-        real and recorded running. Come back soon.
-      </p>
-    </div>
+<BaseLayout
+  title="Jose Vieira — GTM Engineer"
+  description="GTM automation systems built for real in live tool accounts and recorded running."
+>
+  <main>
+    <BlueprintHero />
+    <MachineWall />
   </main>
 </BaseLayout>

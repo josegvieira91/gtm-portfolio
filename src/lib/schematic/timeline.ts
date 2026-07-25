@@ -162,6 +162,14 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
  * One-shot autoplay for the home hero (D-09): the same step loop as a plain
  * `gsap.timeline()` played once on mount, no ScrollTrigger involved.
  * Reduced-motion gated the same way as `mountSchematic`.
+ *
+ * On completion, dispatches a `schematic:autoplay-complete` CustomEvent on
+ * `refs.section` — this module has no business knowing about page-specific
+ * overlay text (e.g. BlueprintHero's name/title), so a DOM event is the
+ * hand-off point rather than a page-specific callback param. The dispatch
+ * lives INSIDE the matched `no-preference` branch only: reduced-motion
+ * users never see the event because this callback body never runs for
+ * them, same structural guarantee as every other branch in this file.
  */
 export function autoplaySchematic(diagram: Diagram, refs: SchematicRefs): gsap.MatchMedia {
   const mm = gsap.matchMedia();
@@ -170,6 +178,9 @@ export function autoplaySchematic(diagram: Diagram, refs: SchematicRefs): gsap.M
     setUndrawnStart(diagram, refs);
     const tl = gsap.timeline();
     buildStepTimeline(diagram, refs, tl);
+    tl.call(() => {
+      refs.section.dispatchEvent(new CustomEvent('schematic:autoplay-complete'));
+    });
     return () => tl.kill();
   });
 
