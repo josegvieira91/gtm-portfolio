@@ -5,3 +5,17 @@ services:
   gtm-portfolio-web:
     ports:
       - "8088:80"
+
+# docker-compose.yml declares `proxy` as `external: true` (it must already
+# exist on the shared VPS, owned by Nginx Proxy Manager). Compose does not
+# auto-create networks declared external, so on a local OrbStack instance
+# where no other stack has created a `proxy` network yet, `docker compose
+# -f docker-compose.yml -f docker-compose.local.yml up` fails with "network
+# ... declared as external, but could not be found" (WR-05). Overriding
+# `external: false` here — for local runs only — lets Compose create its
+# own project-scoped `proxy` network instead, matching this file's own
+# "frictionless local testing" purpose without requiring a manual
+# `docker network create proxy` step first.
+networks:
+  proxy:
+    external: false
