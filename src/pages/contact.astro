@@ -59,20 +59,97 @@ const contactEmail = 'hello@josevieira.dev';
 </BaseLayout>
 
 <script define:vars={{ calLink }}>
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (!entries[0].isIntersecting) return;
-      observer.disconnect();
-      const s = document.createElement('script');
-      s.src = 'https://app.cal.com/embed/embed.js';
-      s.onload = () => {
-        // @ts-expect-error — global Cal() injected by the embed script
-        Cal('inline', { elementOrSelector: '#cal-inline-embed', calLink });
+  // 02-08 fix (Rule 1/2 — the widget never actually rendered before this):
+  // Cal.com's real embed.js (verified directly against the shipped file)
+  // checks `window.Cal.q` at its own top level and THROWS "Cal is not
+  // defined. This shouldn't happen" if that stub isn't already present —
+  // it expects the official bootstrap snippet to run first, not a bare
+  // <script src> tag with an onload handler (the pattern this file had
+  // before, copied from RESEARCH.md's Code Example #6, which omitted the
+  // stub). This IIFE is that stub: defining it is synchronous, local, and
+  // costs zero network requests on its own — it only queues calls into
+  // `.q` until the real script (appended by the stub itself, on the FIRST
+  // Cal(...) call) loads and "hydrates" it. That means the stub can be
+  // defined unconditionally up front, while the actual Cal(...) invocations
+  // below (the only things that trigger a real network fetch) stay
+  // scroll-gated.
+  (function (C, A, L) {
+    let p = function (a, ar) {
+      a.q.push(ar);
+    };
+    let d = C.document;
+    C.Cal =
+      C.Cal ||
+      function () {
+        let cal = C.Cal;
+        let ar = arguments;
+        if (!cal.loaded) {
+          cal.ns = {};
+          cal.q = cal.q || [];
+          d.head.appendChild(d.createElement('script')).src = A;
+          cal.loaded = true;
+        }
+        if (ar[0] === L) {
+          const api = function () {
+            p(api, arguments);
+          };
+          const namespace = ar[1];
+          api.q = api.q || [];
+          if (typeof namespace === 'string') {
+            cal.ns[namespace] = cal.ns[namespace] || api;
+            p(cal.ns[namespace], ar);
+            p(cal, ['initNamespace', namespace]);
+          } else p(cal, ar);
+          return;
+        }
+        p(cal, ar);
       };
-      document.body.appendChild(s);
-    },
-    { threshold: 0.1 }
-  );
+  })(window, 'https://app.cal.com/embed/embed.js', 'init');
+
   const target = document.getElementById('cal-inline-embed');
-  if (target) observer.observe(target);
+  if (target) {
+    // A plain IntersectionObserver alone is not enough here. Its callback
+    // reports the CURRENT intersection state the moment observe() runs,
+    // with no scroll required — and on this page the embed div (short
+    // header above it, 600px min-height) already clears the 10% threshold
+    // inside a typical mobile viewport (412x823) with zero scrolling. That
+    // fired an eager `app.cal.com` request on page load, exactly the bug
+    // Pitfall 8 / the 02-08 Lighthouse no-scroll gate exists to catch. Gate
+    // loading on an actual scroll event having happened at least once, not
+    // merely on intersection.
+    let hasScrolled = false;
+    let loaded = false;
+
+    function loadEmbed() {
+      if (loaded) return;
+      loaded = true;
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      // First real call to Cal(...) is what makes the stub above append the
+      // actual <script src="https://app.cal.com/embed/embed.js"> tag.
+      Cal('init', { origin: 'https://cal.com' });
+      Cal('inline', { elementOrSelector: '#cal-inline-embed', calLink });
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (hasScrolled && entries[0].isIntersecting) loadEmbed();
+      },
+      { threshold: 0.1 }
+    );
+
+    function onScroll() {
+      if (hasScrolled) return;
+      hasScrolled = true;
+      // The observer's own callback won't refire just because this flag
+      // flipped (it only fires again on a threshold-crossing event) — so if
+      // the target was ALREADY intersecting before this first scroll, check
+      // directly here rather than waiting for a crossing that may never come.
+      const rect = target.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) loadEmbed();
+    }
+
+    observer.observe(target);
+    window.addEventListener('scroll', onScroll, { passive: true, once: true });
+  }
 </script>
