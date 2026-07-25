@@ -1,6 +1,6 @@
 # Lab Accounts
 
-This file is public. It carries provisioning procedure and free-tier limits only. No email addresses, no usernames, no portal IDs, no login secrets of any kind. Identifiers that must stay private live in `lab-accounts.local.md`, which is gitignored and never committed.
+This file is public. It carries provisioning procedure and free-tier limits only. No email addresses, no usernames, no account numbers, no login secrets of any kind. Identifiers that must stay private live in `lab-accounts.local.md`, which is gitignored and never committed.
 
 Fixed parameters for every account below: language English, timezone America/Edmonton, naming "Vieira GTM Lab" wherever a name is requested, and the lab Gmail address (referred to here as "the lab Gmail address," never written out). Refuse every paid trial offer during onboarding unless a section below says otherwise.
 
@@ -63,6 +63,17 @@ Creation checklist for later use, in Case 3 build week:
 2. Do not start the Pro trial until the enrichment table structure, formulas, and provider waterfall order are already validated on free-tier credits (100/month).
 3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
 4. Record the video the same day the final clean run completes.
+
+### Status
+
+| Account | Status | Date |
+|---|---|---|
+| HubSpot | Created | 2026-07-24 |
+| Salesforce Developer Edition | Created | 2026-07-24 |
+| Cal.com | Created | 2026-07-24 |
+| Slack | Created | 2026-07-24 |
+| Mailtrap | Created | 2026-07-24 |
+| Clay | Deferred (Phase 3 Batch B) | — |
 
 ## Section 2: Free-Tier Constraints
 
