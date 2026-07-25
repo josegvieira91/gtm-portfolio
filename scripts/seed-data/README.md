@@ -97,10 +97,13 @@ The following checks were run against the generated output and all passed on **2
   `icloud.com`, `proton.me`).
 - Zero occurrences of the operator's own identifiers or real project names (`josegvieira`,
   `jose.vieira`, `vieira`, `axera`, `zaweep`, `nexus`, `cleuza`) across all three files.
-- Every `company_domain` in `contacts.csv` and `usage-events.csv` exists in `companies.csv`.
-- Every `contact_email` in `usage-events.csv` exists in `contacts.csv`.
+- Every `company_domain` in `contacts.csv` and `usage-events.csv` exists in `companies.csv`
+  (`REFERENTIAL_OK`).
+- Every `contact_email` in `usage-events.csv` exists in `contacts.csv`, and no email repeats
+  across `contacts.csv`.
 - No IPv4 literal and no phone-number-shaped string anywhere in the output.
-- Combined output size under 1 MB.
+- Combined output size: 94,180 bytes (92.0 KB), well under the 1 MB gate and under 2% of
+  Salesforce Developer Edition's roughly 5 MB storage ceiling.
 
 Re-run these checks any time the generator changes — see `scripts/seed-data/generate.mjs`'s
 companion gate, run as part of this plan's Task 2.
