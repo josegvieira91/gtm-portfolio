@@ -1,0 +1,7 @@
+# Local-only override for OrbStack testing. Never used on the VPS — merge
+# this over docker-compose.yml to publish the service at localhost:8088
+# while keeping the same image, mount, and network shape as production.
+services:
+  gtm-portfolio-web:
+    ports:
+      - "8088:80"
