@@ -49,6 +49,8 @@ export interface LayoutOptions {
   stageWidth: number;
   laneHeight: number;
   padding: number;
+  nodeWidth: number;
+  nodeHeight: number;
 }
 
 export interface NodePosition {

@@ -1,6 +1,31 @@
 @import "tailwindcss";
 
-/* GATE 1 (D-02): JetBrains Mono Variable won the font spike. One variable file
+/* 02-07 Gate 2: a global `overflow-x: hidden` on html/body was tried here
+   as a horizontal-bleed safety net and REVERTED — it broke
+   `position: sticky` on the case-page desktop diagram column (confirmed
+   via headless measurement: the sticky wrapper's own top went from a
+   correctly-pinned 0px to tracking scroll 1:1, exactly the un-stuck
+   regression this round's own desktop check caught). This is a
+   well-documented CSS interaction: an ancestor with non-`visible`
+   overflow becomes sticky's positioning containment boundary, and
+   html/body doesn't behave as a real scroll container the way sticky's
+   calculation needs.
+
+   The mobile horizontal-overflow bug this was meant to backstop was
+   NOT a pin-measurement or overflow-clipping problem at all — real-WebKit
+   (iOS Simulator) diagnosis found the actual root cause: `viewBoxFor()`
+   in layout.ts sized the SVG viewBox from node CENTERS ± padding, so
+   content routinely poked outside the viewBox whenever a node's own
+   half-width or a label's rendered width exceeded the padding. Chrome
+   clips painted content at the svg viewport by default, so the leak was
+   invisible in this project's Chrome-based headless checks; WebKit
+   paints it, which is exactly the cut-both-edges / ghost-text look on the
+   real iPhone. Fixed at the source in layout.ts (true node+label
+   extents) — no CSS overflow rule needed here, and none of the pinType
+   changes tried along the way turned out to be load-bearing either (see
+   timeline.ts).
+
+   GATE 1 (D-02): JetBrains Mono Variable won the font spike. One variable file
    covers the full weight axis. IBM Plex Mono's package stays installed but
    dormant (zero client cost unimported) until /mockup, the only page that
    still renders it, is retired. */

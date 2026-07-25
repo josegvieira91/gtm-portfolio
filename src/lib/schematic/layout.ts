@@ -44,20 +44,52 @@ export function edgePath(fromPos: NodePosition, toPos: NodePosition): string {
   return `M${fromPos.x},${fromPos.y} L${midX},${fromPos.y} L${midX},${toPos.y} L${toPos.x},${toPos.y}`;
 }
 
+// Label metrics mirrored from SchematicNode.astro's <text> rendering. The
+// label is centered on the node's cx at `text-[9px]` (9 SVG user units) in
+// the mono face with `tracking-wide`; 0.63 is a conservative per-character
+// advance ratio for JetBrains Mono at that tracking. LABEL_DY is the
+// baseline offset below the node's bottom edge (labelY = y + h + 14), and
+// the 0.35em term covers descender depth below the baseline.
+const LABEL_FONT_SIZE = 9;
+const LABEL_ADVANCE = 0.63;
+const LABEL_DY = 14;
+
 /**
- * Compute an SVG `viewBox` string covering every node position, expanded
- * by `opts.padding` on every edge.
+ * Compute an SVG `viewBox` string covering every node's TRUE extents —
+ * node box (nodeWidth/nodeHeight around the center) plus its label's
+ * estimated text width and baseline drop — expanded by `opts.padding` on
+ * every edge.
+ *
+ * Why extents and not centers (02-07 Gate 2 root cause): sizing the box
+ * from node CENTERS ± padding let content poke outside the viewBox
+ * whenever nodeWidth/2 > padding (full: 60 > 40, mini: 20 > 16) or a
+ * label ran wider than its node (every mini label). Chrome clips painted
+ * content at the svg viewport so the leak was invisible there; WebKit
+ * paints it, which is exactly the "cut at both edges / ghost text outside
+ * the diagram" seen on the real iPhone.
  */
 export function viewBoxFor(
+  diagram: Diagram,
   positions: Record<string, NodePosition>,
   opts: LayoutOptions
 ): string {
-  const values = Object.values(positions);
-  const xs = values.map((p) => p.x);
-  const ys = values.map((p) => p.y);
-  const minX = Math.min(...xs) - opts.padding;
-  const minY = Math.min(...ys) - opts.padding;
-  const maxX = Math.max(...xs) + opts.padding;
-  const maxY = Math.max(...ys) + opts.padding;
-  return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const node of diagram.nodes) {
+    const p = positions[node.id];
+    if (!p) continue;
+    const labelHalfW = (node.label.length * LABEL_FONT_SIZE * LABEL_ADVANCE) / 2;
+    const halfW = Math.max(opts.nodeWidth / 2, labelHalfW);
+    minX = Math.min(minX, p.x - halfW);
+    maxX = Math.max(maxX, p.x + halfW);
+    minY = Math.min(minY, p.y - opts.nodeHeight / 2);
+    maxY = Math.max(maxY, p.y + opts.nodeHeight / 2 + LABEL_DY + LABEL_FONT_SIZE * 0.35);
+  }
+  const x0 = minX - opts.padding;
+  const y0 = minY - opts.padding;
+  const x1 = maxX + opts.padding;
+  const y1 = maxY + opts.padding;
+  return `${x0} ${y0} ${x1 - x0} ${y1 - y0}`;
 }
