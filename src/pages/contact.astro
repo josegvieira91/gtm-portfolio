@@ -1,0 +1,78 @@
+---
+// SITE-07: /contact. Cal.com inline embed, lazy-loaded via IntersectionObserver
+// (RESEARCH.md Code Example #6 / Pitfall 8: third-party script must never load
+// eagerly). min-height reserves the embed's box so injection causes zero CLS.
+//
+// calLink: docs/lab-accounts.md documents the Cal.com account (username
+// "josevieira" preferred) and a 30-minute "Intro call" event type. The real,
+// gitignored lab-accounts.local.md records the actual username that landed
+// (jose-vieira-snclfz, "josevieira" was taken) and flags the "Intro call"
+// event's exact slug as unconfirmed ("Verification debt" section). Direct
+// verification this session: https://cal.com/jose-vieira-snclfz/intro-call
+// 404s; https://cal.com/jose-vieira-snclfz/30min (Cal.com's stock "30 Min
+// Meeting" event) returns 200. calLink below points at that verified-live
+// event rather than the plan's generic 'josevieira/intro' fallback, since a
+// real reachable link beats an invented one — but it is still the STOCK event,
+// not the intended "Intro call" branded one, so CAL_LINK_PLACEHOLDER stays.
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const calLink = 'jose-vieira-snclfz/30min';
+// CONTACT_EMAIL_PLACEHOLDER: no confirmed public inbox for josevieira.dev found
+// in PROJECT.md/design spec/lab docs. hello@josevieira.dev follows this
+// project's own hello@ convention (see docs/lab-accounts.md's lab Gmail
+// pattern) but is NOT a verified, routed mailbox. Confirm at 02-08 final gate.
+const contactEmail = 'hello@josevieira.dev';
+---
+
+<!-- CAL_LINK_PLACEHOLDER: confirm the real "Intro call" event exists and get
+     its exact slug at 02-08 final gate; swap calLink above if it differs
+     from the stock jose-vieira-snclfz/30min event used here. -->
+<BaseLayout
+  title="Contact - Jose Vieira"
+  description="Book a call with Jose Vieira or reach out by email."
+>
+  <main class="blueprint-grid min-h-screen px-6 py-16">
+    <div class="mx-auto max-w-2xl space-y-10">
+      <header class="space-y-3">
+        <p class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">Contact</p>
+        <h1 class="text-3xl font-bold text-blueprint-ink">Book a call</h1>
+        <p class="text-sm leading-relaxed text-blueprint-dim">
+          Pick a time below and it lands straight on my calendar. This same
+          booking flow is Case 8 on this site, so this page is proof of its
+          own kind.
+        </p>
+      </header>
+
+      <section aria-label="Cal.com booking">
+        <div id="cal-inline-embed" style="width:100%;min-height:600px"></div>
+      </section>
+
+      <!-- CONTACT_EMAIL_PLACEHOLDER: unconfirmed mailbox, see note above -->
+      <p class="text-sm text-blueprint-dim">
+        Prefer email? Reach me directly at{' '}
+        <a class="text-blueprint-line underline" href={`mailto:${contactEmail}`}>
+          {contactEmail}
+        </a>.
+      </p>
+    </div>
+  </main>
+</BaseLayout>
+
+<script define:vars={{ calLink }}>
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries[0].isIntersecting) return;
+      observer.disconnect();
+      const s = document.createElement('script');
+      s.src = 'https://app.cal.com/embed/embed.js';
+      s.onload = () => {
+        // @ts-expect-error — global Cal() injected by the embed script
+        Cal('inline', { elementOrSelector: '#cal-inline-embed', calLink });
+      };
+      document.body.appendChild(s);
+    },
+    { threshold: 0.1 }
+  );
+  const target = document.getElementById('cal-inline-embed');
+  if (target) observer.observe(target);
+</script>
