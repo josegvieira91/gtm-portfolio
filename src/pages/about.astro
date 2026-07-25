@@ -1,0 +1,72 @@
+---
+// SITE-06: /about. Three required sections in order: background, certifications,
+// one-line consultancy mention. Zero client-side JS (RESEARCH.md Architectural
+// Responsibility Map: this is pure static content, no animated island).
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="About - Jose Vieira"
+  description="Jose Vieira, GTM Engineer. Background, certifications, and consulting."
+>
+  <main class="blueprint-grid min-h-screen px-6 py-16">
+    <div class="mx-auto max-w-2xl space-y-16">
+      <header class="space-y-3">
+        <p class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">About</p>
+        <h1 class="text-3xl font-bold text-blueprint-ink">Jose Vieira</h1>
+        <p class="text-lg text-blueprint-line">GTM Engineer</p>
+      </header>
+
+      <section class="space-y-4" aria-labelledby="about-background">
+        <h2 id="about-background" class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">
+          Background
+        </h2>
+        <div class="space-y-4 text-sm leading-relaxed text-blueprint-ink">
+          <p>
+            I build revenue automation systems: lead routing, CRM hygiene, outbound
+            personalization, HubSpot and Salesforce sync, AI-assisted reply triage.
+            Ten of them live in this portfolio, each built in a real tool account
+            and recorded running end to end.
+          </p>
+          <p>
+            My background sits between marketing and revenue operations, the layer
+            where n8n, Clay, HubSpot, Salesforce, and language models turn a manual
+            process into something that runs on its own. I write the workflow,
+            wire the API calls, and check the data at every step before calling it
+            done.
+          </p>
+          <p>
+            I'm looking for a GTM Engineer or GTM Automation Specialist role in
+            Canada or the US. Every case on this site is proof, not a slide.
+          </p>
+        </div>
+      </section>
+
+      <section class="space-y-4" aria-labelledby="about-certifications">
+        <h2 id="about-certifications" class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">
+          Certifications
+        </h2>
+        <ul class="space-y-2 text-sm text-blueprint-ink">
+          <li class="flex items-start gap-2">
+            <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blueprint-accent"></span>
+            <span>HubSpot RevOps certification</span>
+          </li>
+          <li class="flex items-start gap-2 text-blueprint-dim">
+            <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blueprint-dim"></span>
+            <span>[certifications: confirm at final review]</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="space-y-4" aria-labelledby="about-consulting">
+        <h2 id="about-consulting" class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">
+          Consulting
+        </h2>
+        <p class="text-sm leading-relaxed text-blueprint-ink">
+          I also take on a small number of automation consulting engagements
+          outside this portfolio, through my own practice.
+        </p>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
