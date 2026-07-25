@@ -1,0 +1,68 @@
+---
+// src/components/home/BlueprintHero.astro
+//
+// D-09: the home-exclusive self-drawing GTM machine. Composes Schematic
+// with hero.json in mode="auto" (one-shot DrawSVG autoplay, no scroll pin
+// or scrub) as a full-bleed backdrop; name/title/positioning line sit
+// above it. SSR ships both the diagram and the overlay text in their
+// FINAL state (Pattern 2 + no-CLS: fixed layout from SSR, only opacity
+// ever animates — never a hidden/undrawn SSR starting state).
+//
+// The overlay fade-in listens for the 'schematic:autoplay-complete'
+// CustomEvent that timeline.ts's autoplaySchematic dispatches on its
+// `refs.section` — and only from inside its own matchMedia
+// 'no-preference' branch (see timeline.ts). This component's own tiny
+// inline script below is the only place that knows about the overlay
+// text; the shared engine stays page-agnostic. Reduced-motion users never
+// get the event (autoplaySchematic's callback never runs for them), so
+// the overlay simply keeps its SSR-default full opacity — "fully visible
+// type, nothing animates".
+import Schematic from '../schematic/Schematic.astro';
+import { getEntry } from 'astro:content';
+
+const heroDiagram = await getEntry('diagrams', 'hero');
+if (!heroDiagram) {
+  throw new Error('BlueprintHero: src/content/diagrams/hero.json entry not found');
+}
+---
+
+<section
+  id="hero"
+  class="blueprint-grid relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-24"
+>
+  <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-70 sm:opacity-80">
+    <div class="w-full max-w-4xl">
+      <Schematic diagram={heroDiagram.data} variant="full" mode="auto" id="hero-schematic" />
+    </div>
+  </div>
+
+  <div data-hero-overlay class="relative z-10 max-w-xl text-center transition-opacity duration-700 ease-out">
+    <h1 class="text-4xl font-bold text-blueprint-ink sm:text-5xl">Jose Vieira</h1>
+    <p class="mt-2 text-lg text-blueprint-line">GTM Engineer</p>
+    <p class="mt-4 text-sm leading-relaxed text-blueprint-dim">
+      Ten revenue automation systems, built for real in live tool accounts and recorded running.
+    </p>
+  </div>
+</section>
+
+<script>
+  // Reduced-motion-gated overlay reveal. Default (no JS, or reduced motion
+  // on) is the SSR final state: fully visible, opacity untouched — that IS
+  // the reduced-motion fallback, no extra branch needed here either. Only
+  // when the OS allows motion do we hide the overlay and time its reveal
+  // to the hero schematic's own draw completion.
+  const overlay = document.querySelector('[data-hero-overlay]');
+  const prefersMotion = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+
+  if (overlay && prefersMotion) {
+    overlay.classList.add('opacity-0');
+    const heroSchematicRoot = document.getElementById('hero-schematic');
+    heroSchematicRoot?.addEventListener(
+      'schematic:autoplay-complete',
+      () => {
+        overlay.classList.remove('opacity-0');
+      },
+      { once: true }
+    );
+  }
+</script>
