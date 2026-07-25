@@ -1,0 +1,78 @@
+{
+  "id": "case-01",
+  "nodes": [
+    { "id": "form", "label": "Web Form", "stage": 0, "lane": 1, "kind": "trigger", "tool": "n8n" },
+    { "id": "webhook", "label": "n8n Webhook", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "enrich", "label": "Enrichment", "stage": 2, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "score", "label": "Lead Scoring", "stage": 3, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "route", "label": "Router", "stage": 4, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "slack", "label": "Slack Alert", "stage": 5, "lane": 0, "kind": "output", "tool": "slack" },
+    { "id": "crm", "label": "HubSpot Deal", "stage": 5, "lane": 1, "kind": "store", "tool": "hubspot" },
+    { "id": "nurture", "label": "Nurture Queue", "stage": 5, "lane": 2, "kind": "output", "tool": "postgres" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "form", "to": "webhook" },
+    { "id": "e2", "from": "webhook", "to": "enrich" },
+    { "id": "e3", "from": "enrich", "to": "score" },
+    { "id": "e4", "from": "score", "to": "route" },
+    { "id": "e5", "from": "route", "to": "slack" },
+    { "id": "e6", "from": "route", "to": "crm" },
+    { "id": "e7", "from": "route", "to": "nurture" }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "activateNodes": ["form", "webhook"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "Sub-second intake: every payload gets an idempotency key at the webhook",
+        "anchor": "webhook",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["enrich"],
+      "activateEdges": ["e2"],
+      "packetPath": ["webhook", "enrich"],
+      "callout": {
+        "text": "Enrichment waterfall with a fallback path when a provider returns nothing",
+        "anchor": "enrich",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["score"],
+      "activateEdges": ["e3"],
+      "packetPath": ["enrich", "score"],
+      "callout": {
+        "text": "Deterministic scoring: the hot threshold routes in seconds, not minutes",
+        "anchor": "score",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["route", "slack"],
+      "activateEdges": ["e4", "e5"],
+      "packetPath": ["score", "route", "slack"],
+      "callout": {
+        "text": "Hot leads ping the owner in Slack with full context",
+        "anchor": "slack",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s5",
+      "activateNodes": ["crm", "nurture"],
+      "activateEdges": ["e6", "e7"],
+      "packetPath": ["route", "crm"],
+      "callout": {
+        "text": "Every lead lands in the CRM; the rest enter the nurture queue",
+        "anchor": "crm",
+        "side": "bottom"
+      }
+    }
+  ]
+}
