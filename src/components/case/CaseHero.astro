@@ -1,0 +1,28 @@
+---
+// src/components/case/CaseHero.astro
+//
+// Part 1 of the locked 7-part case anatomy (SITE-02): title, category tag,
+// and (if present) the hero metric callout over the blueprint grid. The
+// problem-framing prose itself lives in the MDX body, rendered further
+// down the page by HowItWorks.astro — this component is pure static, no
+// client JS, no animated island.
+interface Props {
+  title: string;
+  category: string;
+  heroMetric?: string;
+}
+
+const { title, category, heroMetric } = Astro.props;
+---
+
+<header class="blueprint-grid border-b border-blueprint-line/20 px-6 py-20">
+  <div class="mx-auto max-w-3xl space-y-6 text-center">
+    <p class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">{category}</p>
+    <h1 class="text-4xl font-bold text-blueprint-ink md:text-5xl">{title}</h1>
+    {heroMetric && (
+      <p class="mx-auto inline-block rounded-full border border-blueprint-line/40 bg-blueprint-surface px-5 py-2 text-sm text-blueprint-line">
+        {heroMetric}
+      </p>
+    )}
+  </div>
+</header>

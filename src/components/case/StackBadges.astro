@@ -1,0 +1,52 @@
+---
+// src/components/case/StackBadges.astro
+//
+// Part 4 of the locked 7-part case anatomy (SITE-02): one badge per tool
+// in the case's stack, resolved through the single tool->icon map
+// (src/lib/schematic/tool-icons.ts) — this component never redefines a
+// local slug/hex map of its own (Pitfall 4/5, 02-04 deviation). Badge
+// coloring follows the Gate 1 node treatment (SCHEMATIC_CONFIG.nodeStyle):
+// 'logo' shows each tool's real brand hex on a light chip, same "light
+// chip behind a brand-colored glyph" convention SchematicNode.astro
+// established for readability on the dark blueprint background; 'line-art'
+// recolors every glyph to the blueprint line color instead.
+import { Icon } from 'astro-icon/components';
+import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
+import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
+import clayIconRaw from '../schematic/icons/clay.svg?raw';
+
+interface Props {
+  stack: string[];
+}
+
+const { stack } = Astro.props;
+const isLogo = SCHEMATIC_CONFIG.nodeStyle === 'logo';
+
+// Case content authors the stack as display names ("HubSpot", "Cal.com");
+// TOOL_ICONS keys are lowercase/alnum-only slugs ("hubspot", "calcom").
+function toolKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+---
+
+<ul class="flex flex-wrap justify-center gap-3" aria-label="Tool stack">
+  {stack.map((name) => {
+    const icon = TOOL_ICONS[toolKey(name)];
+    const color = isLogo ? (icon?.hex ?? 'var(--color-blueprint-line)') : 'var(--color-blueprint-line)';
+    const clayPositioned = icon?.local
+      ? clayIconRaw.replace('<svg', `<svg width="16" height="16" style="color:${color}"`)
+      : '';
+    return (
+      <li class="flex items-center gap-2 rounded-full border border-blueprint-line/30 bg-blueprint-surface px-4 py-2 text-sm text-blueprint-ink">
+        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blueprint-ink/90">
+          {icon?.slug ? (
+            <Icon name={`simple-icons:${icon.slug}`} width={16} height={16} style={`color:${color}`} />
+          ) : icon?.local ? (
+            <Fragment set:html={clayPositioned} />
+          ) : null}
+        </span>
+        <span>{name}</span>
+      </li>
+    );
+  })}
+</ul>

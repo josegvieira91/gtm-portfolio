@@ -1,0 +1,47 @@
+---
+// src/components/case/HowItWorks.astro
+//
+// Part 3 of the locked 7-part case anatomy (SITE-02): a styled wrapper for
+// the rendered MDX body (problem framing + "How it works" prose). Pure
+// static — typography only, blueprint tokens, no client JS. No
+// @tailwindcss/typography plugin is installed (not in the audited
+// dependency set), so the heading/paragraph/strong styling below is
+// hand-rolled against the same --color-blueprint-* tokens every other
+// component consumes, scoped to this component via Astro's :global()
+// (the MDX body's rendered HTML lives inside <slot />, outside this
+// component's own template, so plain scoped selectors wouldn't reach it).
+---
+
+<section class="how-it-works px-6 py-16" aria-label="How it works">
+  <div class="mx-auto max-w-2xl">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .how-it-works :global(h2) {
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--color-blueprint-dim);
+  }
+  .how-it-works :global(h2:first-child) {
+    margin-top: 0;
+  }
+  .how-it-works :global(p) {
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: var(--color-blueprint-ink);
+  }
+  .how-it-works :global(strong) {
+    color: var(--color-blueprint-line);
+    font-weight: 600;
+  }
+  .how-it-works :global(a) {
+    color: var(--color-blueprint-line);
+    text-decoration: underline;
+  }
+</style>
