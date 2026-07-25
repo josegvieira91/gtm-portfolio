@@ -109,6 +109,18 @@ async function hubspotRequest(path, body) {
   return { ok: true, status: res.status, data: json };
 }
 
+// HubSpot's batch endpoints return HTTP 207 Multi-Status on partial success
+// (some inputs succeeded, others failed) — fetch's Response.ok is true for
+// any 2xx-3xx status including 207, so `!res.ok` alone never catches this.
+// The per-record failures live in the response body (`errors`/`numErrors`)
+// even though the batch call itself "succeeded." Surface them explicitly.
+function partialErrorCount(data) {
+  if (!data) return 0;
+  if (typeof data.numErrors === 'number') return data.numErrors;
+  if (Array.isArray(data.errors)) return data.errors.length;
+  return 0;
+}
+
 async function upsertBatch(objectType, inputs) {
   const results = [];
   const errors = [];
@@ -123,6 +135,14 @@ async function upsertBatch(objectType, inputs) {
       continue;
     }
     results.push(...(res.data.results || []));
+    const errCount = partialErrorCount(res.data);
+    if (errCount > 0) {
+      console.error(
+        `  Batch of ${batch.length} ${objectType} reported ${errCount} partial error(s) (HTTP ${res.status}):`
+      );
+      console.error(`  ${JSON.stringify(res.data.errors)}`);
+      errors.push(...(res.data.errors || []));
+    }
   }
   return { results, errors };
 }
@@ -171,6 +191,14 @@ async function createOrUpdateBatch(objectType, action, inputs) {
       continue;
     }
     results.push(...(res.data.results || []));
+    const errCount = partialErrorCount(res.data);
+    if (errCount > 0) {
+      console.error(
+        `  Batch of ${batch.length} ${objectType} (${action}) reported ${errCount} partial error(s) (HTTP ${res.status}):`
+      );
+      console.error(`  ${JSON.stringify(res.data.errors)}`);
+      errors.push(...(res.data.errors || []));
+    }
   }
   return { results, errors };
 }
@@ -194,7 +222,17 @@ async function associateContactsToCompanies(pairs) {
       errors.push(...batch);
       continue;
     }
-    associated += batch.length;
+    const errCount = partialErrorCount(res.data);
+    if (errCount > 0) {
+      console.error(
+        `  Association batch of ${batch.length} reported ${errCount} partial error(s) (HTTP ${res.status}):`
+      );
+      console.error(`  ${JSON.stringify(res.data.errors)}`);
+      errors.push(...(res.data.errors || []));
+      associated += Math.max(batch.length - errCount, 0);
+    } else {
+      associated += batch.length;
+    }
   }
   return { associated, errors };
 }
