@@ -1,0 +1,190 @@
+---
+// src/components/home/MachineWall.astro
+//
+// D-10: the home machine wall ships all 10 catalog cards with REAL titles
+// and tool tags from day one, so the tool filter is genuinely testable
+// against real data, not stand-ins. Each card composes Schematic
+// (variant="mini") over that case's diagram — 02-06's 3-5 node placeholder
+// skeletons for cases 2-10, the real Speed-to-Lead diagram for case-01 —
+// the Gate 1 miniSchematic content variant (SCHEMATIC_CONFIG.miniSchematic
+// = 'skeleton') is already satisfied by that content shape, nothing here
+// switches on it directly.
+//
+// Mini-schematic draw trigger: mode="auto" on Schematic means the shared
+// deferred controller (SchematicController.ts, unchanged by this plan)
+// draws each mini once it nears the viewport (IntersectionObserver,
+// 200px rootMargin) — this is the literal mechanism behind "the mini
+// draws once the card scrolls into view" for touch devices. Because a
+// card cannot physically be hovered before it is on screen, this same
+// scroll-triggered draw already covers the hover-capable case too by the
+// time a pointer can reach it; genuinely gating the draw itself behind
+// `:hover` would require teaching the shared engine a third trigger mode
+// (SchematicController.ts/timeline.ts), which is out of this task's
+// scope (see SUMMARY Decisions). The hover affordance layer here is a
+// real, CSS-only lift/glow micro-interaction on top of that scroll-drawn
+// state — touch behavior for hover-only affordances is explicitly
+// Claude's discretion per 02-CONTEXT.md.
+import { getCollection } from 'astro:content';
+import Schematic from '../schematic/Schematic.astro';
+import { Icon } from 'astro-icon/components';
+import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
+import clayIconRaw from '../schematic/icons/clay.svg?raw';
+
+// Filter chips, next to the tool-icons import per the plan: the AI chip is
+// the one place a chip label diverges from its raw stack match string
+// (stack entries say "Claude", the chip reads "AI"). Gate 1 discretion pick
+// kept: single-select + All (SCHEMATIC_CONFIG.filterMode).
+const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
+  { id: 'all', label: 'All', match: null },
+  { id: 'n8n', label: 'n8n', match: 'n8n' },
+  { id: 'clay', label: 'Clay', match: 'Clay' },
+  { id: 'hubspot', label: 'HubSpot', match: 'HubSpot' },
+  { id: 'salesforce', label: 'Salesforce', match: 'Salesforce' },
+  { id: 'ai', label: 'AI', match: 'Claude' },
+];
+
+// Normalizes a case's raw `stack` string to a tool-icons.ts key. Tools
+// outside the mapped icon set (e.g. Mailtrap, case-05) render no badge —
+// 02-06 already established this exact rule for diagram node tools.
+const STACK_TO_ICON_KEY: Record<string, string> = {
+  n8n: 'n8n',
+  HubSpot: 'hubspot',
+  Salesforce: 'salesforce',
+  Slack: 'slack',
+  Claude: 'claude',
+  WhatsApp: 'whatsapp',
+  Postgres: 'postgres',
+  'Cal.com': 'calcom',
+  Clay: 'clay',
+};
+
+const clayIconInline = clayIconRaw.replace('<svg', '<svg width="100%" height="100%"');
+
+const [caseEntries, diagramEntries] = await Promise.all([
+  getCollection('cases'),
+  getCollection('diagrams'),
+]);
+
+const diagramsById = new Map(diagramEntries.map((entry) => [entry.data.id, entry]));
+
+const cases = caseEntries
+  .slice()
+  .sort((a, b) => (a.data.diagramId ?? a.id).localeCompare(b.data.diagramId ?? b.id));
+---
+
+<section class="blueprint-grid px-6 py-20" aria-labelledby="wall-heading">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-10 flex flex-col gap-4">
+      <h2 id="wall-heading" class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">
+        The machines
+      </h2>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Filter by tool">
+        {FILTER_CHIPS.map((chip) => (
+          <button
+            type="button"
+            data-filter-chip
+            data-filter-match={chip.match ?? ''}
+            class:list={[
+              'rounded-full border px-4 py-1.5 text-xs uppercase tracking-wide transition-colors',
+              chip.id === 'all'
+                ? 'border-blueprint-line bg-blueprint-line text-blueprint-bg'
+                : 'border-blueprint-line/30 text-blueprint-dim hover:border-blueprint-line/60',
+            ]}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" data-wall-grid>
+      {cases.map((caseEntry) => {
+        const diagramEntry = diagramsById.get(caseEntry.data.diagramId ?? caseEntry.id);
+        if (!diagramEntry) {
+          throw new Error(`MachineWall: no diagram found for case "${caseEntry.id}"`);
+        }
+        const toolKeys = caseEntry.data.stack
+          .map((tool) => STACK_TO_ICON_KEY[tool])
+          .filter((key): key is string => Boolean(key));
+
+        return (
+          <article
+            data-wall-card
+            data-tools={caseEntry.data.stack.join('|')}
+            class="group overflow-hidden rounded-lg border border-blueprint-line/25 bg-blueprint-surface transition-[transform,opacity] duration-300 hover:-translate-y-1 hover:border-blueprint-line/60"
+          >
+            <a href={`/cases/${caseEntry.data.slug}`} class="block p-5">
+              <div class="mb-4 aspect-[4/3] overflow-hidden rounded border border-blueprint-line/15 bg-blueprint-bg/40 p-3 transition-shadow duration-300 group-hover:shadow-[0_0_24px_-6px_var(--color-blueprint-line)]">
+                <Schematic
+                  diagram={diagramEntry.data}
+                  variant="mini"
+                  mode="auto"
+                  id={`wall-${caseEntry.data.slug}`}
+                />
+              </div>
+              <p class="text-[10px] uppercase tracking-[0.2em] text-blueprint-dim">
+                {caseEntry.data.category}
+              </p>
+              <h3 class="mt-1 text-base font-semibold text-blueprint-ink">{caseEntry.data.title}</h3>
+              {caseEntry.data.heroMetric && (
+                <p class="mt-1 text-xs text-blueprint-line">{caseEntry.data.heroMetric}</p>
+              )}
+              <div class="mt-3 flex flex-wrap gap-1.5">
+                {toolKeys.map((key) => {
+                  const icon = TOOL_ICONS[key];
+                  return (
+                    <span
+                      class="flex h-6 w-6 items-center justify-center rounded bg-blueprint-ink/90 p-1"
+                      title={key}
+                    >
+                      {icon.slug ? (
+                        <Icon name={`simple-icons:${icon.slug}`} width={14} height={14} style={`color:${icon.hex}`} />
+                      ) : (
+                        <span style={`color:${icon.hex}`} set:html={clayIconInline} />
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            </a>
+          </article>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<script>
+  // D-10 filter: single-select + All (Gate 1 discretion pick). A card
+  // matches when its raw `stack` (data-tools, pipe-separated) contains the
+  // chip's exact match string. Non-matching cards get a transform/opacity
+  // micro-transition rather than being removed from the grid outright.
+  const chipButtons = document.querySelectorAll<HTMLButtonElement>('[data-filter-chip]');
+  const cards = document.querySelectorAll<HTMLElement>('[data-wall-card]');
+
+  const ACTIVE_CLASSES = ['border-blueprint-line', 'bg-blueprint-line', 'text-blueprint-bg'];
+  const INACTIVE_CLASSES = ['border-blueprint-line/30', 'text-blueprint-dim'];
+
+  function applyFilter(match: string | null): void {
+    cards.forEach((card) => {
+      const tools = (card.getAttribute('data-tools') ?? '').split('|');
+      const visible = !match || tools.includes(match);
+      card.classList.toggle('opacity-20', !visible);
+      card.classList.toggle('scale-95', !visible);
+      card.classList.toggle('pointer-events-none', !visible);
+      card.toggleAttribute('data-filtered-out', !visible);
+    });
+  }
+
+  chipButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      chipButtons.forEach((b) => {
+        b.classList.remove(...ACTIVE_CLASSES);
+        b.classList.add(...INACTIVE_CLASSES);
+      });
+      btn.classList.remove(...INACTIVE_CLASSES);
+      btn.classList.add(...ACTIVE_CLASSES);
+      applyFilter(btn.getAttribute('data-filter-match') || null);
+    });
+  });
+</script>
