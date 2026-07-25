@@ -157,6 +157,8 @@ function scanFile(file) {
     findings.push(file + ":" + found.line + ": " + rule + ": " + excerpt);
   }
 
+  const QUERY_SECRET_KEYS = /^(api[_-]?key|token|access[_-]?token|secret|auth)$/i;
+
   function checkString(key, val) {
     const urlRegex = /https?:\/\/[^\s"'\\]+/g;
     let um;
@@ -166,6 +168,23 @@ function scanFile(file) {
       const host = hostMatch ? hostMatch[1] : "";
       if (host && !hostAllowed(host)) {
         report("R1-HOST", url, "non-allowlisted host in \"" + key + "\": " + url);
+      }
+      // R3 (query-string secrets): a common real-world leak shape is an API
+      // key/token passed as a URL query parameter rather than a header —
+      // that never matches the {"name","value"} auth-header shape below, and
+      // an allowlisted host makes the URL "look fine" at a glance. Checked
+      // regardless of whether the host itself was flagged above.
+      try {
+        const urlObj = new URL(url);
+        for (const [qKey, qVal] of urlObj.searchParams) {
+          if (QUERY_SECRET_KEYS.test(qKey) && qVal && qVal !== "PLACEHOLDER") {
+            report("R3-QUERY-SECRET", qVal, "query param \"" + qKey + "\" in URL: " + url);
+          }
+        }
+      } catch {
+        // Not a valid WHATWG URL (e.g. a truncated/templated string) — R1's
+        // own host check above already handles/ignores that case; nothing
+        // further to check here.
       }
     }
     const webhookRegex = /\/webhook(-test)?\/([^/?"'\\\s]+)/g;
