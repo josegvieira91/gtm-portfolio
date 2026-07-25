@@ -205,6 +205,21 @@ function scanFile(file) {
         }
       }
 
+      // R2 (structural): a Webhook node's real leak surface is the bare
+      // `webhookId` field and `parameters.path` string — neither is embedded
+      // inside a "/webhook/..." URL, so the regex-based check in checkString
+      // never sees it. Flag both directly whenever the node's own `type`
+      // names it a webhook node.
+      if (typeof node.type === "string" && /webhook/i.test(node.type)) {
+        if (typeof node.webhookId === "string" && node.webhookId !== "" && node.webhookId !== "PLACEHOLDER") {
+          report("R2-WEBHOOK-ID", node.webhookId, "webhookId not PLACEHOLDER: " + node.webhookId);
+        }
+        const p = node.parameters && node.parameters.path;
+        if (typeof p === "string" && p !== "" && p !== "PLACEHOLDER") {
+          report("R2-WEBHOOK-PATH", p, "parameters.path not PLACEHOLDER: " + p);
+        }
+      }
+
       for (const [key, val] of Object.entries(node)) {
         if (typeof val === "string") {
           checkString(key, val);
