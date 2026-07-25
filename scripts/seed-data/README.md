@@ -107,3 +107,76 @@ The following checks were run against the generated output and all passed on **2
 
 Re-run these checks any time the generator changes — see `scripts/seed-data/generate.mjs`'s
 companion gate, run as part of this plan's Task 2.
+
+## Loading the dataset into the CRM lab accounts
+
+**Method note:** the original plan called for the vendors' own CSV import wizards. José asked
+for the API path instead, so the two CRM imports run through small scripts
+(`import-hubspot.mjs`, `import-salesforce.mjs`) rather than a browser wizard. Same goal — both
+lab accounts end up holding the dataset — different method. Both scripts are idempotent (or
+safely re-runnable): re-running after a re-seed updates/skips existing records instead of
+creating duplicates.
+
+`usage-events.csv` is never imported into either CRM. It feeds the Phase 3 Postgres-backed
+reporting and health-score cases, not a CRM object — importing it here would be the wrong
+target for that data.
+
+### One-time setup (per machine)
+
+1. **HubSpot private app.** In the "Vieira GTM Lab" portal: Settings (gear icon, top right) →
+   Integrations → Private Apps → Create a private app. On the Scopes tab, grant Read + Write on:
+   `crm.objects.contacts`, `crm.objects.companies`. Copy the generated token once — HubSpot only
+   shows it at creation time.
+2. Copy `.env.example` to `.env` at the project root, `chmod 600 .env`, and paste the token into
+   `HUBSPOT_PRIVATE_APP_TOKEN=`. Never paste the token into chat or a shell rc file — see the
+   project's global secrets rule.
+3. **Salesforce CLI.** Install it if not already present: `npm install -g @salesforce/cli` (or
+   `brew install sf`). Then authenticate once: `sf org login web --alias gtm-lab --set-default`
+   — this opens a browser to log into the Dev Edition org and stores the session under the
+   `gtm-lab` alias as the CLI's default org. No token or `.env` entry needed for Salesforce; the
+   import script drives the already-authenticated `sf` session.
+
+### Running the import
+
+```bash
+npm run seed:generate      # if scripts/seed-data/output/ is empty or stale
+npm run import:hubspot     # HubSpot: batch-upserts companies then contacts, associates by domain
+npm run import:salesforce  # Salesforce: bulk-imports Accounts then Contacts, prints storage before/after
+npm run verify:imports     # fetches counts + one sample contact from each CRM, asserts the email
+                            #   reads as @<slug>.example.com
+```
+
+Each import script prints per-object created/updated/error counts as it runs. The Salesforce
+script additionally prints Setup → Storage Usage (`DataStorageMB`) before and after the import,
+and flags in its own output if usage exceeds 40% of the org's limit — a Phase 3 dataset-size
+constraint for Case 7 if it happens.
+
+### How the scripts work
+
+- **HubSpot** (`scripts/seed-data/import-hubspot.mjs`) — HubSpot CRM Objects API, dated version
+  `2026-03`. Batch-upserts `companies.csv` with `idProperty=domain`, then `contacts.csv` with
+  `idProperty=email`, then bulk-associates each contact to its company (unlabeled default
+  association) using the domain/company IDs echoed back by the upsert responses. Chunked at 100
+  records per batch, HubSpot's per-request limit.
+- **Salesforce** (`scripts/seed-data/import-salesforce.mjs`) — drives the Salesforce CLI's Bulk
+  API 2.0 commands (`sf data import bulk`). Standard Account/Contact objects have no built-in
+  External ID field on Website/Email (that needs a custom field + Setup change), so
+  `sf data upsert bulk` isn't usable out of the box the way HubSpot's upsert is. Idempotency is
+  instead handled at the script level: before importing, it queries existing Accounts/Contacts
+  scoped to `*.example.com` and skips rows that already exist, so a re-run after a re-seed only
+  inserts the delta. Contacts are matched to Accounts via the Account IDs returned by the
+  Account import job (or the pre-existing-record query, on a re-run) — no lookup-by-name step
+  needed.
+- **Verify** (`scripts/seed-data/verify-imports.mjs`) — queries both CRMs for record counts and
+  one sample contact each, asserting the sample's email matches `@<slug>.example.com`. Exits
+  non-zero (`VERIFY_FAILED`) if any check fails.
+
+### API surface note
+
+HubSpot's CRM API has moved to a dated version path (`/crm/objects/2026-03/...`,
+`/crm/associations/2026-03/...`) that supersedes the older `/crm/v3/objects/...` paths, which
+HubSpot's own docs site now files under a separate "legacy" section. The batch/upsert endpoint
+for companies isn't spelled out in HubSpot's narrative "Companies" guide page (only batch/read
+is documented there), so it was confirmed live instead of assumed: an unauthenticated POST
+returns 401 (route exists, auth required) rather than 404 (route doesn't exist) — verified
+2026-07-24 against `api.hubapi.com`.
