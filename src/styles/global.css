@@ -1,1 +1,59 @@
 @import "tailwindcss";
+
+/* D-02 font spike: both candidates self-hosted via Fontsource, no external CDN.
+   JetBrains Mono ships as ONE variable file; IBM Plex Mono has no variable build
+   on Fontsource, so exactly three static weights are imported (never all 7). */
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/700.css";
+
+/* D-01: single dark cyanotype theme. No light mode, no prefers-color-scheme variant.
+   D-03 quality bar: soft surfaces, data-forward, type that recedes, no decorative noise. */
+@theme {
+  /* Provisional default until Gate 1 (D-02) picks the winner. */
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-blueprint-bg: oklch(0.17 0.045 243); /* deep prussian blue, near-black */
+  --color-blueprint-surface: oklch(0.21 0.05 243); /* soft lifted card surface */
+  --color-blueprint-grid: oklch(0.62 0.09 220); /* grid line base, applied at low alpha */
+  --color-blueprint-line: oklch(0.78 0.11 213); /* primary cyan stroke */
+  --color-blueprint-ink: oklch(0.95 0.012 220); /* near-white type, cool cast */
+  --color-blueprint-dim: oklch(0.66 0.045 225); /* secondary type, recedes */
+  --color-blueprint-accent: oklch(0.86 0.13 200); /* bright cyan, sparingly */
+}
+
+/* Reusable blueprint background grid: faint fine mesh + slightly stronger major lines.
+   Layered repeating gradients on the grid token, alpha via color-mix so the token
+   stays a plain color and calibration lives in one place. */
+@utility blueprint-grid {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-blueprint-grid) 7%, transparent) 0,
+      color-mix(in oklab, var(--color-blueprint-grid) 7%, transparent) 1px,
+      transparent 1px,
+      transparent 24px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-blueprint-grid) 7%, transparent) 0,
+      color-mix(in oklab, var(--color-blueprint-grid) 7%, transparent) 1px,
+      transparent 1px,
+      transparent 24px
+    ),
+    repeating-linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-blueprint-grid) 14%, transparent) 0,
+      color-mix(in oklab, var(--color-blueprint-grid) 14%, transparent) 1px,
+      transparent 1px,
+      transparent 120px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-blueprint-grid) 14%, transparent) 0,
+      color-mix(in oklab, var(--color-blueprint-grid) 14%, transparent) 1px,
+      transparent 1px,
+      transparent 120px
+    );
+}

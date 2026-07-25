@@ -1,0 +1,334 @@
+---
+// Gate 1 concept mockup (D-04). Static page: SVG + CSS only, no GSAP.
+// Renders both parked A/Bs for real: font (D-02) and node treatment (D-05b),
+// plus one case card with two hover mini-schematic variants (discretion pick).
+import { Icon } from 'astro-icon/components';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jetbrains = "'JetBrains Mono Variable', monospace";
+const plex = "'IBM Plex Mono', monospace";
+---
+
+<BaseLayout
+  title="Concept mockup"
+  description="Gate 1 concept mockup: font and node treatment, side by side."
+>
+  <main class="blueprint-grid min-h-screen px-6 py-16">
+    <div class="mx-auto max-w-5xl space-y-24">
+      <header class="space-y-3">
+        <p class="text-xs tracking-[0.25em] text-blueprint-dim uppercase">
+          Gate 1 / concept mockup
+        </p>
+        <h1 class="text-3xl font-bold">Pick by eye</h1>
+        <p class="max-w-2xl text-sm text-blueprint-dim">
+          Four sections: the same hero in two fonts, the same diagram in two node
+          treatments, one case card with two hover behaviors. Everything below is
+          rendered for real with the cyanotype tokens.
+        </p>
+      </header>
+
+      <!-- ──────────────── Sections 1 + 2: FONT A vs FONT B (D-02) ──────────────── -->
+      <section class="space-y-8">
+        <h2 class="text-xs tracking-[0.25em] text-blueprint-dim uppercase">
+          01 / Font
+        </h2>
+
+        <div class="grid gap-10 md:grid-cols-2">
+          <!-- FONT A: JetBrains Mono Variable -->
+          <div
+            class="space-y-6 rounded-lg border border-blueprint-line/25 bg-blueprint-surface/50 p-8"
+            style={`font-family: ${jetbrains}`}
+          >
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              A: JetBrains Mono
+            </p>
+            <div class="space-y-2">
+              <p class="text-4xl font-bold">José Vieira</p>
+              <p class="text-lg font-medium text-blueprint-line">GTM Engineer</p>
+              <p class="pt-2 text-sm font-normal text-blueprint-dim">
+                Ten GTM systems, built in real accounts and recorded running.
+              </p>
+            </div>
+            <svg viewBox="0 0 640 120" class="w-full" role="img" aria-label="Diagram excerpt in JetBrains Mono">
+              <defs>
+                <marker id="arrow-fa" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 z" class="fill-blueprint-line" />
+                </marker>
+              </defs>
+              <g class="stroke-blueprint-line" fill="none" stroke-width="1.25">
+                <line x1="140" y1="58" x2="178" y2="58" marker-end="url(#arrow-fa)" />
+                <line x1="300" y1="58" x2="338" y2="58" marker-end="url(#arrow-fa)" />
+                <line x1="460" y1="58" x2="498" y2="58" marker-end="url(#arrow-fa)" />
+                <rect x="20" y="34" width="120" height="48" rx="24" />
+                <rect x="180" y="34" width="120" height="48" rx="3" />
+                <rect x="340" y="34" width="120" height="48" rx="3" />
+                <rect x="500" y="34" width="120" height="48" rx="3" />
+              </g>
+              <g class="fill-blueprint-ink" text-anchor="middle" font-size="12">
+                <text x="80" y="62">Web Form</text>
+                <text x="240" y="62">Webhook</text>
+                <text x="400" y="62">Enrichment</text>
+                <text x="560" y="62">Slack Alert</text>
+              </g>
+              <g class="fill-blueprint-dim" text-anchor="middle" font-size="9" letter-spacing="1.5">
+                <text x="80" y="24">TRIGGER</text>
+                <text x="240" y="24">PROCESS</text>
+                <text x="400" y="24">PROCESS</text>
+                <text x="560" y="24">OUTPUT</text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- FONT B: IBM Plex Mono -->
+          <div
+            class="space-y-6 rounded-lg border border-blueprint-line/25 bg-blueprint-surface/50 p-8"
+            style={`font-family: ${plex}`}
+          >
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              B: IBM Plex Mono
+            </p>
+            <div class="space-y-2">
+              <p class="text-4xl font-bold">José Vieira</p>
+              <p class="text-lg font-medium text-blueprint-line">GTM Engineer</p>
+              <p class="pt-2 text-sm font-normal text-blueprint-dim">
+                Ten GTM systems, built in real accounts and recorded running.
+              </p>
+            </div>
+            <svg viewBox="0 0 640 120" class="w-full" role="img" aria-label="Diagram excerpt in IBM Plex Mono">
+              <defs>
+                <marker id="arrow-fb" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 z" class="fill-blueprint-line" />
+                </marker>
+              </defs>
+              <g class="stroke-blueprint-line" fill="none" stroke-width="1.25">
+                <line x1="140" y1="58" x2="178" y2="58" marker-end="url(#arrow-fb)" />
+                <line x1="300" y1="58" x2="338" y2="58" marker-end="url(#arrow-fb)" />
+                <line x1="460" y1="58" x2="498" y2="58" marker-end="url(#arrow-fb)" />
+                <rect x="20" y="34" width="120" height="48" rx="24" />
+                <rect x="180" y="34" width="120" height="48" rx="3" />
+                <rect x="340" y="34" width="120" height="48" rx="3" />
+                <rect x="500" y="34" width="120" height="48" rx="3" />
+              </g>
+              <g class="fill-blueprint-ink" text-anchor="middle" font-size="12">
+                <text x="80" y="62">Web Form</text>
+                <text x="240" y="62">Webhook</text>
+                <text x="400" y="62">Enrichment</text>
+                <text x="560" y="62">Slack Alert</text>
+              </g>
+              <g class="fill-blueprint-dim" text-anchor="middle" font-size="9" letter-spacing="1.5">
+                <text x="80" y="24">TRIGGER</text>
+                <text x="240" y="24">PROCESS</text>
+                <text x="400" y="24">PROCESS</text>
+                <text x="560" y="24">OUTPUT</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <p class="max-w-3xl border-l-2 border-blueprint-accent/60 pl-4 text-sm text-blueprint-dim">
+          File-count note: JetBrains Mono ships one variable font file that covers
+          every weight on this page. IBM Plex Mono has no variable build, so the
+          same range loads three static files (400, 500, 700). Fewer files means
+          less to download before text renders, which feeds the Lighthouse mobile
+          budget. Real trade-off, not just taste.
+        </p>
+      </section>
+
+      <!-- ──────────────── Section 3: NODE TREATMENT A vs B (D-05b) ──────────────── -->
+      <section class="space-y-8">
+        <h2 class="text-xs tracking-[0.25em] text-blueprint-dim uppercase">
+          02 / Node treatment
+        </h2>
+        <p class="max-w-2xl text-sm text-blueprint-dim">
+          Same Speed-to-Lead excerpt twice. A keeps one visual language, mono
+          line-art with labels. B carries each tool's logo at its real brand color.
+        </p>
+
+        <div class="grid gap-10 lg:grid-cols-2">
+          <!-- VARIANT A: mono line-art, no logos -->
+          <div class="space-y-4 rounded-lg border border-blueprint-line/25 bg-blueprint-surface/50 p-6">
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              A: mono line-art
+            </p>
+            <svg viewBox="0 0 720 260" class="w-full" role="img" aria-label="Speed-to-Lead diagram, line-art nodes">
+              <defs>
+                <marker id="arrow-na" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 z" class="fill-blueprint-line" />
+                </marker>
+              </defs>
+              <g class="stroke-blueprint-line" fill="none" stroke-width="1.25">
+                <line x1="140" y1="130" x2="196" y2="130" marker-end="url(#arrow-na)" />
+                <line x1="320" y1="130" x2="376" y2="130" marker-end="url(#arrow-na)" />
+                <path d="M500,130 H540 V54 H576" marker-end="url(#arrow-na)" />
+                <path d="M500,130 H540 V206 H576" marker-end="url(#arrow-na)" />
+                <rect x="20" y="102" width="120" height="56" rx="28" />
+                <rect x="200" y="102" width="120" height="56" rx="3" />
+                <rect x="380" y="102" width="120" height="56" rx="3" />
+                <rect x="580" y="26" width="120" height="56" rx="3" />
+                <rect x="580" y="178" width="120" height="56" rx="3" />
+                <line x1="580" y1="224" x2="700" y2="224" />
+              </g>
+              <g class="fill-blueprint-ink" text-anchor="middle" font-size="12">
+                <text x="80" y="134">Web Form</text>
+                <text x="260" y="134">Webhook</text>
+                <text x="440" y="134">Enrichment</text>
+                <text x="640" y="58">Slack Alert</text>
+                <text x="640" y="207">HubSpot Deal</text>
+              </g>
+              <g class="fill-blueprint-dim" text-anchor="middle" font-size="9" letter-spacing="1.5">
+                <text x="80" y="92">TRIGGER</text>
+                <text x="260" y="92">PROCESS</text>
+                <text x="440" y="92">PROCESS</text>
+                <text x="640" y="16">OUTPUT</text>
+                <text x="640" y="168">STORE</text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- VARIANT B: brand-colored tool logos -->
+          <div class="space-y-4 rounded-lg border border-blueprint-line/25 bg-blueprint-surface/50 p-6">
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              B: brand logos
+            </p>
+            <svg viewBox="0 0 720 260" class="w-full" role="img" aria-label="Speed-to-Lead diagram, logo nodes">
+              <defs>
+                <marker id="arrow-nb" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 z" class="fill-blueprint-line" />
+                </marker>
+              </defs>
+              <g class="stroke-blueprint-line" fill="none" stroke-width="1.25">
+                <line x1="140" y1="130" x2="196" y2="130" marker-end="url(#arrow-nb)" />
+                <line x1="320" y1="130" x2="376" y2="130" marker-end="url(#arrow-nb)" />
+                <path d="M500,130 H540 V54 H576" marker-end="url(#arrow-nb)" />
+                <path d="M500,130 H540 V206 H576" marker-end="url(#arrow-nb)" />
+                <rect x="20" y="102" width="120" height="56" rx="28" />
+                <rect x="200" y="102" width="120" height="56" rx="3" />
+                <rect x="380" y="102" width="120" height="56" rx="3" />
+                <rect x="580" y="26" width="120" height="56" rx="3" />
+                <rect x="580" y="178" width="120" height="56" rx="3" />
+              </g>
+              <!-- light chips keep dark brand marks (Slack aubergine) readable on the blueprint -->
+              <g class="fill-blueprint-ink/90" stroke="none">
+                <rect x="30" y="116" width="28" height="28" rx="6" />
+                <rect x="210" y="116" width="28" height="28" rx="6" />
+                <rect x="390" y="116" width="28" height="28" rx="6" />
+                <rect x="590" y="40" width="28" height="28" rx="6" />
+                <rect x="590" y="192" width="28" height="28" rx="6" />
+              </g>
+              <Icon name="simple-icons:n8n" x="35" y="121" width="18" height="18" style="color:#EA4B71" />
+              <Icon name="simple-icons:n8n" x="215" y="121" width="18" height="18" style="color:#EA4B71" />
+              <Icon name="simple-icons:n8n" x="395" y="121" width="18" height="18" style="color:#EA4B71" />
+              <Icon name="simple-icons:slack" x="595" y="45" width="18" height="18" style="color:#4A154B" />
+              <Icon name="simple-icons:hubspot" x="595" y="197" width="18" height="18" style="color:#FF7A59" />
+              <g class="fill-blueprint-ink" text-anchor="start" font-size="10.5">
+                <text x="64" y="134">Web Form</text>
+                <text x="244" y="134">Webhook</text>
+                <text x="424" y="134">Enrichment</text>
+                <text x="624" y="58">Slack Alert</text>
+                <text x="624" y="210">HubSpot Deal</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- ──────────────── Section 4: CASE CARD hover variants ──────────────── -->
+      <section class="space-y-8">
+        <h2 class="text-xs tracking-[0.25em] text-blueprint-dim uppercase">
+          03 / Case card hover
+        </h2>
+        <p class="max-w-2xl text-sm text-blueprint-dim">
+          One machine-wall card, two hover behaviors. Hover on desktop, tap on
+          iPhone. Card 1 reveals a simplified skeleton, card 2 the full diagram in
+          miniature.
+        </p>
+
+        <div class="grid gap-10 md:grid-cols-2">
+          <!-- CARD VARIANT 1: simplified skeleton on hover -->
+          <div class="group rounded-lg border border-blueprint-line/25 bg-blueprint-surface/60 p-6 transition-colors duration-300 hover:border-blueprint-line/60">
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              Card 1: simplified skeleton
+            </p>
+            <h3 class="mt-3 text-lg font-medium">Inbound Speed-to-Lead Engine</h3>
+            <p class="mt-1 text-sm text-blueprint-dim">42s median first touch</p>
+            <div class="mt-4 flex flex-wrap gap-2 text-[11px] text-blueprint-line">
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">n8n</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">HubSpot</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">Slack</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">Postgres</span>
+            </div>
+            <div class="mt-6 h-20 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+              <svg viewBox="0 0 360 70" class="h-full w-full" role="img" aria-label="Simplified mini-schematic">
+                <g class="stroke-blueprint-line" fill="none" stroke-width="1.25">
+                  <path
+                    d="M100,36 H135 M225,36 H260"
+                    class="[stroke-dasharray:80] [stroke-dashoffset:80] transition-[stroke-dashoffset] duration-700 group-hover:[stroke-dashoffset:0]"
+                  />
+                  <rect x="10" y="20" width="90" height="32" rx="16" />
+                  <rect x="135" y="20" width="90" height="32" rx="3" />
+                  <rect x="260" y="20" width="90" height="32" rx="3" />
+                </g>
+                <g class="fill-blueprint-ink" text-anchor="middle" font-size="10">
+                  <text x="55" y="40">Form</text>
+                  <text x="180" y="40">Enrich</text>
+                  <text x="305" y="40">CRM</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <!-- CARD VARIANT 2: full diagram in miniature on hover -->
+          <div class="group rounded-lg border border-blueprint-line/25 bg-blueprint-surface/60 p-6 transition-colors duration-300 hover:border-blueprint-line/60">
+            <p class="text-[11px] tracking-[0.2em] text-blueprint-accent uppercase">
+              Card 2: full diagram miniature
+            </p>
+            <h3 class="mt-3 text-lg font-medium">Inbound Speed-to-Lead Engine</h3>
+            <p class="mt-1 text-sm text-blueprint-dim">42s median first touch</p>
+            <div class="mt-4 flex flex-wrap gap-2 text-[11px] text-blueprint-line">
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">n8n</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">HubSpot</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">Slack</span>
+              <span class="rounded border border-blueprint-line/40 px-2 py-0.5">Postgres</span>
+            </div>
+            <div class="mt-6 h-20 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+              <svg viewBox="0 0 720 260" class="h-full w-full" role="img" aria-label="Full diagram in miniature">
+                <g class="stroke-blueprint-line" fill="none" stroke-width="2">
+                  <path
+                    d="M140,130 H196 M320,130 H376 M500,130 H540 V54 H576 M500,130 H540 V206 H576"
+                    class="[stroke-dasharray:600] [stroke-dashoffset:600] transition-[stroke-dashoffset] duration-700 group-hover:[stroke-dashoffset:0]"
+                  />
+                  <rect x="20" y="102" width="120" height="56" rx="28" />
+                  <rect x="200" y="102" width="120" height="56" rx="3" />
+                  <rect x="380" y="102" width="120" height="56" rx="3" />
+                  <rect x="580" y="26" width="120" height="56" rx="3" />
+                  <rect x="580" y="178" width="120" height="56" rx="3" />
+                </g>
+                <g class="fill-blueprint-ink" text-anchor="middle" font-size="13">
+                  <text x="80" y="134">Web Form</text>
+                  <text x="260" y="134">Webhook</text>
+                  <text x="440" y="134">Enrichment</text>
+                  <text x="640" y="58">Slack Alert</text>
+                  <text x="640" y="210">HubSpot Deal</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="space-y-3 border-t border-blueprint-line/20 pt-8 text-sm text-blueprint-dim">
+        <p class="text-xs tracking-[0.25em] uppercase">Provisional picks, overridable at the gate</p>
+        <ul class="list-inside list-disc space-y-1">
+          <li>
+            Tool filter: single-select chips plus All. Five chips over ten cards;
+            multi-select adds interaction cost for little gain at this size.
+          </li>
+          <li>
+            Card hover: simplified skeleton (card 1). Full diagrams turn illegible
+            at card size.
+          </li>
+        </ul>
+      </footer>
+    </div>
+  </main>
+</BaseLayout>
