@@ -33,11 +33,22 @@ function reportFail(label, detail) {
   console.error(`  FAIL: ${label}${detail ? ` — ${detail}` : ''}`);
 }
 
-async function hubspotSearch(objectType, properties) {
+// Scoped to *.example.com so counts/samples reflect only our seed data — every new HubSpot
+// portal ships with its own default demo company ("HubSpot", domain hubspot.com) and demo
+// contacts (e.g. a "Maria" sample contact), which an unscoped search picks up too, inflating
+// counts and letting a demo record win the "sample" slot. Discovered during the live import run
+// on 2026-07-25: an unscoped search returned 41 companies / 82 contacts (40/80 ours + the
+// portal's own demo objects) and sampled the demo contact's non-example.com email, failing the
+// spot-check this script exists to make.
+async function hubspotSearch(objectType, propertyName, properties) {
   const res = await fetch(`${API_BASE}/crm/objects/${API_VERSION}/${objectType}/search`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit: 1, properties }),
+    body: JSON.stringify({
+      limit: 1,
+      properties,
+      filterGroups: [{ filters: [{ propertyName, operator: 'CONTAINS_TOKEN', value: 'example.com' }] }],
+    }),
   });
   if (!res.ok) {
     throw new Error(`HubSpot ${objectType} search failed: HTTP ${res.status} ${await res.text()}`);
@@ -52,13 +63,13 @@ async function verifyHubSpot() {
     return;
   }
   try {
-    const companies = await hubspotSearch('companies', ['domain', 'name']);
-    console.log(`  Companies: ${companies.total} total`);
+    const companies = await hubspotSearch('companies', 'domain', ['domain', 'name']);
+    console.log(`  Companies: ${companies.total} total (scoped to *.example.com)`);
     if (companies.total >= 40) reportPass('company count >= 40');
     else reportFail('company count >= 40', `got ${companies.total}`);
 
-    const contacts = await hubspotSearch('contacts', ['email', 'firstname', 'lastname']);
-    console.log(`  Contacts: ${contacts.total} total`);
+    const contacts = await hubspotSearch('contacts', 'email', ['email', 'firstname', 'lastname']);
+    console.log(`  Contacts: ${contacts.total} total (scoped to *.example.com)`);
     if (contacts.total >= 80) reportPass('contact count >= 80');
     else reportFail('contact count >= 80', `got ${contacts.total}`);
 
