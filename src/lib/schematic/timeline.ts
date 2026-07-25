@@ -183,6 +183,18 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // Mobile (D-07): pin only if SCHEMATIC_CONFIG.mobilePin === 'pin' (spike-
   // decided in 02-07); when unpinned, the diagram still draws progressively
   // via the same scrub+snap, just without visually locking in place.
+  //
+  // pinType stays at GSAP's default ('fixed'). An explicit
+  // `pinType: 'transform'` was tried in a 02-07 Gate 2 round as an
+  // overflow fix and REVERTED: on real WebKit it repositions the section
+  // per scroll event, which lags visibly during iOS momentum scroll
+  // ("insane jitter" in the real-device report) and left displaced/ghost
+  // content after programmatic scrolls. The overflow it was chasing was
+  // never a pin-measurement problem at all — root cause was viewBoxFor()
+  // sizing the SVG viewBox from node centers instead of true extents
+  // (layout.ts), which WebKit paints outside the viewport where Chrome
+  // clips. The 02-01 real-iPhone spike verdict ("smooth") was recorded
+  // against this default pinType.
   mm.add('(prefers-reduced-motion: no-preference) and (max-width: 767px)', () => {
     setUndrawnStart(diagram, refs);
     const pinMobile = options.mode === 'scroll' && options.mobilePin === 'pin';
