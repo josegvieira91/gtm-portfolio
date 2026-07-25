@@ -62,7 +62,7 @@ Every flow is built in real accounts with English names throughout (workflow nam
 
 ## Tech stack
 
-- **Astro 6 + Tailwind**, cases as MDX content collections (zod-validated frontmatter: title, slug, track, category, heroMetric, stack, metrics, video, featured, draft).
+- **Astro 7 + Tailwind v4** (corrected 2026-07-24 from "Astro 6" after version research: Astro 7.x is current and required by the MDX integration), cases as MDX content collections (zod-validated frontmatter: title, slug, track, category, heroMetric, stack, metrics, video, featured, draft).
 - **GSAP** via npm, hydrated only in `client:visible` islands; static parts ship zero JS.
 - `prefers-reduced-motion`: all animation disabled, final states shown; counters keep the final value in static HTML.
 - Performance budget: Lighthouse mobile > 95, transform/opacity animations only (no CLS), lazy-loaded media.
