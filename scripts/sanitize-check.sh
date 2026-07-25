@@ -123,9 +123,20 @@ function loadAllowlist(p) {
 
 const allowlist = loadAllowlist(allowlistPath).map((h) => h.toLowerCase());
 
+// Salesforce's org-specific REST/Bulk API host (e.g. na139.my.salesforce.com,
+// vieira-gtm-lab.lightning.force.com) isn't covered by login/test.salesforce.com
+// or the example.com fallback. Allowlisting the *pattern* here (WR-02) — rather
+// than adding one org's literal instance hostname to the tracked
+// .sanitize-allowlist file — is deliberate: the instance subdomain itself
+// isn't sensitive (a free Dev Edition org), but a specific hostname pasted
+// into the tracked file over time would be a slow leak of real org
+// identifiers.
+const WILDCARD_ALLOWED_HOST_SUFFIXES = [".my.salesforce.com", ".lightning.force.com"];
+
 function hostAllowed(host) {
   const h = host.toLowerCase();
   if (h === "example.com" || h.endsWith(".example.com")) return true;
+  if (WILDCARD_ALLOWED_HOST_SUFFIXES.some((suffix) => h.endsWith(suffix))) return true;
   return allowlist.includes(h);
 }
 
