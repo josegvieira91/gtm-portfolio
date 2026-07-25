@@ -19,6 +19,12 @@
 # R5 (local denylist) and R6 (known secret shapes) run as plain line-based
 # regex over the raw file text, which is sufficient for those two rules and
 # keeps the fast path simple.
+#
+# R3's AUTH_KEYS list and R6's known-secret-shape prefixes are both
+# best-effort, not exhaustive (WR-04): R6 only recognizes Anthropic/Slack/
+# HubSpot token shapes, so Cal.com/Mailtrap/Salesforce/Clay credentials are
+# caught only via R1 (host allowlist), R2/R3 (structural checks), or R5
+# (local denylist) — not by R6's literal-prefix matching.
 set -euo pipefail
 
 usage() {
@@ -123,7 +129,24 @@ function hostAllowed(host) {
   return allowlist.includes(h);
 }
 
-const AUTH_KEYS = ["authorization", "x-api-key", "apikey", "api_key", "bearer", "token"];
+// Best-effort list, not exhaustive (WR-04) — R6 below is similarly a narrow,
+// literal-prefix list (Anthropic/Slack/HubSpot only) and is not a safety net
+// for Cal.com/Mailtrap/Salesforce/Clay credentials specifically; those rely
+// on this list, R1 (host), and R2/R3 (structural checks) instead.
+const AUTH_KEYS = [
+  "authorization",
+  "x-api-key",
+  "apikey",
+  "api_key",
+  "bearer",
+  "token",
+  "cookie",
+  "x-auth-token",
+  "client_secret",
+  "access_token",
+  "refresh_token",
+  "secret",
+];
 const findings = [];
 
 function lineOf(raw, needle, fromIndex) {
