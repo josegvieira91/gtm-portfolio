@@ -1,0 +1,52 @@
+---
+// src/components/case/RecordingPlayer.astro
+//
+// Part 5 of the locked 7-part case anatomy (SITE-08): click-to-play video
+// facade. SSR markup is ONLY a poster <img loading="lazy"> plus a play
+// button — no video tag, no video bytes sent, until the visitor clicks
+// (RESEARCH.md Code Example #5, locked verbatim shape; the video element
+// is only ever built client-side via createElement, in the script below).
+// `videoSrc` MUST resolve through the bind-mounted nginx /videos/ location
+// (top-level videos/ dir, docker/nginx.conf) — never a build asset served
+// out of the `public` folder's own videos subpath (02-PATTERNS.md shared
+// pattern 5) — for Case 1 that means the already Range-request-proven
+// /videos/deploy-test.mp4 placeholder (D-13).
+interface Props {
+  videoSrc: string;
+  posterSrc: string;
+  label: string;
+}
+
+const { videoSrc, posterSrc, label } = Astro.props;
+---
+
+<div
+  class="video-facade group relative overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface"
+  data-src={videoSrc}
+  data-poster={posterSrc}
+>
+  <img src={posterSrc} loading="lazy" alt={`${label} recording preview`} class="block w-full" />
+  <button
+    type="button"
+    aria-label={`Play ${label} recording`}
+    class="absolute inset-0 flex items-center justify-center bg-blueprint-bg/30 transition group-hover:bg-blueprint-bg/50"
+  >
+    <span class="flex h-16 w-16 items-center justify-center rounded-full border border-blueprint-line bg-blueprint-ink/90 text-2xl text-blueprint-bg">
+      &#9654;
+    </span>
+  </button>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.video-facade').forEach((facade) => {
+    facade.querySelector('button')?.addEventListener('click', () => {
+      const video = document.createElement('video');
+      video.src = facade.dataset.src!;
+      video.controls = true;
+      video.playsInline = true;
+      video.className = 'block w-full';
+      facade.replaceChildren(video);
+      video.play();
+    });
+  });
+</script>

@@ -1,0 +1,90 @@
+---
+// src/components/case/MetricsCounters.astro
+//
+// Part 6 of the locked 7-part case anatomy (SITE-02): SSRs each metric's
+// FINAL value as plain text — reduced-motion/no-JS correct by construction
+// (Pattern 2, same rule as the schematic engine). A tiny component script,
+// deferred behind an IntersectionObserver + dynamic import() (the same
+// "keep the animation library out of the initial bundle" shape
+// SchematicController.ts uses for gsap) and gated behind
+// gsap.matchMedia('(prefers-reduced-motion: no-preference)'), tweens a
+// count-up over the top of the already-final SSR text once the section
+// scrolls into view. Values that aren't a clean "1,234" / "1,234+" number
+// (e.g. "<60s") are left exactly as SSR'd — count-up only ever touches the
+// numeric portion of a value, never invented for non-numeric ones.
+interface Metric {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  metrics: Metric[];
+}
+
+const { metrics } = Astro.props;
+
+const NUMERIC_RE = /^([\d,]+)(\+?)$/;
+---
+
+<section class="px-6 py-16" aria-label="Metrics" data-metrics-root>
+  <dl class="mx-auto grid max-w-3xl grid-cols-1 gap-8 text-center sm:grid-cols-3">
+    {metrics.map((metric: Metric) => {
+      const match = metric.value.match(NUMERIC_RE);
+      const numeric = match ? Number(match[1].replace(/,/g, '')) : null;
+      const suffix = match ? match[2] : '';
+      return (
+        <div>
+          <dt class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">{metric.label}</dt>
+          <dd
+            class="mt-2 text-3xl font-bold text-blueprint-line"
+            data-metric-value={numeric !== null ? numeric : undefined}
+            data-metric-suffix={suffix}
+          >
+            {metric.value}
+          </dd>
+        </div>
+      );
+    })}
+  </dl>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-metrics-root]');
+
+  if (root) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+
+        // Dynamic import: gsap only ever enters the bundle graph here, once
+        // this section approaches the viewport — never on initial page load.
+        import('gsap').then(({ gsap }) => {
+          const mm = gsap.matchMedia();
+          mm.add('(prefers-reduced-motion: no-preference)', () => {
+            root.querySelectorAll<HTMLElement>('[data-metric-value]').forEach((el) => {
+              const target = Number(el.dataset.metricValue);
+              const suffix = el.dataset.metricSuffix ?? '';
+              if (!Number.isFinite(target)) return;
+
+              const counter = { value: 0 };
+              gsap.to(counter, {
+                value: target,
+                duration: 1.4,
+                ease: 'power1.out',
+                onUpdate: () => {
+                  el.textContent = Math.round(counter.value).toLocaleString('en-US') + suffix;
+                },
+                onComplete: () => {
+                  el.textContent = target.toLocaleString('en-US') + suffix;
+                },
+              });
+            });
+          });
+        });
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(root);
+  }
+</script>
