@@ -1,0 +1,23 @@
+# Production shape. The shared VPS already runs 20+ containers on the
+# external `proxy` network with Nginx Proxy Manager owning ports 80/443 —
+# this service is reached only by Docker service name, never a host port.
+services:
+  gtm-portfolio-web:
+    container_name: gtm-portfolio-web
+    image: gtm-portfolio-web:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ${VIDEOS_DIR:-./videos}:/usr/share/nginx/videos:ro
+    networks:
+      - proxy
+    # No `ports:` key here on purpose: this container is not published on any
+    # host port. Nginx Proxy Manager reaches it by Docker service name on the
+    # `proxy` network, matching every other service on the shared VPS. Do not
+    # add one — see docker-compose.local.yml for the local-only override.
+
+networks:
+  proxy:
+    external: true
