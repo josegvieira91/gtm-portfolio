@@ -67,7 +67,10 @@ touch "$FINDINGS_FILE"
 # --- R5: local denylist, line-based regex over raw file text ---
 # Comment lines and blank lines in the denylist are filtered out before use so
 # the denylist's own documentation cannot satisfy or trip the rule it defines.
-while IFS= read -r pattern; do
+# `|| [ -n "$pattern" ]` is required because bash's `read` returns non-zero on
+# the final line of a file that lacks a trailing newline, which would
+# otherwise silently drop that line's pattern from R5 (CR-01).
+while IFS= read -r pattern || [ -n "$pattern" ]; do
   case "$pattern" in
     ''|'#'*) continue ;;
   esac
