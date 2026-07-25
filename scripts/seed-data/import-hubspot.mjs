@@ -16,27 +16,40 @@
 //   crm.objects.companies.read, crm.objects.companies.write
 // See README.md for exactly where to create the private app and grant these scopes.
 //
-// Idempotent: uses the batch/upsert endpoint with idProperty=domain (companies) and
-// idProperty=email (contacts), so re-running after a re-seed updates existing records instead
-// of creating duplicates.
+// Idempotent: contacts use the batch/upsert endpoint with idProperty=email (email is unique by
+// default on every HubSpot portal, so this just works). Companies do NOT use batch/upsert — see
+// the live-run correction below — they use a search-then-create/update sequence instead, which
+// is idempotent for the same reason (re-running after a re-seed finds the same domains and
+// updates them instead of creating duplicates).
 //
 // API surface verified live against developers.hubspot.com on 2026-07-24. HubSpot's CRM API
 // has moved to a dated version path (2026-03) that supersedes the older /crm/v3/... paths,
 // which are now documented under a separate "legacy" section of the docs:
-//   POST /crm/objects/2026-03/companies/batch/upsert
+//   POST /crm/objects/2026-03/companies/search
+//   POST /crm/objects/2026-03/companies/batch/create
+//   POST /crm/objects/2026-03/companies/batch/update
 //   POST /crm/objects/2026-03/contacts/batch/upsert
 //   POST /crm/associations/2026-03/contacts/companies/batch/associate/default
-// batch/upsert and batch/create for companies are not spelled out in HubSpot's narrative
-// "Companies" guide page (only batch/read is documented there — the "Contacts" guide page is
-// more complete and does document batch/upsert), so both routes were confirmed live instead of
-// assumed: an unauthenticated POST to each returns 401 (route exists, auth required) rather
-// than 404 (route doesn't exist) — the same signature as the documented, known-good
-// companies/batch/read endpoint used as a control.
+//
+// CORRECTED DURING THE LIVE RUN (2026-07-25): the plan's original design called for
+// batch/upsert with idProperty=domain on companies too, mirroring the contacts approach. That
+// failed against the real "Vieira GTM Lab" portal with HTTP 400 VALIDATION_ERROR: "Unable to
+// perform update/upsert by non-unique property domain" — HubSpot's batch/upsert requires the
+// idProperty to be a property explicitly flagged hasUniqueValue=true, and a portal's default
+// `domain` property on Companies is NOT flagged unique out of the box (confirmed via
+// GET /crm/v3/properties/companies/domain -> "hasUniqueValue": false). Flipping that flag would
+// need the crm.schemas.companies.write scope, which is broader than this private app was
+// granted (crm.objects.{contacts,companies}.{read,write} only) and is a schema change outside
+// this script's job. Fixed at the script level instead: search existing companies by domain
+// (crm.objects.companies.read, already granted), then route matches to batch/update and
+// non-matches to batch/create — same end state (idempotent upsert keyed by domain), no schema
+// change, no new scope.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parseCsv } from './lib/csv.mjs';
+import { INDUSTRY_TO_HUBSPOT, mapIndustry } from './lib/industry-map.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -114,6 +127,54 @@ async function upsertBatch(objectType, inputs) {
   return { results, errors };
 }
 
+// Companies can't use upsertBatch (see the CORRECTED note at the top of this file — the
+// `domain` property isn't flagged unique in this portal). This does the same idempotent-upsert
+// job via search + create/update instead.
+async function searchIdsByProperty(objectType, propertyName, values) {
+  const ids = new Map();
+  for (const valueChunk of chunk(values, 100)) {
+    // 100 is the HubSpot Search API's documented max values per IN filter.
+    let after;
+    do {
+      const body = {
+        filterGroups: [{ filters: [{ propertyName, operator: 'IN', values: valueChunk }] }],
+        properties: [propertyName],
+        limit: 100,
+        ...(after ? { after } : {}),
+      };
+      const res = await hubspotRequest(`/crm/objects/${API_VERSION}/${objectType}/search`, body);
+      if (!res.ok) {
+        console.error(`  ${objectType} search FAILED (HTTP ${res.status}): ${JSON.stringify(res.error)}`);
+        break;
+      }
+      for (const r of res.data.results || []) {
+        const value = r.properties?.[propertyName];
+        if (value) ids.set(value, r.id);
+      }
+      after = res.data.paging?.next?.after;
+    } while (after);
+  }
+  return ids;
+}
+
+async function createOrUpdateBatch(objectType, action, inputs) {
+  const results = [];
+  const errors = [];
+  for (const batch of chunk(inputs, BATCH_SIZE)) {
+    const res = await hubspotRequest(`/crm/objects/${API_VERSION}/${objectType}/batch/${action}`, {
+      inputs: batch,
+    });
+    if (!res.ok) {
+      console.error(`  Batch of ${batch.length} ${objectType} (${action}) FAILED (HTTP ${res.status}):`);
+      console.error(`  ${JSON.stringify(res.error)}`);
+      errors.push(...batch.map((input) => ({ id: input.id, error: res.error })));
+      continue;
+    }
+    results.push(...(res.data.results || []));
+  }
+  return { results, errors };
+}
+
 async function associateContactsToCompanies(pairs) {
   const errors = [];
   let associated = 0;
@@ -149,21 +210,31 @@ async function main() {
     'Skipping usage-events.csv by design — it belongs to the Phase 3 reporting cases, not a CRM object.\n'
   );
 
-  console.log('Upserting companies (idProperty=domain)...');
-  const companyInputs = companies.map((c) => ({
-    idProperty: 'domain',
-    id: c.domain,
-    properties: {
+  console.log('Upserting companies (search by domain, then batch create/update)...');
+  const existingCompanyIds = await searchIdsByProperty(
+    'companies',
+    'domain',
+    companies.map((c) => c.domain)
+  );
+  const companyCreateInputs = [];
+  const companyUpdateInputs = [];
+  for (const c of companies) {
+    const properties = {
       name: c.name,
       domain: c.domain,
-      industry: c.industry,
+      industry: mapIndustry(INDUSTRY_TO_HUBSPOT, c.industry, 'HubSpot'),
       numberofemployees: c.employee_count,
       country: c.country,
-    },
-  }));
-  const companyResult = await upsertBatch('companies', companyInputs);
+    };
+    const existingId = existingCompanyIds.get(c.domain);
+    if (existingId) companyUpdateInputs.push({ id: existingId, properties });
+    else companyCreateInputs.push({ properties });
+  }
+  const companyCreateResult = await createOrUpdateBatch('companies', 'create', companyCreateInputs);
+  const companyUpdateResult = await createOrUpdateBatch('companies', 'update', companyUpdateInputs);
+  const companyErrors = [...companyCreateResult.errors, ...companyUpdateResult.errors];
   console.log(
-    `  Companies: ${companyResult.results.length} upserted, ${companyResult.errors.length} errors.`
+    `  Companies: ${companyCreateResult.results.length} created, ${companyUpdateResult.results.length} updated, ${companyErrors.length} errors.`
   );
 
   console.log('Upserting contacts (idProperty=email)...');
@@ -183,10 +254,13 @@ async function main() {
     `  Contacts: ${contactResult.results.length} upserted, ${contactResult.errors.length} errors.`
   );
 
-  // Build domain -> companyId and email -> contactId maps from the upsert responses so the
-  // association step doesn't need a second round-trip to look records up.
-  const companyIdByDomain = new Map();
-  for (const r of companyResult.results) {
+  // Build domain -> companyId and email -> contactId maps so the association step doesn't need
+  // a second round-trip to look records up. Updated companies keep their pre-existing id
+  // (already known from the search above); newly created companies get their id from the
+  // batch/create response, which — unlike batch/upsert — is fully documented to echo back id +
+  // properties per input.
+  const companyIdByDomain = new Map(existingCompanyIds);
+  for (const r of companyCreateResult.results) {
     const domain = r.properties?.domain;
     if (domain) companyIdByDomain.set(domain, r.id);
   }
@@ -217,11 +291,13 @@ async function main() {
   }
 
   console.log('\nSummary:');
-  console.log(`  Companies:    ${companyResult.results.length} created/updated, ${companyResult.errors.length} errors`);
+  console.log(
+    `  Companies:    ${companyCreateResult.results.length} created, ${companyUpdateResult.results.length} updated, ${companyErrors.length} errors`
+  );
   console.log(`  Contacts:     ${contactResult.results.length} created/updated, ${contactResult.errors.length} errors`);
   console.log(`  Associations: ${assocResult.associated} created, ${assocResult.errors.length} errors`);
 
-  const hadErrors = companyResult.errors.length || contactResult.errors.length || assocResult.errors.length;
+  const hadErrors = companyErrors.length || contactResult.errors.length || assocResult.errors.length;
   if (hadErrors) {
     console.error('\nCompleted with errors — see per-batch output above.');
     process.exit(1);
