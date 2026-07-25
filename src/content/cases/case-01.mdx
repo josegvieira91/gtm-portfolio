@@ -1,0 +1,51 @@
+---
+title: "Inbound Speed-to-Lead Engine"
+slug: "inbound-speed-to-lead"
+category: "Inbound"
+heroMetric: "Under 60 seconds from form submit to owner alert"
+stack: ["n8n", "HubSpot", "Slack", "Postgres"]
+metrics:
+  - label: "Form to alert"
+    value: "<60s"
+  - label: "Leads routed"
+    value: "1,200+"
+  - label: "Manual touches"
+    value: "0"
+video: "/videos/deploy-test.mp4"
+diagramId: "case-01"
+featured: true
+draft: true
+---
+
+Inbound leads go cold fast. A prospect fills out a form, and if nobody
+responds within a few minutes, the odds of a real conversation drop hard.
+Most teams still route new leads through manual triage: someone checks a
+shared inbox or a CRM view, decides who owns the lead, and pings them
+separately. That gap between form submit and a human noticing is where
+deals die quietly, with no error and no alert to explain why.
+
+This engine closes that gap. A form submission moves from raw payload to
+an owner's Slack notification, with no manual step in between.
+
+## How it works
+
+**Intake.** The form posts straight to an n8n webhook. Every payload gets
+an idempotency key at the door, so a double submit or a retried request
+never creates a duplicate lead downstream.
+
+**Enrichment.** The lead runs through an enrichment waterfall: try the
+primary data provider first, fall back to a secondary source if the first
+one returns nothing. A lead never stalls just because one provider is
+down or missing a record.
+
+**Scoring.** Enriched data feeds a deterministic scoring step. A lead
+that clears the hot threshold routes in seconds, not minutes, so timing
+never depends on how busy the scoring logic happens to be that day.
+
+**Routing and alert.** Hot leads route to their owner and land in Slack
+with full context attached: who the lead is, what they filled in, and
+why the score triggered an alert.
+
+**CRM and nurture.** Every lead lands in HubSpot as a deal, hot or not.
+Leads that do not clear the hot threshold enter a nurture queue instead
+of getting dropped, so nothing that came through the form goes unworked.
