@@ -119,7 +119,7 @@ const allowlist = loadAllowlist(allowlistPath).map((h) => h.toLowerCase());
 
 function hostAllowed(host) {
   const h = host.toLowerCase();
-  if (h.endsWith("example.com")) return true;
+  if (h === "example.com" || h.endsWith(".example.com")) return true;
   return allowlist.includes(h);
 }
 
