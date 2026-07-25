@@ -1,17 +1,15 @@
 @import "tailwindcss";
 
-/* D-02 font spike: both candidates self-hosted via Fontsource, no external CDN.
-   JetBrains Mono ships as ONE variable file; IBM Plex Mono has no variable build
-   on Fontsource, so exactly three static weights are imported (never all 7). */
+/* GATE 1 (D-02): JetBrains Mono Variable won the font spike. One variable file
+   covers the full weight axis. IBM Plex Mono's package stays installed but
+   dormant (zero client cost unimported) until /mockup, the only page that
+   still renders it, is retired. */
 @import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/700.css";
 
 /* D-01: single dark cyanotype theme. No light mode, no prefers-color-scheme variant.
    D-03 quality bar: soft surfaces, data-forward, type that recedes, no decorative noise. */
 @theme {
-  /* Provisional default until Gate 1 (D-02) picks the winner. */
+  /* GATE 1 (D-02): JetBrains Mono Variable is the locked site typeface. */
   --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   --color-blueprint-bg: oklch(0.17 0.045 243); /* deep prussian blue, near-black */
