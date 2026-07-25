@@ -1,0 +1,113 @@
+---
+// src/pages/cases/[slug].astro
+//
+// SITE-02 / D-13: the ONE case page template. Every case in the Phase 3
+// catalog becomes a pure content addition (case-NN.mdx + diagram JSON) —
+// this file must stay clone-free, no per-case conditionals beyond data.
+// Assembles the LOCKED 7-part anatomy in order: (1) hero + the MDX body's
+// problem-framing intro, (2) the scroll-scrubbed diagram (DiagramSection,
+// shared with zero bespoke per-case diagram code), (3) the rest of the MDX
+// body ("How it works"), (4) stack badges, (5) the click-to-play recording
+// facade, (6) metric counters, (7) a static CTA back to /contact and the
+// machine wall.
+//
+// getStaticPaths INCLUDES draft entries on purpose during construction:
+// the whole site is served noindex (D-11, BaseLayout) while the Phase 3
+// catalog fills in, and filtering drafts out of the build is a Phase 5
+// launch-gate concern — not this template's job. Do not add a
+// `!entry.data.draft` filter here.
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CaseHero from '../../components/case/CaseHero.astro';
+import DiagramSection from '../../components/case/DiagramSection.astro';
+import HowItWorks from '../../components/case/HowItWorks.astro';
+import StackBadges from '../../components/case/StackBadges.astro';
+import RecordingPlayer from '../../components/case/RecordingPlayer.astro';
+import MetricsCounters from '../../components/case/MetricsCounters.astro';
+import type { Diagram } from '../../lib/schematic/types';
+
+export async function getStaticPaths() {
+  const cases = await getCollection('cases');
+  return cases.map((entry) => ({ params: { slug: entry.data.slug }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+// Pairing rule (02-02): explicit `diagramId` wins, otherwise the diagram
+// with the same content-collection id as the case entry. Note: the glob
+// loader's default id for these entries resolves to the frontmatter
+// `slug` (legacy-compat id generation), not the filename — every case's
+// `diagramId` is set explicitly (case-01..10.mdx), so this fallback only
+// matters for a hypothetical future case that omits it. A missing diagram
+// is a build error, not a silent skip — the case slug is in the thrown
+// message so a bad pairing fails loudly and points at the fix.
+const diagrams = await getCollection('diagrams');
+const diagramId = entry.data.diagramId ?? entry.id;
+const diagramEntry = diagrams.find((d) => d.data.id === diagramId);
+if (!diagramEntry) {
+  throw new Error(
+    `No diagram found for case "${entry.data.slug}" (looked for diagram id "${diagramId}"). ` +
+      `Every case needs a paired src/content/diagrams/*.json, or an explicit diagramId in its frontmatter.`
+  );
+}
+const diagram = diagramEntry.data as Diagram;
+
+// Poster images are small static assets and live under public/ (unlike raw
+// video, which never does — 02-PATTERNS.md shared pattern 5), named to
+// match the diagram/case identifier (case-01.webp), not the human-readable
+// slug. Cases without a poster yet (Phase 3 backlog) fall back to a
+// token-styled placeholder instead of RecordingPlayer, still shipping zero
+// video bytes.
+const posterSrc = `/posters/${diagramId}.webp`;
+const posterPath = path.join(process.cwd(), 'public', 'posters', `${diagramId}.webp`);
+const hasPoster = existsSync(posterPath);
+---
+
+<BaseLayout title={`${entry.data.title} - Jose Vieira`} description={entry.data.heroMetric ?? entry.data.category}>
+  <main>
+    <CaseHero title={entry.data.title} category={entry.data.category} heroMetric={entry.data.heroMetric} />
+
+    <DiagramSection diagram={diagram} id={`${diagramId}-diagram`} />
+
+    <HowItWorks>
+      <Content />
+    </HowItWorks>
+
+    <section class="px-6 py-10" aria-label="Tool stack">
+      <p class="mb-4 text-center text-xs uppercase tracking-[0.25em] text-blueprint-dim">Built with</p>
+      <StackBadges stack={entry.data.stack} />
+    </section>
+
+    <section class="px-6 py-16" aria-label="Recording">
+      {entry.data.video && hasPoster ? (
+        <div class="mx-auto max-w-3xl">
+          <RecordingPlayer videoSrc={entry.data.video} posterSrc={posterSrc} label={entry.data.title} />
+        </div>
+      ) : (
+        <div class="mx-auto max-w-3xl rounded-lg border border-dashed border-blueprint-line/30 bg-blueprint-surface p-10 text-center text-sm text-blueprint-dim">
+          Recording coming soon.
+        </div>
+      )}
+    </section>
+
+    {entry.data.metrics && <MetricsCounters metrics={entry.data.metrics} />}
+
+    <section class="border-t border-blueprint-line/20 px-6 py-16 text-center" aria-label="Call to action">
+      <div class="mx-auto max-w-xl space-y-6">
+        <p class="text-sm text-blueprint-dim">Want a system like this built for your team?</p>
+        <a
+          href="/contact"
+          class="inline-block rounded-full border border-blueprint-line bg-blueprint-ink/90 px-6 py-3 text-sm font-semibold text-blueprint-bg"
+        >
+          Book a call
+        </a>
+        <p class="text-xs text-blueprint-dim">
+          <a href="/" class="underline hover:text-blueprint-line">Back to the machine wall</a>
+        </p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
