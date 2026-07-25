@@ -1,0 +1,62 @@
+---
+// src/components/case/DiagramSection.astro
+//
+// D-06 scrollytelling section: desktop pins the diagram at ~60% width on
+// the left while engineering callouts scroll past it on the right, each
+// callout lighting its node as the corresponding step activates. Mobile
+// behavior is exactly ONE config value (SCHEMATIC_CONFIG.mobilePin) so the
+// 02-07 real-iPhone spike outcome is a config flip + rebuild, never a
+// template rework (D-07). Composes Schematic.astro — never re-implements
+// SVG rendering. The actual pinning/scrubbing is entirely GSAP's job at
+// runtime (timeline.ts, non-reduced-motion only); this component only
+// lays out the SSR final-state structure GSAP will animate.
+import Schematic from '../schematic/Schematic.astro';
+import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
+import type { Diagram, DiagramStep } from '../../lib/schematic/types';
+
+interface Props {
+  diagram: Diagram;
+  id: string;
+}
+
+const { diagram, id } = Astro.props;
+const mobilePin = SCHEMATIC_CONFIG.mobilePin === 'pin';
+const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
+---
+
+<section id={id} data-pin-section class="grid gap-6 md:grid-cols-[60%_1fr] md:gap-8">
+  <div class="md:py-16">
+    <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} />
+  </div>
+
+  {/* Desktop (md+): callouts scroll past the pinned diagram, one block per step (D-06) */}
+  <div class="hidden flex-col gap-[60vh] py-[30vh] md:flex">
+    {steps.map((step) => (
+      <div data-step-callout={step.id} class="rounded-lg border border-blueprint-line/30 bg-blueprint-surface p-6">
+        <p class="font-mono text-sm text-blueprint-ink">{step.callout?.text}</p>
+      </div>
+    ))}
+  </div>
+
+  {/* Mobile (below md): exactly one of the two D-07 locked layouts, picked at build time */}
+  {mobilePin ? (
+    <div class="flex flex-col gap-3 md:hidden" data-mobile-layout="pin">
+      {steps.map((step) => (
+        <div
+          data-step-callout={step.id}
+          class="rounded-lg border border-blueprint-line/40 bg-blueprint-surface/95 p-3 text-xs shadow-lg backdrop-blur"
+        >
+          <p class="font-mono text-blueprint-ink">{step.callout?.text}</p>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div class="flex flex-col gap-4 md:hidden" data-mobile-layout="unpinned">
+      {steps.map((step) => (
+        <div data-step-callout={step.id} class="rounded-lg border border-blueprint-line/30 bg-blueprint-surface p-4">
+          <p class="font-mono text-xs text-blueprint-ink">{step.callout?.text}</p>
+        </div>
+      ))}
+    </div>
+  )}
+</section>
