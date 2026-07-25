@@ -12,6 +12,29 @@ export interface SchematicConfig {
    * 'pin' as the D-06 desktop default; spike-decided in plan 02-07 on a real
    * iPhone, fallback locked by D-07 (unpinned progressive-draw scrub) if
    * pin+scrub can't hold smooth 60fps.
+   *
+   * HUMAN GATE 2 SPIKE RESULT (02-07, 2026-07-25): verdict SMOOTH.
+   * Device: iPhone (Dynamic Island class), iOS version not captured.
+   * Pin holds with no jitter, no address-bar jump, packet tracks the
+   * finger — NONE of the L1-L4 fix-ladder steps from RESEARCH.md were
+   * applied; `mobilePin` stays 'pin' exactly as the D-06 default.
+   *
+   * Two real bugs surfaced during real-device re-testing after the
+   * "smooth" verdict, both fixed with the pin mechanism UNCHANGED
+   * (GSAP's default pinType, no explicit pinType override — an explicit
+   * `pinType: 'transform'` was tried as a fix and reverted after it
+   * caused visible jitter + displaced content on real WebKit, see
+   * timeline.ts):
+   * 1. Horizontal overflow ("cut at both edges" on real iPhone, invisible
+   *    in Chrome-based headless checks): root cause was `viewBoxFor()` in
+   *    layout.ts sizing the SVG viewBox from node CENTERS instead of true
+   *    node+label extents — Chrome clips content that leaks past the
+   *    viewBox by default, WebKit paints it. Fixed at the source in
+   *    layout.ts; the pin mechanism itself was never the problem.
+   * 2. Machine-wall mini-schematics (cards) not fitting their panel —
+   *    unrelated to the pin/scrub mechanism, fixed via letterboxed
+   *    `h-full` sizing (Schematic.astro) and a dedicated simplified
+   *    diagram for case-01's card (case-01-mini.json).
    */
   mobilePin: 'pin' | 'unpinned';
   /** GATE 1 discretion pick kept: machine wall tool filter is single-select + All. */

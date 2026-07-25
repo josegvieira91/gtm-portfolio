@@ -63,22 +63,61 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
   diagram.steps.forEach((step) => {
     tl.addLabel(step.id);
 
+    // 02-07 Gate 2 fix: the FIRST tween added for a step must anchor to the
+    // step's own label (just added above), not '<'. '<' resolves to the
+    // start time of the previously-ADDED TWEEN — across a step boundary
+    // that's the PRIOR step's own first tween, not this step's label. Used
+    // unconditionally (as this loop originally did for every tween,
+    // including each step's first), every step's tweens collapse onto
+    // step 1's start time: verified with a standalone GSAP timeline replay
+    // of this exact position-parameter pattern, label positions for a
+    // 5-step diagram came out as [0, 1, 1, 1, 1] instead of [0, 1, 2, 3, 4].
+    // On a real device this reads as "only the last callout's activation
+    // tween ever visibly wins the scrub, and everything converges once the
+    // scroll reaches the collapsed end point" — exactly the mobile Safari
+    // report from the real-iPhone spike. Anchoring each step's first tween
+    // to `step.id` fixes the absolute position; every other tween in the
+    // same step still chains off it with '<' exactly as before.
+    let stepAnchor: string | '<' = step.id;
+    const nextPos = (): string => {
+      const pos = stepAnchor;
+      stepAnchor = '<';
+      return pos;
+    };
+
+    // 02-07 Gate 2 fix (hero autoplay latency): this function is shared by
+    // both the scroll-scrubbed case-page mount AND the hero's real-time
+    // one-shot autoplay. For scroll-scrub, `scrub` maps 0-100% scroll
+    // progress to 0-100% of the timeline's own duration proportionally —
+    // shortening these per-tween durations changes nothing visually there,
+    // only the nominal total. For autoplay (no ScrollTrigger, played in
+    // real wall-clock time), the total duration IS how long the user
+    // waits. The original 1s/0.6s/0.4s/0.8s durations, combined with the
+    // step-anchor fix above (which correctly stopped steps from collapsing
+    // onto each other), gave each step a real ~1s slot — 5 steps in
+    // hero.json meant the hero's "schematic:autoplay-complete" event (and
+    // therefore the name/title overlay fade-in, gated on it) didn't fire
+    // for ~5 real seconds. Measured via a real headless run: dispatched at
+    // t=5080ms. That reads as a stuck/frozen hero, not a drawing one.
+    // Shorter, snappier per-tween durations bring the whole 5-step hero
+    // draw to ~1.5-2s, a normal hero-intro pace, with zero change to the
+    // case-page scrub's visual proportions.
     step.activateEdges.forEach((id) => {
       const el = refs.edges[id];
-      if (el) tl.to(el, { drawSVG: '100%', duration: 1, ease: 'none' }, '<');
+      if (el) tl.to(el, { drawSVG: '100%', duration: 0.35, ease: 'none' }, nextPos());
     });
 
     step.activateNodes.forEach((id) => {
       const el = refs.nodes[id];
-      if (el) tl.to(el, { opacity: 1, scale: 1, duration: 0.6 }, '<');
+      if (el) tl.to(el, { opacity: 1, scale: 1, duration: 0.3 }, nextPos());
     });
 
     if (step.callout) {
       const active = refs.callouts[step.id];
-      if (active?.length) tl.to(active, { opacity: 1, duration: 0.4 }, '<');
+      if (active?.length) tl.to(active, { opacity: 1, duration: 0.3 }, nextPos());
       if (prevCalloutStepId) {
         const prev = refs.callouts[prevCalloutStepId];
-        if (prev?.length) tl.to(prev, { opacity: 0.35, duration: 0.4 }, '<');
+        if (prev?.length) tl.to(prev, { opacity: 0.35, duration: 0.3 }, nextPos());
       }
       prevCalloutStepId = step.id;
     }
@@ -93,7 +132,7 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
       const cx = lastNode?.getAttribute('data-cx');
       const cy = lastNode?.getAttribute('data-cy');
       if (cx && cy) {
-        tl.to(refs.packet, { opacity: 1, attr: { cx: Number(cx), cy: Number(cy) }, duration: 0.8 }, '<');
+        tl.to(refs.packet, { opacity: 1, attr: { cx: Number(cx), cy: Number(cy) }, duration: 0.35 }, nextPos());
       }
     }
   });
@@ -107,7 +146,22 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
 export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: MountOptions): gsap.MatchMedia {
   const mm = gsap.matchMedia();
 
-  // Desktop (D-06): the diagram pins, callouts scroll past it in the right column.
+  // Desktop (D-06): the diagram stays fixed while callouts scroll past it in
+  // the right column. 02-07 Gate 2 fix: this used to be a GSAP `pin:true`
+  // with `end: '+=' + diagram.steps.length * 400` — a magic-number scroll
+  // distance completely decoupled from the section's REAL DOM height (the
+  // callout column's `gap-[60vh]` stack, several viewport-heights tall).
+  // Whenever those two disagreed (they always did — 400px/step has no
+  // relationship to a vh-based gap), the pin released mid-scroll, before
+  // the callouts finished passing by, producing a jarring clipped/jumping
+  // layout. The fixed diagram is now `md:sticky md:top-0` in CSS
+  // (DiagramSection.astro) instead of a JS pin — sticky positioning is
+  // inherently always in sync with the real DOM height, no distance to
+  // keep in sync by hand. `end: 'bottom bottom'` makes the scrub span
+  // exactly the section's natural scroll-through range (from its top
+  // hitting the viewport top to its bottom hitting the viewport bottom),
+  // which is precisely how long the sticky diagram stays stuck — the two
+  // mechanisms share the same underlying DOM height by construction.
   mm.add('(prefers-reduced-motion: no-preference) and (min-width: 768px)', () => {
     setUndrawnStart(diagram, refs);
     const tl = gsap.timeline(
@@ -115,9 +169,8 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
         ? {
             scrollTrigger: {
               trigger: refs.section,
-              pin: true,
               scrub: 1,
-              end: '+=' + diagram.steps.length * 400,
+              end: 'bottom bottom',
               snap: 'labels', // D-08: soft snap to each step
             },
           }
@@ -130,6 +183,18 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // Mobile (D-07): pin only if SCHEMATIC_CONFIG.mobilePin === 'pin' (spike-
   // decided in 02-07); when unpinned, the diagram still draws progressively
   // via the same scrub+snap, just without visually locking in place.
+  //
+  // pinType stays at GSAP's default ('fixed'). An explicit
+  // `pinType: 'transform'` was tried in a 02-07 Gate 2 round as an
+  // overflow fix and REVERTED: on real WebKit it repositions the section
+  // per scroll event, which lags visibly during iOS momentum scroll
+  // ("insane jitter" in the real-device report) and left displaced/ghost
+  // content after programmatic scrolls. The overflow it was chasing was
+  // never a pin-measurement problem at all — root cause was viewBoxFor()
+  // sizing the SVG viewBox from node centers instead of true extents
+  // (layout.ts), which WebKit paints outside the viewport where Chrome
+  // clips. The 02-01 real-iPhone spike verdict ("smooth") was recorded
+  // against this default pinType.
   mm.add('(prefers-reduced-motion: no-preference) and (max-width: 767px)', () => {
     setUndrawnStart(diagram, refs);
     const pinMobile = options.mode === 'scroll' && options.mobilePin === 'pin';
@@ -154,6 +219,20 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // neither query above matches, this function has done nothing to the DOM,
   // and no ScrollTrigger was ever registered — the SSR final-drawn state
   // stands exactly as delivered.
+
+  // 02-07 Gate 2 round-3 defense-in-depth: ScrollTrigger's pin/scrub
+  // measurements are taken at whatever moment matchMedia's callback runs,
+  // which can be before the self-hosted variable font
+  // (@fontsource-variable/jetbrains-mono) has finished swapping in and
+  // settling final text-driven layout metrics. GSAP's own documented fix
+  // for exactly this class of "measured-too-early" pin bug is a
+  // `ScrollTrigger.refresh()` once fonts are ready. Harmless to call from
+  // every schematic instance — `document.fonts.ready` is a single
+  // page-wide promise, so this only ever adds a few cheap, idempotent
+  // refresh() calls, never duplicate ScrollTrigger instances.
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    document.fonts.ready.then(() => ScrollTrigger.refresh());
+  }
 
   return mm;
 }

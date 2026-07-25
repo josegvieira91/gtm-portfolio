@@ -30,7 +30,18 @@ if (!heroDiagram) {
   id="hero"
   class="blueprint-grid relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-24"
 >
-  <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-70 sm:opacity-80">
+  {/* 02-07 Gate 2 fix: this wrapper's own header comment already calls the
+      diagram a "full-bleed BACKDROP" the name/title sit "above" — but the
+      implementation shipped it at 70-80% opacity, which is a fully
+      competing readable layer (legible boxes/labels), not a backdrop. At
+      that opacity the node row renders directly through the "Jose Vieira"
+      headline (verified: real overlap, both the diagram and the headline
+      land in the same centered flex position). Dropping to a genuinely
+      faint backdrop opacity fixes the legibility collision without
+      changing the diagram's position, size, or the "site draws itself
+      behind the name" concept — same layout, same content, just tuned to
+      the magnitude its own doc comment already described. */}
+  <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.12] sm:opacity-15">
     <div class="w-full max-w-4xl">
       <Schematic diagram={heroDiagram.data} variant="full" mode="auto" id="hero-schematic" />
     </div>

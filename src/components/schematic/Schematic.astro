@@ -41,7 +41,7 @@ const LAYOUT =
     : { stageWidth: 56, laneHeight: 36, padding: 16, nodeWidth: 40, nodeHeight: 18 };
 
 const positions = computeLayout(diagram, LAYOUT);
-const viewBox = viewBoxFor(positions, LAYOUT);
+const viewBox = viewBoxFor(diagram, positions, LAYOUT);
 
 // SSR final-state resting spot for the packet marker (D-08): the last node
 // of the last step that has a packetPath, falling back to the diagram's
@@ -59,10 +59,33 @@ const restPos = positions[restingNodeId() ?? ''];
 const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT }).replace(/<\/script/gi, '<\\/script');
 ---
 
-<div data-schematic-root data-mode={mode} data-variant={variant} id={id}>
+{/* 02-07 Gate 2 round-3 fix (machine wall mini-schematics: cut nodes,
+    orphaned edges, huge empty gaps below content): the 10 diagrams' own
+    viewBox aspect ratios range from 1.19:1 to 6.25:1 (measured directly
+    from each case's JSON) — nowhere close to a single fixed ratio, so
+    `w-full h-auto` (deriving height purely from the SVG's OWN aspect,
+    ignoring the card panel's actual box) either left the panel mostly
+    empty below a too-short diagram or let a too-tall one overflow past
+    `overflow-hidden` and get clipped/orphaned mid-edge. `variant="mini"`
+    now fills BOTH axes of its panel (`h-full w-full` on the root div and
+    the svg) and relies on the SVG spec's own default
+    `preserveAspectRatio="xMidYMid meet"` (unset here = default) to scale
+    the viewBox content to fit inside that box on both axes, centered,
+    with letterboxing rather than cropping or gapping — the standard,
+    zero-JS way to make an SVG with an unknown/variable aspect ratio
+    always fit a fixed container. `variant="full"` (case pages, hero) is
+    untouched: it still wants `h-auto` so a single wide diagram scales by
+    width alone, matching the desktop sticky/mobile pin fixes already
+    verified for that path. */}
+<div data-schematic-root data-mode={mode} data-variant={variant} id={id} class:list={[variant === 'mini' && 'h-full']}>
+  {/* overflow-hidden is load-bearing, not cosmetic: Chrome clips painted
+      content at the svg viewport by default, WebKit paints content that
+      leaks past the viewBox (02-07 Gate 2). The viewBox now covers true
+      extents, so nothing should leak — this pins both engines to the same
+      clipping behavior if an estimate is ever off. */}
   <svg
     viewBox={viewBox}
-    class="h-auto w-full"
+    class:list={['w-full', 'overflow-hidden', variant === 'mini' ? 'h-full' : 'h-auto']}
     data-schematic-svg
     role="img"
     aria-label={`${diagram.id} schematic`}
