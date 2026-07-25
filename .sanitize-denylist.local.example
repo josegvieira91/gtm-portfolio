@@ -1,0 +1,26 @@
+# Template for .sanitize-denylist.local — copy this file to that name and fill it in.
+#
+# This file (the .example version) is tracked in git and must never contain a real
+# value. The copy without ".example" is covered by the repo's "*.local" gitignore
+# rule and is read at runtime by scripts/sanitize-check.sh (rule R5). The script
+# treats a missing .sanitize-denylist.local as a hard error, not a skip, because
+# an empty denylist would make the gate look like it passed when it never actually
+# checked for the values that matter most.
+#
+# Format: one regex per line, extended regular expression (ERE) syntax, matched
+# case-sensitively against every line of every scanned JSON file. Blank lines and
+# lines starting with # are ignored — comment freely.
+#
+# What belongs in the real file:
+#   - The real n8n instance hostname or IP, escaped for regex (dots are "."
+#     metacharacters, escape them with a backslash).
+#   - The real production server IPv4 address, same escaping.
+#   - Any real project or client name that must never appear in an exported
+#     workflow, even inside a credential name, a note, or pinned sample data.
+#
+# Examples of the *shape* these lines take (do not uncomment — replace with the
+# real values in the actual .sanitize-denylist.local file):
+#
+# your-n8n-hostname\.example\.tld
+# 203\.0\.113\.\d+
+# any real project or client name
