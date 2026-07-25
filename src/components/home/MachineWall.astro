@@ -99,7 +99,21 @@ const cases = caseEntries
 
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" data-wall-grid>
       {cases.map((caseEntry) => {
-        const diagramEntry = diagramsById.get(caseEntry.data.diagramId ?? caseEntry.id);
+        const baseDiagramId = caseEntry.data.diagramId ?? caseEntry.id;
+        // 02-07 Gate 2 round-3 fix: case-01 is the one case with a REAL,
+        // rich 8-node diagram (D-13 guinea pig) — reusing it verbatim at
+        // mini-card scale crammed 8 labels into the same width the other
+        // 9 cards' generic 4-node placeholders use, causing label overlap
+        // (measured + screenshotted: "EB FORM N8N WEBHOOKENRICHMENT..."
+        // running together). D-10 already establishes that Phase 2's
+        // mini-schematics are generic placeholders across the whole wall,
+        // not per-case-accurate — a dedicated `${id}-mini` diagram (falls
+        // back to the main diagram when none exists, i.e. for all 9
+        // already-simple placeholder cases, unchanged) keeps every card's
+        // mini honestly simple, and generalizes to any future case whose
+        // real diagram is too dense for card scale (Phase 3 will add
+        // more), not just a one-off case-01 special case.
+        const diagramEntry = diagramsById.get(`${baseDiagramId}-mini`) ?? diagramsById.get(baseDiagramId);
         if (!diagramEntry) {
           throw new Error(`MachineWall: no diagram found for case "${caseEntry.id}"`);
         }
