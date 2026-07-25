@@ -1,0 +1,19 @@
+{
+  "id": "case-02",
+  "nodes": [
+    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "whatsapp" },
+    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
+    { "id": "store", "label": "Store", "stage": 2, "lane": 0, "kind": "store", "tool": "claude" },
+    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "trigger", "to": "process" },
+    { "id": "e2", "from": "process", "to": "store" },
+    { "id": "e3", "from": "store", "to": "output" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["store"], "activateEdges": ["e2"], "packetPath": ["process", "store"] },
+    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e3"], "packetPath": ["store", "output"] }
+  ]
+}

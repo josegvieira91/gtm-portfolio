@@ -1,0 +1,27 @@
+{
+  "id": "hero",
+  "nodes": [
+    { "id": "lead-in", "label": "Lead In", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
+    { "id": "capture", "label": "Capture", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
+    { "id": "enrich", "label": "Enrich", "stage": 2, "lane": 0, "kind": "process", "tool": "clay" },
+    { "id": "score", "label": "Score", "stage": 3, "lane": 0, "kind": "process", "tool": "claude" },
+    { "id": "route", "label": "Route", "stage": 4, "lane": 0, "kind": "process", "tool": "n8n" },
+    { "id": "close-deal", "label": "Close: Deal", "stage": 5, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "close-alert", "label": "Close: Alert", "stage": 5, "lane": 1, "kind": "output", "tool": "slack" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "lead-in", "to": "capture" },
+    { "id": "e2", "from": "capture", "to": "enrich" },
+    { "id": "e3", "from": "enrich", "to": "score" },
+    { "id": "e4", "from": "score", "to": "route" },
+    { "id": "e5", "from": "route", "to": "close-deal" },
+    { "id": "e6", "from": "route", "to": "close-alert" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["lead-in", "capture"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["enrich"], "activateEdges": ["e2"], "packetPath": ["capture", "enrich"] },
+    { "id": "s3", "activateNodes": ["score"], "activateEdges": ["e3"], "packetPath": ["enrich", "score"] },
+    { "id": "s4", "activateNodes": ["route"], "activateEdges": ["e4"], "packetPath": ["score", "route"] },
+    { "id": "s5", "activateNodes": ["close-deal", "close-alert"], "activateEdges": ["e5", "e6"], "packetPath": ["route", "close-deal"] }
+  ]
+}

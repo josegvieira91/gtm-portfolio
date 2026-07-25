@@ -1,0 +1,22 @@
+---
+title: "HubSpot to Salesforce Bidirectional Sync"
+slug: "hubspot-to-salesforce-bidirectional-sync"
+category: "Ops"
+heroMetric: "HubSpot and Salesforce stay in sync, both directions"
+stack: ["n8n", "HubSpot", "Salesforce"]
+metrics:
+  - label: "Records synced"
+    value: "5,000+"
+  - label: "Conflict rate"
+    value: "<1%"
+  - label: "Failed syncs recovered"
+    value: "100%"
+diagramId: "case-07"
+featured: false
+draft: true
+---
+
+Records sync both directions between HubSpot and Salesforce with explicit
+field mapping and conflict rules, and anything that fails lands in a
+dead-letter queue instead of silently dropping. The full mapping table and
+retry logic ship with the Phase 3 build.

@@ -1,0 +1,21 @@
+{
+  "id": "case-06",
+  "nodes": [
+    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
+    { "id": "router", "label": "Router", "stage": 1, "lane": 0, "kind": "process", "tool": "claude" },
+    { "id": "branch-a", "label": "Branch A", "stage": 2, "lane": 0, "kind": "output", "tool": "hubspot" },
+    { "id": "branch-b", "label": "Branch B", "stage": 2, "lane": 1, "kind": "store", "tool": "n8n" },
+    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "trigger", "to": "router" },
+    { "id": "e2", "from": "router", "to": "branch-a" },
+    { "id": "e3", "from": "router", "to": "branch-b" },
+    { "id": "e4", "from": "branch-a", "to": "output" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["trigger", "router"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["branch-a", "branch-b"], "activateEdges": ["e2", "e3"], "packetPath": ["router", "branch-a"] },
+    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e4"], "packetPath": ["branch-a", "output"] }
+  ]
+}
