@@ -26,7 +26,23 @@ export const TOOL_ICONS: Record<string, ToolIcon> = {
   whatsapp: { slug: 'whatsapp', hex: '#25D366' },
   postgres: { slug: 'postgresql', hex: '#4169E1' },
   calcom: { slug: 'caldotcom', hex: '#292929' },
-  // Pitfall 4: Simple Icons has no Clay mark. Hand-drawn fallback glyph
-  // (icons/clay.svg), hex sampled from clay.com's own site ink color.
+  // Content-pass expansion (2026-07-25, José's tool-diversity call): every
+  // tool below is recordable in a live account (free tier / dev org / test
+  // mode / trial) — the hard rule for anything shown on this site. Hexes
+  // verified against simple-icons' own data JSON.
+  gmail: { slug: 'gmail', hex: '#EA4335' },
+  googlesheets: { slug: 'googlesheets', hex: '#34A853' },
+  googlecalendar: { slug: 'googlecalendar', hex: '#4285F4' },
+  zapier: { slug: 'zapier', hex: '#FF4F00' },
+  make: { slug: 'make', hex: '#6D00CC' },
+  openai: { slug: 'openai', hex: '#000000' },
+  metabase: { slug: 'metabase', hex: '#509EE3' },
+  posthog: { slug: 'posthog', hex: '#000000' },
+  stripe: { slug: 'stripe', hex: '#635BFF' },
+  // Pitfall 4: no Simple Icons entry for these three. Hand glyphs live in
+  // icons/ (resolved via local-icons.ts); Apollo and Instantly marks traced
+  // from the brands' own site SVGs, Clay's hex sampled from clay.com ink.
   clay: { slug: null, hex: '#1D2026', local: 'icons/clay.svg' },
+  apollo: { slug: null, hex: '#000000', local: 'icons/apollo.svg' },
+  instantly: { slug: null, hex: '#0281FF', local: 'icons/instantly.svg' },
 };

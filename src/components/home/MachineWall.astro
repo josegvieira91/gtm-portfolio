@@ -28,37 +28,36 @@ import { getCollection } from 'astro:content';
 import Schematic from '../schematic/Schematic.astro';
 import { Icon } from 'astro-icon/components';
 import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
-import clayIconRaw from '../schematic/icons/clay.svg?raw';
+import { LOCAL_ICONS } from '../schematic/local-icons';
 
-// Filter chips, next to the tool-icons import per the plan: the AI chip is
-// the one place a chip label diverges from its raw stack match string
-// (stack entries say "Claude", the chip reads "AI"). Gate 1 discretion pick
-// kept: single-select + All (SCHEMATIC_CONFIG.filterMode).
+// Filter chips (content pass 2026-07-25): with the diversified catalog the
+// chip set covers the three orchestrators, the two data/enrichment tools,
+// the two CRMs, and the two AI providers by name — José's call: "AI" is
+// not a tool, so the chips name Claude and OpenAI concretely. Gate 1
+// discretion pick kept: single-select + All (SCHEMATIC_CONFIG.filterMode).
 const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
   { id: 'all', label: 'All', match: null },
   { id: 'n8n', label: 'n8n', match: 'n8n' },
+  { id: 'make', label: 'Make', match: 'Make' },
+  { id: 'zapier', label: 'Zapier', match: 'Zapier' },
   { id: 'clay', label: 'Clay', match: 'Clay' },
+  { id: 'apollo', label: 'Apollo', match: 'Apollo' },
   { id: 'hubspot', label: 'HubSpot', match: 'HubSpot' },
   { id: 'salesforce', label: 'Salesforce', match: 'Salesforce' },
-  { id: 'ai', label: 'AI', match: 'Claude' },
+  { id: 'claude', label: 'Claude', match: 'Claude' },
+  { id: 'openai', label: 'OpenAI', match: 'OpenAI' },
 ];
 
-// Normalizes a case's raw `stack` string to a tool-icons.ts key. Tools
-// outside the mapped icon set (e.g. Mailtrap, case-05) render no badge —
-// 02-06 already established this exact rule for diagram node tools.
-const STACK_TO_ICON_KEY: Record<string, string> = {
-  n8n: 'n8n',
-  HubSpot: 'hubspot',
-  Salesforce: 'salesforce',
-  Slack: 'slack',
-  Claude: 'claude',
-  WhatsApp: 'whatsapp',
-  Postgres: 'postgres',
-  'Cal.com': 'calcom',
-  Clay: 'clay',
-};
+// Normalizes a case's raw `stack` display name ("Google Sheets", "Cal.com")
+// to a tool-icons.ts key ("googlesheets", "calcom") — same rule as
+// StackBadges.astro. Tools outside the mapped icon set render no badge;
+// 02-06 established that rule for diagram node tools.
+function toolKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 
-const clayIconInline = clayIconRaw.replace('<svg', '<svg width="100%" height="100%"');
+const localIconInline = (path: string): string =>
+  (LOCAL_ICONS[path] ?? '').replace('<svg', '<svg width="100%" height="100%"');
 
 const [caseEntries, diagramEntries] = await Promise.all([
   getCollection('cases'),
@@ -118,8 +117,8 @@ const cases = caseEntries
           throw new Error(`MachineWall: no diagram found for case "${caseEntry.id}"`);
         }
         const toolKeys = caseEntry.data.stack
-          .map((tool) => STACK_TO_ICON_KEY[tool])
-          .filter((key): key is string => Boolean(key));
+          .map((tool) => toolKey(tool))
+          .filter((key) => Boolean(TOOL_ICONS[key]));
 
         return (
           <article
@@ -154,7 +153,7 @@ const cases = caseEntries
                       {icon.slug ? (
                         <Icon name={`simple-icons:${icon.slug}`} width={14} height={14} style={`color:${icon.hex}`} />
                       ) : (
-                        <span style={`color:${icon.hex}`} set:html={clayIconInline} />
+                        <span style={`color:${icon.hex}`} set:html={localIconInline(icon.local ?? '')} />
                       )}
                     </span>
                   );

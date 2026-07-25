@@ -11,14 +11,15 @@
 // D-05b): 'line-art' = geometry + label only, no icon glyph; 'logo' =
 // same geometry plus the tool's real brand-colored Simple Icons glyph on
 // a light chip (the winning Gate 1 treatment; Pitfall 5: real brand hex,
-// not the cyan accent). Clay has no Simple Icons entry (Pitfall 4) and
-// falls back to the hand-drawn icons/clay.svg, inlined via a Vite ?raw
-// import so it needs no public/ asset path.
+// not the cyan accent). Tools with no Simple Icons entry (Pitfall 4:
+// Clay, Apollo, Instantly) fall back to hand-drawn glyphs resolved
+// through LOCAL_ICONS (local-icons.ts), inlined via Vite ?raw imports so
+// they need no public/ asset path.
 import { Icon } from 'astro-icon/components';
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
 import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
 import type { DiagramNode, NodePosition } from '../../lib/schematic/types';
-import clayIconRaw from './icons/clay.svg?raw';
+import { LOCAL_ICONS } from './local-icons';
 
 interface Props {
   node: DiagramNode;
@@ -59,11 +60,11 @@ const iconSize = Math.min(w, h) * 0.42;
 const chipSize = iconSize + 4;
 const labelY = y + h + 14;
 
-// Inline the hand-drawn Clay glyph with explicit positioning attributes
+// Inline the hand-drawn glyph with explicit positioning attributes
 // injected into its root <svg> tag (avoids nested-viewport auto-sizing
 // ambiguity from a bare `<svg>` with no width/height).
-const clayIconPositioned = icon?.local
-  ? clayIconRaw.replace(
+const localIconPositioned = icon?.local
+  ? (LOCAL_ICONS[icon.local] ?? '').replace(
       '<svg',
       `<svg x="${pos.x - iconSize / 2}" y="${pos.y - iconSize / 2}" width="${iconSize}" height="${iconSize}" style="color:${icon.hex}"`
     )
@@ -108,7 +109,7 @@ const clayIconPositioned = icon?.local
           style={`color:${icon.hex}`}
         />
       ) : (
-        <Fragment set:html={clayIconPositioned} />
+        <Fragment set:html={localIconPositioned} />
       )}
     </>
   )}

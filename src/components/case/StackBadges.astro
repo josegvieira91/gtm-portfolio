@@ -13,7 +13,7 @@
 import { Icon } from 'astro-icon/components';
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
 import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
-import clayIconRaw from '../schematic/icons/clay.svg?raw';
+import { LOCAL_ICONS } from '../schematic/local-icons';
 
 interface Props {
   stack: string[];
@@ -33,8 +33,8 @@ function toolKey(name: string): string {
   {stack.map((name) => {
     const icon = TOOL_ICONS[toolKey(name)];
     const color = isLogo ? (icon?.hex ?? 'var(--color-blueprint-line)') : 'var(--color-blueprint-line)';
-    const clayPositioned = icon?.local
-      ? clayIconRaw.replace('<svg', `<svg width="16" height="16" style="color:${color}"`)
+    const localPositioned = icon?.local
+      ? (LOCAL_ICONS[icon.local] ?? '').replace('<svg', `<svg width="16" height="16" style="color:${color}"`)
       : '';
     return (
       <li class="flex items-center gap-2 rounded-full border border-blueprint-line/30 bg-blueprint-surface px-4 py-2 text-sm text-blueprint-ink">
@@ -42,7 +42,7 @@ function toolKey(name: string): string {
           {icon?.slug ? (
             <Icon name={`simple-icons:${icon.slug}`} width={16} height={16} style={`color:${color}`} />
           ) : icon?.local ? (
-            <Fragment set:html={clayPositioned} />
+            <Fragment set:html={localPositioned} />
           ) : null}
         </span>
         <span>{name}</span>
