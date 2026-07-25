@@ -2,3 +2,22 @@
 .env
 .DS_Store
 CLAUDE.md
+
+# Build output / tooling
+node_modules/
+dist/
+.astro/
+
+# Videos never enter git; deployed by a separate path (rsync/bind mount, plan 01-06)
+videos/
+
+# Generated seed data (plan 01-05)
+scripts/seed-data/output/
+
+# Local-only files owned by later plans in this phase:
+# lab-accounts.local.md (01-02), deploy-runbook.local.md (01-06)
+*.local.md
+
+# Local-only files owned by later plans in this phase:
+# .sanitize-denylist.local (01-03)
+*.local
