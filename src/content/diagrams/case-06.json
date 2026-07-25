@@ -1,21 +1,61 @@
 {
   "id": "case-06",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "router", "label": "Router", "stage": 1, "lane": 0, "kind": "process", "tool": "claude" },
-    { "id": "branch-a", "label": "Branch A", "stage": 2, "lane": 0, "kind": "output", "tool": "hubspot" },
-    { "id": "branch-b", "label": "Branch B", "stage": 2, "lane": 1, "kind": "store", "tool": "n8n" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+    { "id": "inbox", "label": "Gmail Watch", "stage": 0, "lane": 1, "kind": "trigger", "tool": "gmail" },
+    { "id": "classify", "label": "OpenAI Classify", "stage": 1, "lane": 1, "kind": "process", "tool": "openai" },
+    { "id": "router", "label": "n8n Router", "stage": 2, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "crm", "label": "HubSpot Log", "stage": 3, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "draftr", "label": "Draft Reply", "stage": 3, "lane": 2, "kind": "output", "tool": "gmail" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "router" },
-    { "id": "e2", "from": "router", "to": "branch-a" },
-    { "id": "e3", "from": "router", "to": "branch-b" },
-    { "id": "e4", "from": "branch-a", "to": "output" }
+    { "id": "e1", "from": "inbox", "to": "classify" },
+    { "id": "e2", "from": "classify", "to": "router" },
+    { "id": "e3", "from": "router", "to": "crm" },
+    { "id": "e4", "from": "router", "to": "draftr" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "router"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["branch-a", "branch-b"], "activateEdges": ["e2", "e3"], "packetPath": ["router", "branch-a"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e4"], "packetPath": ["branch-a", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["inbox", "classify"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "Every reply classifies in seconds: interested, objection, OOO, or bounce",
+        "anchor": "classify",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["router"],
+      "activateEdges": ["e2"],
+      "packetPath": ["classify", "router"],
+      "callout": {
+        "text": "n8n routes by class: bounces clean the list, OOOs schedule a retry",
+        "anchor": "router",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["crm"],
+      "activateEdges": ["e3"],
+      "packetPath": ["router", "crm"],
+      "callout": {
+        "text": "Every outcome logs to HubSpot, reporting sees replies without rep effort",
+        "anchor": "crm",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["draftr"],
+      "activateEdges": ["e4"],
+      "packetPath": ["router", "draftr"],
+      "callout": {
+        "text": "Interested replies get a drafted response waiting in the rep's inbox",
+        "anchor": "draftr",
+        "side": "bottom"
+      }
+    }
   ]
 }

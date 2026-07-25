@@ -3,7 +3,7 @@ title: "WhatsApp AI Lead Qualification"
 slug: "whatsapp-ai-lead-qualification"
 category: "Inbound"
 heroMetric: "AI qualifies every WhatsApp lead before a rep sees it"
-stack: ["n8n", "WhatsApp", "Claude", "HubSpot"]
+stack: ["WhatsApp", "n8n", "Claude", "HubSpot"]
 metrics:
   - label: "Response time"
     value: "<2min"
@@ -16,6 +16,8 @@ featured: false
 draft: true
 ---
 
-A WhatsApp message comes in, and the flow uses Claude to read intent, ask
-qualifying questions, and score the lead before it ever reaches a rep. The
-full conversation flow and CRM handoff details ship with the Phase 3 build.
+A WhatsApp message comes in, n8n hands the thread to Claude to read intent,
+ask the qualifying questions, and score the lead before it ever reaches a
+rep. Qualified conversations upsert into HubSpot with a transcript summary
+and hand off to a human in the same thread. The full conversation flow and
+CRM handoff ship with the Phase 3 build.

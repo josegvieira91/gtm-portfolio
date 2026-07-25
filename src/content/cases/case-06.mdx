@@ -3,7 +3,7 @@ title: "AI Reply Triage"
 slug: "ai-reply-triage"
 category: "Inbound"
 heroMetric: "Every reply triaged and routed before it goes stale"
-stack: ["n8n", "Claude", "HubSpot"]
+stack: ["Gmail", "OpenAI", "HubSpot", "n8n"]
 metrics:
   - label: "Replies triaged"
     value: "600+"
@@ -16,7 +16,8 @@ featured: false
 draft: true
 ---
 
-An inbound reply gets classified by intent, the CRM record updates
-automatically, and anything that needs a human gets a draft reply waiting
-for approval. The full classification model and approval queue ship with
-the Phase 3 build.
+Every reply in the shared Gmail inbox is classified by OpenAI in seconds:
+interested, objection, out of office, or bounce. n8n routes each class,
+logs the outcome to HubSpot, and leaves a drafted response waiting in the
+rep's inbox for anything worth answering. The full classification prompts
+and approval queue ship with the Phase 3 build.

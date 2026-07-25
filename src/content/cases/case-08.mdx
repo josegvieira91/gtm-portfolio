@@ -3,7 +3,7 @@ title: "Meeting Lifecycle Automation"
 slug: "meeting-lifecycle-automation"
 category: "Lifecycle"
 heroMetric: "No-shows get a second chance automatically"
-stack: ["Cal.com", "n8n", "HubSpot"]
+stack: ["Cal.com", "Google Calendar", "Zapier", "HubSpot"]
 metrics:
   - label: "Bookings automated"
     value: "300+"
@@ -16,6 +16,8 @@ featured: false
 draft: true
 ---
 
-A Cal.com booking triggers a CRM update, a reminder sequence, and a no-show
-recovery flow that re-engages anyone who skips the call. The full lifecycle
-sequence ships with the Phase 3 build.
+A Cal.com booking fires one Zapier flow that places the Google Calendar
+hold and logs the meeting to HubSpot in the same run. After the slot
+passes, a sweep checks what actually happened and sends no-shows one
+polite rebook nudge with a fresh link. The full lifecycle sequence ships
+with the Phase 3 build.

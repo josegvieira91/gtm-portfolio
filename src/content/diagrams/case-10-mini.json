@@ -1,0 +1,21 @@
+{
+  "id": "case-10-mini",
+  "nodes": [
+    { "id": "events", "label": "Events", "stage": 0, "lane": 0, "kind": "trigger", "tool": "posthog" },
+    { "id": "billing", "label": "Billing", "stage": 0, "lane": 2, "kind": "trigger", "tool": "stripe" },
+    { "id": "scorer", "label": "Score", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "store", "label": "Store", "stage": 2, "lane": 1, "kind": "store", "tool": "postgres" },
+    { "id": "alert", "label": "Alert", "stage": 3, "lane": 1, "kind": "output", "tool": "slack" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "events", "to": "scorer" },
+    { "id": "e2", "from": "billing", "to": "scorer" },
+    { "id": "e3", "from": "scorer", "to": "store" },
+    { "id": "e4", "from": "store", "to": "alert" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["events", "billing", "scorer"], "activateEdges": ["e1", "e2"] },
+    { "id": "s2", "activateNodes": ["store"], "activateEdges": ["e3"], "packetPath": ["scorer", "store"] },
+    { "id": "s3", "activateNodes": ["alert"], "activateEdges": ["e4"], "packetPath": ["store", "alert"] }
+  ]
+}

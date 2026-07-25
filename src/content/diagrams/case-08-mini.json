@@ -1,0 +1,21 @@
+{
+  "id": "case-08-mini",
+  "nodes": [
+    { "id": "booked", "label": "Booked", "stage": 0, "lane": 0, "kind": "trigger", "tool": "calcom" },
+    { "id": "zap", "label": "Zap", "stage": 1, "lane": 0, "kind": "process", "tool": "zapier" },
+    { "id": "gcal", "label": "GCal", "stage": 2, "lane": 0, "kind": "process", "tool": "googlecalendar" },
+    { "id": "crm", "label": "CRM", "stage": 2, "lane": 1, "kind": "store", "tool": "hubspot" },
+    { "id": "nudge", "label": "Nudge", "stage": 3, "lane": 0, "kind": "output", "tool": "calcom" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "booked", "to": "zap" },
+    { "id": "e2", "from": "zap", "to": "gcal" },
+    { "id": "e3", "from": "zap", "to": "crm" },
+    { "id": "e4", "from": "gcal", "to": "nudge" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["booked", "zap"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["gcal", "crm"], "activateEdges": ["e2", "e3"], "packetPath": ["zap", "gcal"] },
+    { "id": "s3", "activateNodes": ["nudge"], "activateEdges": ["e4"], "packetPath": ["gcal", "nudge"] }
+  ]
+}

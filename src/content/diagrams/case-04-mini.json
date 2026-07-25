@@ -1,0 +1,19 @@
+{
+  "id": "case-04-mini",
+  "nodes": [
+    { "id": "sweep", "label": "Sweep", "stage": 0, "lane": 0, "kind": "trigger", "tool": "make" },
+    { "id": "scan", "label": "Scan", "stage": 1, "lane": 0, "kind": "process", "tool": "make" },
+    { "id": "merge", "label": "Merge", "stage": 2, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "digest", "label": "Digest", "stage": 3, "lane": 0, "kind": "output", "tool": "slack" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "sweep", "to": "scan" },
+    { "id": "e2", "from": "scan", "to": "merge" },
+    { "id": "e3", "from": "merge", "to": "digest" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["sweep", "scan"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["merge"], "activateEdges": ["e2"], "packetPath": ["scan", "merge"] },
+    { "id": "s3", "activateNodes": ["digest"], "activateEdges": ["e3"], "packetPath": ["merge", "digest"] }
+  ]
+}

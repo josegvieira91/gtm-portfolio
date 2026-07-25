@@ -1,19 +1,61 @@
 {
   "id": "case-09",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "store", "label": "Store", "stage": 2, "lane": 0, "kind": "store", "tool": "postgres" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "postgres" }
+    { "id": "cron", "label": "Nightly Cron", "stage": 0, "lane": 1, "kind": "trigger", "tool": "n8n" },
+    { "id": "pull", "label": "HubSpot Pull", "stage": 1, "lane": 1, "kind": "process", "tool": "hubspot" },
+    { "id": "transform", "label": "n8n Transform", "stage": 2, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "mart", "label": "Postgres Mart", "stage": 3, "lane": 1, "kind": "store", "tool": "postgres" },
+    { "id": "board", "label": "Metabase Board", "stage": 4, "lane": 1, "kind": "output", "tool": "metabase" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "store" },
-    { "id": "e3", "from": "store", "to": "output" }
+    { "id": "e1", "from": "cron", "to": "pull" },
+    { "id": "e2", "from": "pull", "to": "transform" },
+    { "id": "e3", "from": "transform", "to": "mart" },
+    { "id": "e4", "from": "mart", "to": "board" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["store"], "activateEdges": ["e2"], "packetPath": ["process", "store"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e3"], "packetPath": ["store", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["cron", "pull"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "A nightly job pulls every stage change and owner touch from HubSpot",
+        "anchor": "pull",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["transform"],
+      "activateEdges": ["e2"],
+      "packetPath": ["pull", "transform"],
+      "callout": {
+        "text": "Stage durations and SLA breaches compute in code, not in a report builder",
+        "anchor": "transform",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["mart"],
+      "activateEdges": ["e3"],
+      "packetPath": ["transform", "mart"],
+      "callout": {
+        "text": "The Postgres mart keeps history the CRM forgets, every transition timestamped",
+        "anchor": "mart",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["board"],
+      "activateEdges": ["e4"],
+      "packetPath": ["mart", "board"],
+      "callout": {
+        "text": "Metabase reads the mart directly: same numbers for every team, no exports",
+        "anchor": "board",
+        "side": "bottom"
+      }
+    }
   ]
 }

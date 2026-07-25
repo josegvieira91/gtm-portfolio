@@ -1,0 +1,19 @@
+{
+  "id": "case-06-mini",
+  "nodes": [
+    { "id": "gmail", "label": "Gmail", "stage": 0, "lane": 0, "kind": "trigger", "tool": "gmail" },
+    { "id": "sort", "label": "AI Sort", "stage": 1, "lane": 0, "kind": "process", "tool": "openai" },
+    { "id": "crm", "label": "CRM", "stage": 2, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "draft", "label": "Draft", "stage": 2, "lane": 1, "kind": "output", "tool": "gmail" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "gmail", "to": "sort" },
+    { "id": "e2", "from": "sort", "to": "crm" },
+    { "id": "e3", "from": "sort", "to": "draft" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["gmail", "sort"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["crm"], "activateEdges": ["e2"], "packetPath": ["sort", "crm"] },
+    { "id": "s3", "activateNodes": ["draft"], "activateEdges": ["e3"], "packetPath": ["sort", "draft"] }
+  ]
+}

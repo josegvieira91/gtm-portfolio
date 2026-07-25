@@ -1,0 +1,19 @@
+{
+  "id": "case-09-mini",
+  "nodes": [
+    { "id": "cron", "label": "Cron", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
+    { "id": "pull", "label": "Pull", "stage": 1, "lane": 0, "kind": "process", "tool": "hubspot" },
+    { "id": "mart", "label": "Mart", "stage": 2, "lane": 0, "kind": "store", "tool": "postgres" },
+    { "id": "board", "label": "Board", "stage": 3, "lane": 0, "kind": "output", "tool": "metabase" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "cron", "to": "pull" },
+    { "id": "e2", "from": "pull", "to": "mart" },
+    { "id": "e3", "from": "mart", "to": "board" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["cron", "pull"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["mart"], "activateEdges": ["e2"], "packetPath": ["pull", "mart"] },
+    { "id": "s3", "activateNodes": ["board"], "activateEdges": ["e3"], "packetPath": ["mart", "board"] }
+  ]
+}

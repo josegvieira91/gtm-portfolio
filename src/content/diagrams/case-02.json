@@ -1,19 +1,61 @@
 {
   "id": "case-02",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "whatsapp" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "store", "label": "Store", "stage": 2, "lane": 0, "kind": "store", "tool": "claude" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+    { "id": "wa", "label": "WhatsApp Inbound", "stage": 0, "lane": 1, "kind": "trigger", "tool": "whatsapp" },
+    { "id": "webhook", "label": "n8n Webhook", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "qualify", "label": "Claude Qualify", "stage": 2, "lane": 1, "kind": "process", "tool": "claude" },
+    { "id": "crm", "label": "HubSpot Contact", "stage": 3, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "handoff", "label": "Rep Handoff", "stage": 3, "lane": 2, "kind": "output", "tool": "whatsapp" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "store" },
-    { "id": "e3", "from": "store", "to": "output" }
+    { "id": "e1", "from": "wa", "to": "webhook" },
+    { "id": "e2", "from": "webhook", "to": "qualify" },
+    { "id": "e3", "from": "qualify", "to": "crm" },
+    { "id": "e4", "from": "qualify", "to": "handoff" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["store"], "activateEdges": ["e2"], "packetPath": ["process", "store"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e3"], "packetPath": ["store", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["wa", "webhook"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "Every inbound message lands in n8n with the full conversation thread attached",
+        "anchor": "webhook",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["qualify"],
+      "activateEdges": ["e2"],
+      "packetPath": ["webhook", "qualify"],
+      "callout": {
+        "text": "Claude reads intent and budget from the raw chat, no forms involved",
+        "anchor": "qualify",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["crm"],
+      "activateEdges": ["e3"],
+      "packetPath": ["qualify", "crm"],
+      "callout": {
+        "text": "Qualified leads upsert into HubSpot with a transcript summary on the record",
+        "anchor": "crm",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["handoff"],
+      "activateEdges": ["e4"],
+      "packetPath": ["qualify", "handoff"],
+      "callout": {
+        "text": "Hot conversations hand off to a human inside the same WhatsApp thread",
+        "anchor": "handoff",
+        "side": "bottom"
+      }
+    }
   ]
 }

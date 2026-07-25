@@ -1,0 +1,19 @@
+{
+  "id": "case-07-mini",
+  "nodes": [
+    { "id": "hs", "label": "HubSpot", "stage": 0, "lane": 0, "kind": "trigger", "tool": "hubspot" },
+    { "id": "sync", "label": "Sync", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
+    { "id": "rules", "label": "Rules", "stage": 2, "lane": 0, "kind": "process", "tool": "n8n" },
+    { "id": "sfdc", "label": "SFDC", "stage": 3, "lane": 0, "kind": "store", "tool": "salesforce" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "hs", "to": "sync" },
+    { "id": "e2", "from": "sync", "to": "rules" },
+    { "id": "e3", "from": "rules", "to": "sfdc" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["hs", "sync"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["rules"], "activateEdges": ["e2"], "packetPath": ["sync", "rules"] },
+    { "id": "s3", "activateNodes": ["sfdc"], "activateEdges": ["e3"], "packetPath": ["rules", "sfdc"] }
+  ]
+}

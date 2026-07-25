@@ -3,7 +3,7 @@ title: "CRM Hygiene Engine"
 slug: "crm-hygiene-engine"
 category: "Ops"
 heroMetric: "CRM data stays clean without a manual cleanup pass"
-stack: ["n8n", "HubSpot", "Postgres"]
+stack: ["HubSpot", "Make", "Slack"]
 metrics:
   - label: "Duplicates merged"
     value: "300+"
@@ -16,7 +16,8 @@ featured: false
 draft: true
 ---
 
-A nightly job dedupes contacts, normalizes fields, and flags orphan records,
-writing every change to an audit log so the CRM stays trustworthy without
-manual cleanup. The full rule set and audit trail ship with the Phase 3
+A Make scenario sweeps HubSpot nightly for duplicates, dead fields, and
+stale owners. Exact-match dupes merge themselves under deterministic rules,
+ambiguous matches queue for a human, and every run ends with a Slack digest
+of what changed. The full rule set and audit trail ship with the Phase 3
 build.

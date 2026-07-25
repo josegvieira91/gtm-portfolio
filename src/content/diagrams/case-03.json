@@ -1,21 +1,62 @@
 {
   "id": "case-03",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "clay" },
-    { "id": "router", "label": "Router", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "branch-a", "label": "Branch A", "stage": 2, "lane": 0, "kind": "output", "tool": "hubspot" },
-    { "id": "branch-b", "label": "Branch B", "stage": 2, "lane": 1, "kind": "store", "tool": "clay" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+    { "id": "list", "label": "Target List", "stage": 0, "lane": 1, "kind": "trigger", "tool": "googlesheets" },
+    { "id": "clay", "label": "Clay Table", "stage": 1, "lane": 1, "kind": "process", "tool": "clay" },
+    { "id": "apollo", "label": "Apollo Enrich", "stage": 2, "lane": 1, "kind": "process", "tool": "apollo" },
+    { "id": "fallback", "label": "Fallback Pass", "stage": 3, "lane": 2, "kind": "process", "tool": "clay" },
+    { "id": "crm", "label": "HubSpot Import", "stage": 4, "lane": 1, "kind": "store", "tool": "hubspot" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "router" },
-    { "id": "e2", "from": "router", "to": "branch-a" },
-    { "id": "e3", "from": "router", "to": "branch-b" },
-    { "id": "e4", "from": "branch-a", "to": "output" }
+    { "id": "e1", "from": "list", "to": "clay" },
+    { "id": "e2", "from": "clay", "to": "apollo" },
+    { "id": "e3", "from": "apollo", "to": "crm" },
+    { "id": "e4", "from": "apollo", "to": "fallback" },
+    { "id": "e5", "from": "fallback", "to": "crm" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "router"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["branch-a", "branch-b"], "activateEdges": ["e2", "e3"], "packetPath": ["router", "branch-a"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e4"], "packetPath": ["branch-a", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["list", "clay"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "The account list syncs from Sheets into a Clay table on a schedule",
+        "anchor": "clay",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["apollo"],
+      "activateEdges": ["e2"],
+      "packetPath": ["clay", "apollo"],
+      "callout": {
+        "text": "Apollo fills firmographics and contacts first, the cheapest reliable source",
+        "anchor": "apollo",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["fallback"],
+      "activateEdges": ["e4"],
+      "packetPath": ["apollo", "fallback"],
+      "callout": {
+        "text": "Misses cascade to a fallback provider, one gap never blocks a record",
+        "anchor": "fallback",
+        "side": "bottom"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["crm"],
+      "activateEdges": ["e3", "e5"],
+      "packetPath": ["fallback", "crm"],
+      "callout": {
+        "text": "Only enriched, deduped records land in HubSpot as sales-ready",
+        "anchor": "crm",
+        "side": "top"
+      }
+    }
   ]
 }

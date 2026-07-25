@@ -1,0 +1,19 @@
+{
+  "id": "case-02-mini",
+  "nodes": [
+    { "id": "wa", "label": "WA Msg", "stage": 0, "lane": 0, "kind": "trigger", "tool": "whatsapp" },
+    { "id": "qualify", "label": "Qualify", "stage": 1, "lane": 0, "kind": "process", "tool": "claude" },
+    { "id": "crm", "label": "CRM", "stage": 2, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "handoff", "label": "Handoff", "stage": 3, "lane": 0, "kind": "output", "tool": "whatsapp" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "wa", "to": "qualify" },
+    { "id": "e2", "from": "qualify", "to": "crm" },
+    { "id": "e3", "from": "crm", "to": "handoff" }
+  ],
+  "steps": [
+    { "id": "s1", "activateNodes": ["wa", "qualify"], "activateEdges": ["e1"] },
+    { "id": "s2", "activateNodes": ["crm"], "activateEdges": ["e2"], "packetPath": ["qualify", "crm"] },
+    { "id": "s3", "activateNodes": ["handoff"], "activateEdges": ["e3"], "packetPath": ["crm", "handoff"] }
+  ]
+}

@@ -1,22 +1,64 @@
 {
   "id": "case-04",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "validate", "label": "Validate", "stage": 2, "lane": 0, "kind": "process", "tool": "postgres" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" },
-    { "id": "retry", "label": "Retry Queue", "stage": 3, "lane": 1, "kind": "store", "tool": "postgres", "grid": { "x": 240, "y": 200 } }
+    { "id": "cron", "label": "Nightly Sweep", "stage": 0, "lane": 1, "kind": "trigger", "tool": "make" },
+    { "id": "scan", "label": "Dupe Scan", "stage": 1, "lane": 1, "kind": "process", "tool": "make" },
+    { "id": "rules", "label": "Merge Rules", "stage": 2, "lane": 1, "kind": "process", "tool": "make" },
+    { "id": "merge", "label": "Auto-Merge", "stage": 3, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "review", "label": "Review Queue", "stage": 3, "lane": 2, "kind": "store", "tool": "hubspot" },
+    { "id": "digest", "label": "Slack Digest", "stage": 4, "lane": 1, "kind": "output", "tool": "slack" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "validate" },
-    { "id": "e3", "from": "validate", "to": "output" },
-    { "id": "e4", "from": "validate", "to": "retry" },
-    { "id": "e5", "from": "retry", "to": "process" }
+    { "id": "e1", "from": "cron", "to": "scan" },
+    { "id": "e2", "from": "scan", "to": "rules" },
+    { "id": "e3", "from": "rules", "to": "merge" },
+    { "id": "e4", "from": "rules", "to": "review" },
+    { "id": "e5", "from": "merge", "to": "digest" },
+    { "id": "e6", "from": "review", "to": "digest" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["validate", "output"], "activateEdges": ["e2", "e3"], "packetPath": ["process", "validate", "output"] },
-    { "id": "s3", "activateNodes": ["retry"], "activateEdges": ["e4", "e5"], "packetPath": ["validate", "retry"] }
+    {
+      "id": "s1",
+      "activateNodes": ["cron", "scan"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "A Make scenario sweeps the CRM nightly for dupes, dead fields, stale owners",
+        "anchor": "scan",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["rules"],
+      "activateEdges": ["e2"],
+      "packetPath": ["scan", "rules"],
+      "callout": {
+        "text": "Deterministic merge rules: exact-match dupes merge themselves, no guessing",
+        "anchor": "rules",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["merge", "review"],
+      "activateEdges": ["e3", "e4"],
+      "packetPath": ["rules", "merge"],
+      "callout": {
+        "text": "Ambiguous matches queue for a human instead of merging wrong silently",
+        "anchor": "review",
+        "side": "bottom"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["digest"],
+      "activateEdges": ["e5", "e6"],
+      "packetPath": ["merge", "digest"],
+      "callout": {
+        "text": "Every run ends with a Slack digest: what merged, what needs eyes",
+        "anchor": "digest",
+        "side": "top"
+      }
+    }
   ]
 }

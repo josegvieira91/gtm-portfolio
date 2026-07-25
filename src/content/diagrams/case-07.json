@@ -1,22 +1,65 @@
 {
   "id": "case-07",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "hubspot" },
-    { "id": "validate", "label": "Validate", "stage": 2, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "salesforce" },
-    { "id": "retry", "label": "Retry Queue", "stage": 3, "lane": 1, "kind": "store", "tool": "n8n", "grid": { "x": 240, "y": 200 } }
+    { "id": "hs", "label": "HubSpot Event", "stage": 0, "lane": 0, "kind": "trigger", "tool": "hubspot" },
+    { "id": "sfin", "label": "Salesforce Event", "stage": 0, "lane": 2, "kind": "trigger", "tool": "salesforce" },
+    { "id": "queue", "label": "n8n Queue", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "map", "label": "Field Map", "stage": 2, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "conflict", "label": "Conflict Rules", "stage": 3, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "hsout", "label": "HubSpot Upsert", "stage": 4, "lane": 0, "kind": "store", "tool": "hubspot" },
+    { "id": "sfout", "label": "Salesforce Upsert", "stage": 4, "lane": 2, "kind": "store", "tool": "salesforce" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "validate" },
-    { "id": "e3", "from": "validate", "to": "output" },
-    { "id": "e4", "from": "validate", "to": "retry" },
-    { "id": "e5", "from": "retry", "to": "process" }
+    { "id": "e1", "from": "hs", "to": "queue" },
+    { "id": "e2", "from": "sfin", "to": "queue" },
+    { "id": "e3", "from": "queue", "to": "map" },
+    { "id": "e4", "from": "map", "to": "conflict" },
+    { "id": "e5", "from": "conflict", "to": "hsout" },
+    { "id": "e6", "from": "conflict", "to": "sfout" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["validate", "output"], "activateEdges": ["e2", "e3"], "packetPath": ["process", "validate", "output"] },
-    { "id": "s3", "activateNodes": ["retry"], "activateEdges": ["e4", "e5"], "packetPath": ["validate", "retry"] }
+    {
+      "id": "s1",
+      "activateNodes": ["hs", "sfin", "queue"],
+      "activateEdges": ["e1", "e2"],
+      "callout": {
+        "text": "Change events from both CRMs land in one ordered queue, no polling",
+        "anchor": "queue",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["map"],
+      "activateEdges": ["e3"],
+      "packetPath": ["queue", "map"],
+      "callout": {
+        "text": "One field map owns the translation, a rename happens once, not twice",
+        "anchor": "map",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["conflict"],
+      "activateEdges": ["e4"],
+      "packetPath": ["map", "conflict"],
+      "callout": {
+        "text": "Last-write-wins with explicit tiebreakers, every conflict logged",
+        "anchor": "conflict",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["hsout", "sfout"],
+      "activateEdges": ["e5", "e6"],
+      "packetPath": ["conflict", "sfout"],
+      "callout": {
+        "text": "Writes upsert with external IDs, replays never duplicate a record",
+        "anchor": "sfout",
+        "side": "bottom"
+      }
+    }
   ]
 }

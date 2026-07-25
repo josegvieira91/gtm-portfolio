@@ -1,21 +1,63 @@
 {
   "id": "case-08",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "calcom" },
-    { "id": "router", "label": "Router", "stage": 1, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "branch-a", "label": "Branch A", "stage": 2, "lane": 0, "kind": "output", "tool": "hubspot" },
-    { "id": "branch-b", "label": "Branch B", "stage": 2, "lane": 1, "kind": "store", "tool": "n8n" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "hubspot" }
+    { "id": "book", "label": "Cal.com Booked", "stage": 0, "lane": 1, "kind": "trigger", "tool": "calcom" },
+    { "id": "zap", "label": "Zapier Flow", "stage": 1, "lane": 1, "kind": "process", "tool": "zapier" },
+    { "id": "gcal", "label": "Calendar Hold", "stage": 2, "lane": 0, "kind": "process", "tool": "googlecalendar" },
+    { "id": "crm", "label": "HubSpot Meeting", "stage": 2, "lane": 2, "kind": "store", "tool": "hubspot" },
+    { "id": "noshow", "label": "No-Show Sweep", "stage": 3, "lane": 1, "kind": "process", "tool": "zapier" },
+    { "id": "rebook", "label": "Rebook Nudge", "stage": 4, "lane": 1, "kind": "output", "tool": "calcom" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "router" },
-    { "id": "e2", "from": "router", "to": "branch-a" },
-    { "id": "e3", "from": "router", "to": "branch-b" },
-    { "id": "e4", "from": "branch-a", "to": "output" }
+    { "id": "e1", "from": "book", "to": "zap" },
+    { "id": "e2", "from": "zap", "to": "gcal" },
+    { "id": "e3", "from": "zap", "to": "crm" },
+    { "id": "e4", "from": "gcal", "to": "noshow" },
+    { "id": "e5", "from": "noshow", "to": "rebook" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "router"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["branch-a", "branch-b"], "activateEdges": ["e2", "e3"], "packetPath": ["router", "branch-a"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e4"], "packetPath": ["branch-a", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["book", "zap"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "A booking fires one Zapier flow that owns the whole meeting lifecycle",
+        "anchor": "zap",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["gcal", "crm"],
+      "activateEdges": ["e2", "e3"],
+      "packetPath": ["zap", "crm"],
+      "callout": {
+        "text": "Calendar hold and HubSpot meeting record land in the same run",
+        "anchor": "crm",
+        "side": "bottom"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["noshow"],
+      "activateEdges": ["e4"],
+      "packetPath": ["gcal", "noshow"],
+      "callout": {
+        "text": "After the slot passes, a sweep checks what actually happened",
+        "anchor": "noshow",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["rebook"],
+      "activateEdges": ["e5"],
+      "packetPath": ["noshow", "rebook"],
+      "callout": {
+        "text": "No-shows get one polite rebook nudge with a fresh Cal.com link",
+        "anchor": "rebook",
+        "side": "bottom"
+      }
+    }
   ]
 }

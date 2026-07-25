@@ -2,8 +2,8 @@
 title: "AI-Personalized Outbound"
 slug: "ai-personalized-outbound"
 category: "Outbound"
-heroMetric: "Claude personalizes every outbound opener at scale"
-stack: ["n8n", "Claude", "Mailtrap"]
+heroMetric: "One researched email per prospect, drafted and gated at scale"
+stack: ["Apollo", "OpenAI", "Instantly", "n8n"]
 metrics:
   - label: "Emails sent"
     value: "2,000+"
@@ -16,6 +16,8 @@ featured: false
 draft: true
 ---
 
-Claude drafts a personalized opener for each prospect from real account
-signals, and the sequence sends on a schedule tuned to reply rates. The full
-personalization prompts and sequence logic ship with the Phase 3 build.
+Apollo saved searches feed an n8n pipeline where OpenAI drafts one email
+per prospect from enriched fields. A deterministic QA gate loops weak
+drafts back for a rewrite, and only approved copy reaches Instantly for
+sending. The full personalization prompts and gate rules ship with the
+Phase 3 build.

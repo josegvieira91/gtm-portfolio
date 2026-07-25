@@ -1,22 +1,50 @@
 {
   "id": "case-10",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "postgres" },
-    { "id": "validate", "label": "Validate", "stage": 2, "lane": 0, "kind": "process", "tool": "n8n" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "slack" },
-    { "id": "retry", "label": "Retry Queue", "stage": 3, "lane": 1, "kind": "store", "tool": "postgres", "grid": { "x": 240, "y": 200 } }
+    { "id": "events", "label": "PostHog Events", "stage": 0, "lane": 0, "kind": "trigger", "tool": "posthog" },
+    { "id": "billing", "label": "Stripe Billing", "stage": 0, "lane": 2, "kind": "trigger", "tool": "stripe" },
+    { "id": "scorer", "label": "n8n Scorer", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "score", "label": "Health Score", "stage": 2, "lane": 1, "kind": "store", "tool": "postgres" },
+    { "id": "risk", "label": "Risk Alert", "stage": 3, "lane": 1, "kind": "output", "tool": "slack" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "validate" },
-    { "id": "e3", "from": "validate", "to": "output" },
-    { "id": "e4", "from": "validate", "to": "retry" },
-    { "id": "e5", "from": "retry", "to": "process" }
+    { "id": "e1", "from": "events", "to": "scorer" },
+    { "id": "e2", "from": "billing", "to": "scorer" },
+    { "id": "e3", "from": "scorer", "to": "score" },
+    { "id": "e4", "from": "score", "to": "risk" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["validate", "output"], "activateEdges": ["e2", "e3"], "packetPath": ["process", "validate", "output"] },
-    { "id": "s3", "activateNodes": ["retry"], "activateEdges": ["e4", "e5"], "packetPath": ["validate", "retry"] }
+    {
+      "id": "s1",
+      "activateNodes": ["events", "billing", "scorer"],
+      "activateEdges": ["e1", "e2"],
+      "callout": {
+        "text": "Usage events and billing signals feed one scorer, product and revenue together",
+        "anchor": "scorer",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["score"],
+      "activateEdges": ["e3"],
+      "packetPath": ["scorer", "score"],
+      "callout": {
+        "text": "Each account gets a weighted health score with its inputs stored beside it",
+        "anchor": "score",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["risk"],
+      "activateEdges": ["e4"],
+      "packetPath": ["score", "risk"],
+      "callout": {
+        "text": "A drop past threshold alerts the owner in Slack while there is time to act",
+        "anchor": "risk",
+        "side": "bottom"
+      }
+    }
   ]
 }

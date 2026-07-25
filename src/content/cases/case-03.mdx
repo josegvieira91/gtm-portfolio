@@ -3,7 +3,7 @@ title: "TAM List Building & Enrichment Waterfall"
 slug: "tam-list-building-enrichment-waterfall"
 category: "Outbound"
 heroMetric: "Enrichment waterfall keeps the TAM list sales-ready"
-stack: ["Clay", "HubSpot"]
+stack: ["Clay", "Apollo", "Google Sheets", "HubSpot"]
 metrics:
   - label: "Accounts enriched"
     value: "500+"
@@ -16,7 +16,7 @@ featured: false
 draft: true
 ---
 
-A target account list runs through a Clay enrichment waterfall, filling
-firmographic and contact data before it lands in the CRM as sales-ready
-records. The full waterfall logic and provider fallback chain ship with the
-Phase 3 build.
+A target account list syncs from Google Sheets into a Clay table, where an
+enrichment waterfall tries Apollo first and cascades misses to a fallback
+provider. Only enriched, deduped records land in HubSpot as sales-ready.
+The full waterfall logic and provider chain ship with the Phase 3 build.

@@ -1,19 +1,64 @@
 {
   "id": "case-05",
   "nodes": [
-    { "id": "trigger", "label": "Intake", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
-    { "id": "process", "label": "Process", "stage": 1, "lane": 0, "kind": "process", "tool": "claude" },
-    { "id": "store", "label": "Store", "stage": 2, "lane": 0, "kind": "store", "tool": "n8n" },
-    { "id": "output", "label": "Output", "stage": 3, "lane": 0, "kind": "output", "tool": "claude" }
+    { "id": "source", "label": "Apollo Search", "stage": 0, "lane": 1, "kind": "trigger", "tool": "apollo" },
+    { "id": "pipe", "label": "n8n Pipeline", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "draft", "label": "OpenAI Draft", "stage": 2, "lane": 1, "kind": "process", "tool": "openai" },
+    { "id": "gate", "label": "QA Gate", "stage": 3, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "retry", "label": "Redraft Loop", "stage": 2, "lane": 2, "kind": "store", "tool": "n8n", "grid": { "x": 440, "y": 240 } },
+    { "id": "send", "label": "Instantly Send", "stage": 4, "lane": 1, "kind": "output", "tool": "instantly" }
   ],
   "edges": [
-    { "id": "e1", "from": "trigger", "to": "process" },
-    { "id": "e2", "from": "process", "to": "store" },
-    { "id": "e3", "from": "store", "to": "output" }
+    { "id": "e1", "from": "source", "to": "pipe" },
+    { "id": "e2", "from": "pipe", "to": "draft" },
+    { "id": "e3", "from": "draft", "to": "gate" },
+    { "id": "e4", "from": "gate", "to": "retry" },
+    { "id": "e5", "from": "retry", "to": "draft" },
+    { "id": "e6", "from": "gate", "to": "send" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["trigger", "process"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["store"], "activateEdges": ["e2"], "packetPath": ["process", "store"] },
-    { "id": "s3", "activateNodes": ["output"], "activateEdges": ["e3"], "packetPath": ["store", "output"] }
+    {
+      "id": "s1",
+      "activateNodes": ["source", "pipe"],
+      "activateEdges": ["e1"],
+      "callout": {
+        "text": "Apollo saved searches feed the pipeline, targeting logic lives in one place",
+        "anchor": "pipe",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s2",
+      "activateNodes": ["draft"],
+      "activateEdges": ["e2"],
+      "packetPath": ["pipe", "draft"],
+      "callout": {
+        "text": "OpenAI drafts one email per prospect from enriched fields, not a template",
+        "anchor": "draft",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s3",
+      "activateNodes": ["gate", "retry"],
+      "activateEdges": ["e3", "e4", "e5"],
+      "packetPath": ["draft", "gate"],
+      "callout": {
+        "text": "A deterministic QA gate loops weak drafts back for a rewrite",
+        "anchor": "gate",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s4",
+      "activateNodes": ["send"],
+      "activateEdges": ["e6"],
+      "packetPath": ["gate", "send"],
+      "callout": {
+        "text": "Only approved copy reaches Instantly, on a warmed sending domain",
+        "anchor": "send",
+        "side": "bottom"
+      }
+    }
   ]
 }
