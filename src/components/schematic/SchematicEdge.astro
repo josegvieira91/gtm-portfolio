@@ -1,0 +1,29 @@
+---
+// src/components/schematic/SchematicEdge.astro
+//
+// Renders one diagram edge as an SSR-final-state <path> — fully drawn,
+// no stroke-dasharray offset (Pattern 2: the client controller is the only
+// thing allowed to move this backward to an "undrawn" 0% state, via
+// GSAP's drawSVG property, and only after the reduced-motion check
+// passes). Only transform/opacity/drawSVG are ever animated (SITE-08:
+// the SVG's own viewBox/box never changes size at runtime, zero CLS).
+import { edgePath } from '../../lib/schematic/layout';
+import type { DiagramEdge, NodePosition } from '../../lib/schematic/types';
+
+interface Props {
+  edge: DiagramEdge;
+  fromPos: NodePosition;
+  toPos: NodePosition;
+}
+
+const { edge, fromPos, toPos } = Astro.props;
+const d = edgePath(fromPos, toPos);
+---
+
+<path
+  d={d}
+  data-edge-id={edge.id}
+  class="fill-none stroke-blueprint-line/70"
+  stroke-width="1.5"
+  vector-effect="non-scaling-stroke"
+/>

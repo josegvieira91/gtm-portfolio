@@ -1,0 +1,86 @@
+---
+// src/components/schematic/Schematic.astro
+//
+// The ONE component that SSRs any diagram — full case diagram or the
+// compact mini variant used by the home machine wall / card hover — in
+// its FINAL, fully-drawn state (SITE-03). Never an "undrawn" starting
+// state: full opacity, drawSVG untouched (Pattern 2, non-negotiable). The
+// client controller (SchematicController.ts) is the only thing allowed to
+// move it backward, and only after gsap.matchMedia() confirms
+// prefers-reduced-motion is NOT set.
+//
+// T-02-08 (content injection via the embedded diagram JSON): data is
+// owner-authored and zod-validated at build time; the payload is
+// serialized with JSON.stringify and `</script` sequences are explicitly
+// escaped before being written via `set:html`. Astro's plain `{expr}`
+// child interpolation does NOT evaluate inside inline <script> tags —
+// verified directly against this component's own build output, where it
+// rendered as the literal text "{diagramPayload}" instead of the JSON —
+// so `set:html` (Astro's own directive, not a hand-rolled string-concat
+// workaround) is the correct mechanism here, with the explicit escape
+// above as the mitigation for the risk that directive normally carries.
+import { computeLayout, viewBoxFor } from '../../lib/schematic/layout';
+import type { Diagram, DiagramEdge, DiagramNode } from '../../lib/schematic/types';
+import SchematicNode from './SchematicNode.astro';
+import SchematicEdge from './SchematicEdge.astro';
+
+interface Props {
+  diagram: Diagram;
+  variant: 'full' | 'mini';
+  mode?: 'scroll' | 'auto';
+  id: string;
+}
+
+const { diagram, variant, mode = 'scroll', id } = Astro.props;
+
+// Full: generous grid for the pinned case-page diagram. Mini: compact grid
+// for the home machine wall / card hover mini-variants (D-10).
+const LAYOUT =
+  variant === 'full'
+    ? { stageWidth: 160, laneHeight: 100, padding: 40, nodeWidth: 120, nodeHeight: 52 }
+    : { stageWidth: 56, laneHeight: 36, padding: 16, nodeWidth: 40, nodeHeight: 18 };
+
+const positions = computeLayout(diagram, LAYOUT);
+const viewBox = viewBoxFor(positions, LAYOUT);
+
+// SSR final-state resting spot for the packet marker (D-08): the last node
+// of the last step that has a packetPath, falling back to the diagram's
+// final node when no step defines one. Client JS hides it (opacity 0)
+// before scrubbing it forward step by step.
+function restingNodeId(): string | undefined {
+  for (let i = diagram.steps.length - 1; i >= 0; i -= 1) {
+    const path = diagram.steps[i].packetPath;
+    if (path?.length) return path[path.length - 1];
+  }
+  return diagram.nodes.at(-1)?.id;
+}
+const restPos = positions[restingNodeId() ?? ''];
+
+const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT }).replace(/<\/script/gi, '<\\/script');
+---
+
+<div data-schematic-root data-mode={mode} data-variant={variant} id={id}>
+  <svg
+    viewBox={viewBox}
+    class="h-auto w-full"
+    data-schematic-svg
+    role="img"
+    aria-label={`${diagram.id} schematic`}
+  >
+    {diagram.edges.map((edge: DiagramEdge) => (
+      <SchematicEdge edge={edge} fromPos={positions[edge.from]} toPos={positions[edge.to]} />
+    ))}
+    {diagram.nodes.map((node: DiagramNode) => (
+      <SchematicNode node={node} pos={positions[node.id]} width={LAYOUT.nodeWidth} height={LAYOUT.nodeHeight} />
+    ))}
+    {restPos && (
+      <circle data-packet cx={restPos.x} cy={restPos.y} r={Math.max(3, LAYOUT.nodeHeight * 0.08)} class="fill-blueprint-accent" />
+    )}
+  </svg>
+  <script type="application/json" data-diagram set:html={diagramPayload} />
+</div>
+
+<script>
+  import { initSchematics } from './SchematicController';
+  initSchematics();
+</script>
