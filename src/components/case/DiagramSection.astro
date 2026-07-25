@@ -32,6 +32,20 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
     resolves to 0 everywhere else, so this is a no-op on non-notched phones.
     `md:pt-0` keeps desktop pin behavior byte-identical — untouched per the
     gate instruction. */}
+{/* Cases whose diagrams define no callout steps yet (the Phase 3 catalog
+    placeholders) get a centered single-column stage: the 60/40
+    scrollytelling grid with an EMPTY right rail reads as a broken,
+    off-center page, not as a layout. The scrub-draw animation still runs —
+    same data-pin-section boundary, same Schematic mount — there is just no
+    callout column to scroll past. This branch disappears naturally as each
+    case gains real callout content. */}
+{steps.length === 0 ? (
+  <section id={id} data-pin-section class="px-6 py-16 pt-[env(safe-area-inset-top)] md:py-24">
+    <div class="mx-auto max-w-4xl">
+      <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} />
+    </div>
+  </section>
+) : (
 <section
   id={id}
   data-pin-section
@@ -105,3 +119,4 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
     </div>
   )}
 </section>
+)}
