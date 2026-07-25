@@ -1,0 +1,22 @@
+---
+title: "CRM Hygiene Engine"
+slug: "crm-hygiene-engine"
+category: "Ops"
+heroMetric: "CRM data stays clean without a manual cleanup pass"
+stack: ["n8n", "HubSpot", "Postgres"]
+metrics:
+  - label: "Duplicates merged"
+    value: "300+"
+  - label: "Fields normalized"
+    value: "12"
+  - label: "Nightly runtime"
+    value: "<5min"
+diagramId: "case-04"
+featured: false
+draft: true
+---
+
+A nightly job dedupes contacts, normalizes fields, and flags orphan records,
+writing every change to an audit log so the CRM stays trustworthy without
+manual cleanup. The full rule set and audit trail ship with the Phase 3
+build.

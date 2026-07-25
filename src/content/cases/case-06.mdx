@@ -1,0 +1,22 @@
+---
+title: "AI Reply Triage"
+slug: "ai-reply-triage"
+category: "Inbound"
+heroMetric: "Every reply triaged and routed before it goes stale"
+stack: ["n8n", "Claude", "HubSpot"]
+metrics:
+  - label: "Replies triaged"
+    value: "600+"
+  - label: "Auto-classified"
+    value: "85%"
+  - label: "Approval turnaround"
+    value: "<10min"
+diagramId: "case-06"
+featured: false
+draft: true
+---
+
+An inbound reply gets classified by intent, the CRM record updates
+automatically, and anything that needs a human gets a draft reply waiting
+for approval. The full classification model and approval queue ship with
+the Phase 3 build.

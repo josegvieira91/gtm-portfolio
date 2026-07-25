@@ -1,0 +1,21 @@
+---
+title: "Product Usage Health Score & Churn Signals"
+slug: "product-usage-health-score-churn-signals"
+category: "Lifecycle"
+heroMetric: "Churn risk flagged before the account goes quiet"
+stack: ["n8n", "Postgres", "Slack"]
+metrics:
+  - label: "Accounts scored"
+    value: "400+"
+  - label: "Churn signals caught"
+    value: "30+"
+  - label: "Alert latency"
+    value: "<1hr"
+diagramId: "case-10"
+featured: false
+draft: true
+---
+
+Usage events feed a health score per account, and a drop below threshold
+posts a churn-risk alert to Slack before the account goes quiet. The full
+scoring model and alert thresholds ship with the Phase 3 build.
