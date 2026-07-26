@@ -23,12 +23,7 @@
    real iPhone. Fixed at the source in layout.ts (true node+label
    extents) — no CSS overflow rule needed here, and none of the pinType
    changes tried along the way turned out to be load-bearing either (see
-   timeline.ts).
-
-   GATE 1 (D-02): JetBrains Mono Variable won the font spike. One variable file
-   covers the full weight axis. IBM Plex Mono's package stays installed but
-   dormant (zero client cost unimported) until /mockup, the only page that
-   still renders it, is retired. */
+   timeline.ts). */
 @import "@fontsource-variable/jetbrains-mono";
 
 /* D-01: single dark cyanotype theme. No light mode, no prefers-color-scheme variant.
