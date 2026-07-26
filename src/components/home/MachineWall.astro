@@ -83,6 +83,7 @@ const cases = caseEntries
             type="button"
             data-filter-chip
             data-filter-match={chip.match ?? ''}
+            aria-pressed={chip.id === 'all'}
             class:list={[
               'rounded-full border px-4 py-1.5 text-xs uppercase tracking-wide transition-colors',
               chip.id === 'all'
@@ -186,6 +187,11 @@ const cases = caseEntries
       card.classList.toggle('scale-95', !visible);
       card.classList.toggle('pointer-events-none', !visible);
       card.toggleAttribute('data-filtered-out', !visible);
+      // WR-07 fix: none of the classes above remove the card from the
+      // accessibility tree or the tab order (pointer-events-none blocks the
+      // mouse only) -- a keyboard/screen-reader user still reached every
+      // filtered-out card. `inert` removes both.
+      card.toggleAttribute('inert', !visible);
     });
   }
 
@@ -194,9 +200,11 @@ const cases = caseEntries
       chipButtons.forEach((b) => {
         b.classList.remove(...ACTIVE_CLASSES);
         b.classList.add(...INACTIVE_CLASSES);
+        b.setAttribute('aria-pressed', 'false');
       });
       btn.classList.remove(...INACTIVE_CLASSES);
       btn.classList.add(...ACTIVE_CLASSES);
+      btn.setAttribute('aria-pressed', 'true');
       applyFilter(btn.getAttribute('data-filter-match') || null);
     });
   });
