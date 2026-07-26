@@ -1,0 +1,19 @@
+---
+// src/pages/404.astro
+//
+// WR-04 fix: nginx's error_page 404 (docker/nginx.conf) points here. Astro
+// always emits this file as a flat dist/404.html regardless of the site's
+// directory-format build output, matching nginx's own convention for a
+// static error document. Minimal, on-brand, no dead end back to the site.
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Page not found - Jose Vieira" description="This page does not exist.">
+  <main class="blueprint-grid flex min-h-screen flex-col items-center justify-center px-6 text-center">
+    <p class="text-6xl font-bold text-blueprint-ink">404</p>
+    <p class="mt-4 text-sm text-blueprint-dim">This page does not exist.</p>
+    <a href="/" class="mt-8 text-sm text-blueprint-line underline hover:text-blueprint-ink">
+      Back to the machine wall
+    </a>
+  </main>
+</BaseLayout>
