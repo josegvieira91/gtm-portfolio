@@ -169,6 +169,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
         ? {
             scrollTrigger: {
               trigger: refs.section,
+              start: 'top top', // matches md:sticky md:top-0 engaging
               scrub: 1,
               end: 'bottom bottom',
               snap: 'labels', // D-08: soft snap to each step
