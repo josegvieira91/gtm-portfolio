@@ -158,24 +158,19 @@ const contactEmail = 'hello@josevieira.dev';
     observer.observe(target);
     window.addEventListener('scroll', onScroll, { passive: true, once: true });
 
-    // CR-01 fix: a page whose content fits entirely inside the viewport can
-    // never fire `scroll` (there's nothing to scroll), so `loadEmbed()` was
-    // unreachable there and the visitor saw a permanently empty box. Any
-    // deliberate interaction is an equally good "real visitor, not a
-    // Lighthouse/bot no-scroll run" signal, and only needed when the
-    // document genuinely doesn't scroll.
-    function scheduleFallback() {
-      if (document.documentElement.scrollHeight <= window.innerHeight) {
-        ['pointerdown', 'keydown', 'pointermove'].forEach((evt) =>
-          window.addEventListener(evt, loadEmbed, { once: true, passive: true })
-        );
-      }
-    }
-    // Re-check after layout settles (fonts/images can change scrollHeight)
-    // and again on resize, since a viewport resize can flip a page between
-    // scrollable and non-scrollable without a reload.
-    window.addEventListener('load', scheduleFallback, { once: true });
-    window.addEventListener('resize', scheduleFallback, { passive: true });
-    scheduleFallback();
+    // CR-01 fix: scroll alone is not a reliable trigger. The BaseLayout
+    // footer sits after a min-h-screen main, so every page technically
+    // scrolls by ~90px — but on a tall display the embed is fully visible
+    // with no need to scroll, and a visitor can hover the empty box forever
+    // without ever firing `scroll`. A `scrollHeight <= innerHeight` guard
+    // therefore never arms (proven with a real-browser E2E at 1600x1401).
+    // Arm the interaction fallback unconditionally instead: any deliberate
+    // input is a "real visitor, not a Lighthouse/bot no-input run" signal.
+    // Lighthouse dispatches no input events, so the no-interaction trace
+    // stays free of app.cal.com requests (SITE-08). loadEmbed() is
+    // idempotent, so the scroll path and this path can both fire safely.
+    ['pointerdown', 'keydown', 'pointermove'].forEach((evt) =>
+      window.addEventListener(evt, loadEmbed, { once: true, passive: true })
+    );
   }
 </script>
