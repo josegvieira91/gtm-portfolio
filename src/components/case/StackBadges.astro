@@ -38,13 +38,20 @@ function toolKey(name: string): string {
       : '';
     return (
       <li class="flex items-center gap-2 rounded-full border border-blueprint-line/30 bg-blueprint-surface px-4 py-2 text-sm text-blueprint-ink">
-        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blueprint-ink/90">
-          {icon?.slug ? (
-            <Icon name={`simple-icons:${icon.slug}`} width={16} height={16} style={`color:${color}`} />
-          ) : icon?.local ? (
-            <Fragment set:html={localPositioned} />
-          ) : null}
-        </span>
+        {/* IN-08 fix: this chip span used to render unconditionally, so an
+            unmapped tool showed a visible empty dark square -- contradicting
+            this component's own header comment ("tools outside the mapped
+            icon set render no badge"). Only render the chip when there's
+            actually an icon to put in it. */}
+        {icon && (
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blueprint-ink/90">
+            {icon.slug ? (
+              <Icon name={`simple-icons:${icon.slug}`} width={16} height={16} style={`color:${color}`} />
+            ) : icon.local ? (
+              <Fragment set:html={localPositioned} />
+            ) : null}
+          </span>
+        )}
         <span>{name}</span>
       </li>
     );
