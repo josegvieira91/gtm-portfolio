@@ -35,6 +35,17 @@ export interface SchematicConfig {
    *    unrelated to the pin/scrub mechanism, fixed via letterboxed
    *    `h-full` sizing (Schematic.astro) and a dedicated simplified
    *    diagram for case-01's card (case-01-mini.json).
+   *
+   * WARNING (02-REVIEW.md WR-12): do not flip this to 'unpinned' without
+   * first fixing timeline.ts's mobile branch. It still derives its
+   * ScrollTrigger `end` from a hardcoded `diagram.steps.length * 320`
+   * magic-number distance decoupled from the real DOM height -- the exact
+   * class of bug the desktop branch's own fix (see timeline.ts) already
+   * removed. With `pin: true` this is currently self-consistent (GSAP
+   * inserts a spacer of that exact height), but flipping to 'unpinned'
+   * alone (pin: false) reintroduces the decoupled-scroll-distance bug on
+   * mobile: the diagram would finish drawing before or after the content
+   * it belongs to, depending on viewport height.
    */
   mobilePin: 'pin' | 'unpinned';
   /** GATE 1 discretion pick kept: machine wall tool filter is single-select + All. */
