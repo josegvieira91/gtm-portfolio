@@ -22,5 +22,19 @@ const { title, description } = Astro.props;
   </head>
   <body class="min-h-screen bg-blueprint-bg font-mono text-blueprint-ink">
     <slot />
+    {/* WR-11 fix: the home page (this site's entire entry point) had no way
+        to reach /about or /contact without opening a case page first, and
+        /about was unreachable from anywhere. A quiet footer, not a header,
+        keeps every page one click from every other without competing with
+        the blueprint hero. */}
+    <footer class="border-t border-blueprint-line/20 px-6 py-8 text-center text-xs uppercase tracking-[0.2em] text-blueprint-dim">
+      <nav aria-label="Footer">
+        <a href="/" class="hover:text-blueprint-line">Work</a>
+        <span aria-hidden="true"> &middot; </span>
+        <a href="/about/" class="hover:text-blueprint-line">About</a>
+        <span aria-hidden="true"> &middot; </span>
+        <a href="/contact/" class="hover:text-blueprint-line">Contact</a>
+      </nav>
+    </footer>
   </body>
 </html>
