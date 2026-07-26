@@ -60,7 +60,19 @@ function restingNodeId(): string | undefined {
 }
 const restPos = positions[restingNodeId() ?? ''];
 
-const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT }).replace(/<\/script/gi, '<\\/script');
+// IN-13 fix: `</script` escaping is the documented and sufficient mitigation
+// for this set:html payload, and the data is zod-validated owner-authored
+// content, so there is no exploitable path today -- but JSON.stringify also
+// leaves `<`, U+2028 and U+2029 raw, and escaping `<` alone subsumes the
+// `</script` case entirely. Belt-and-braces; all three round-trip through
+// JSON.parse identically. U+2028/U+2029 are matched via their `\uXXXX` regex
+// escape (a LineTerminator character cannot appear raw inside a regex
+// literal's pattern per the ECMAScript grammar).
+const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT })
+  .replace(/<\/script/gi, '<\\/script')
+  .replace(/</g, '\\u003c')
+  .replace(/\u2028/g, '\\u2028')
+  .replace(/\u2029/g, '\\u2029');
 ---
 
 {/* 02-07 Gate 2 round-3 fix (machine wall mini-schematics: cut nodes,
