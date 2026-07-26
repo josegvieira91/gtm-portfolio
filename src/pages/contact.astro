@@ -44,7 +44,13 @@ const contactEmail = 'hello@josevieira.dev';
       </header>
 
       <section aria-label="Cal.com booking">
-        <div id="cal-inline-embed" style="width:100%;min-height:600px"></div>
+        <div id="cal-inline-embed" style="width:100%;min-height:600px">
+          <noscript>
+            <a href={`https://cal.com/${calLink}`} class="text-blueprint-line underline">
+              Book a 30-minute call
+            </a>
+          </noscript>
+        </div>
       </section>
 
       <!-- CONTACT_EMAIL_PLACEHOLDER: unconfirmed mailbox, see note above -->
@@ -151,5 +157,25 @@ const contactEmail = 'hello@josevieira.dev';
 
     observer.observe(target);
     window.addEventListener('scroll', onScroll, { passive: true, once: true });
+
+    // CR-01 fix: a page whose content fits entirely inside the viewport can
+    // never fire `scroll` (there's nothing to scroll), so `loadEmbed()` was
+    // unreachable there and the visitor saw a permanently empty box. Any
+    // deliberate interaction is an equally good "real visitor, not a
+    // Lighthouse/bot no-scroll run" signal, and only needed when the
+    // document genuinely doesn't scroll.
+    function scheduleFallback() {
+      if (document.documentElement.scrollHeight <= window.innerHeight) {
+        ['pointerdown', 'keydown', 'pointermove'].forEach((evt) =>
+          window.addEventListener(evt, loadEmbed, { once: true, passive: true })
+        );
+      }
+    }
+    // Re-check after layout settles (fonts/images can change scrollHeight)
+    // and again on resize, since a viewport resize can flip a page between
+    // scrollable and non-scrollable without a reload.
+    window.addEventListener('load', scheduleFallback, { once: true });
+    window.addEventListener('resize', scheduleFallback, { passive: true });
+    scheduleFallback();
   }
 </script>
