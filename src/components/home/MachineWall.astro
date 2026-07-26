@@ -127,7 +127,7 @@ const cases = caseEntries
             data-tools={caseEntry.data.stack.join('|')}
             class="group overflow-hidden rounded-lg border border-blueprint-line/25 bg-blueprint-surface transition-[translate,scale,opacity] duration-300 hover:-translate-y-1 hover:border-blueprint-line/60"
           >
-            <a href={`/cases/${caseEntry.data.slug}`} class="block p-5">
+            <a href={`/cases/${caseEntry.data.slug}/`} class="block p-5">
               <div class="mb-4 aspect-[4/3] overflow-hidden rounded border border-blueprint-line/15 bg-blueprint-bg/40 p-3 transition-shadow duration-300 group-hover:shadow-[0_0_24px_-6px_var(--color-blueprint-line)]">
                 <Schematic
                   diagram={diagramEntry.data}
