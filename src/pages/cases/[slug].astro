@@ -17,7 +17,7 @@
 // launch-gate concern — not this template's job. Do not add a
 // `!entry.data.draft` filter here.
 import { existsSync } from 'node:fs';
-import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CaseHero from '../../components/case/CaseHero.astro';
@@ -62,7 +62,12 @@ const diagram = diagramEntry.data as Diagram;
 // token-styled placeholder instead of RecordingPlayer, still shipping zero
 // video bytes.
 const posterSrc = `/posters/${diagramId}.webp`;
-const posterPath = path.join(process.cwd(), 'public', 'posters', `${diagramId}.webp`);
+// WR-06 fix: process.cwd() is the directory the build was invoked from, not
+// the project root — resolving through the module's own URL is invariant to
+// that, so `astro build` from a CI wrapper/monorepo runner/subdirectory
+// still finds the real poster instead of silently falling back to "Recording
+// coming soon" for every case.
+const posterPath = fileURLToPath(new URL(`../../../public/posters/${diagramId}.webp`, import.meta.url));
 const hasPoster = existsSync(posterPath);
 ---
 
