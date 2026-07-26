@@ -29,9 +29,13 @@ interface Props {
   variant: 'full' | 'mini';
   mode?: 'scroll' | 'auto';
   id: string;
+  /** Accessible name for the 'full' variant only (WR-08). Falls back to a
+   * readable `${diagram.id} schematic` string when omitted -- never used for
+   * 'mini', which is always aria-hidden (see below). */
+  label?: string;
 }
 
-const { diagram, variant, mode = 'scroll', id } = Astro.props;
+const { diagram, variant, mode = 'scroll', id, label } = Astro.props;
 
 // Full: generous grid for the pinned case-page diagram. Mini: compact grid
 // for the home machine wall / card hover mini-variants (D-10).
@@ -87,8 +91,9 @@ const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT }).re
     viewBox={viewBox}
     class:list={['w-full', 'overflow-hidden', variant === 'mini' ? 'h-full' : 'h-auto']}
     data-schematic-svg
-    role="img"
-    aria-label={`${diagram.id} schematic`}
+    {...variant === 'mini'
+      ? { 'aria-hidden': 'true', focusable: 'false' }
+      : { role: 'img', 'aria-label': label ?? `${diagram.id} schematic` }}
   >
     {diagram.edges.map((edge: DiagramEdge) => (
       <SchematicEdge edge={edge} fromPos={positions[edge.from]} toPos={positions[edge.to]} />

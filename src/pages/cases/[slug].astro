@@ -75,7 +75,7 @@ const hasPoster = existsSync(posterPath);
   <main>
     <CaseHero title={entry.data.title} category={entry.data.category} heroMetric={entry.data.heroMetric} />
 
-    <DiagramSection diagram={diagram} id={`${diagramId}-diagram`} />
+    <DiagramSection diagram={diagram} id={`${diagramId}-diagram`} label={entry.data.title} />
 
     <HowItWorks>
       <Content />

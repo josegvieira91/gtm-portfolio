@@ -17,9 +17,11 @@ import type { Diagram, DiagramStep } from '../../lib/schematic/types';
 interface Props {
   diagram: Diagram;
   id: string;
+  /** Case title, passed through to Schematic as its accessible name (WR-08). */
+  label?: string;
 }
 
-const { diagram, id } = Astro.props;
+const { diagram, id, label } = Astro.props;
 const mobilePin = SCHEMATIC_CONFIG.mobilePin === 'pin';
 const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 ---
@@ -42,7 +44,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 {steps.length === 0 ? (
   <section id={id} data-pin-section class="px-6 py-16 pt-[env(safe-area-inset-top)] md:py-24">
     <div class="mx-auto max-w-4xl">
-      <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} />
+      <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
     </div>
   </section>
 ) : (
@@ -85,7 +87,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
       Re-verified after adding this: wrapper top stays pinned at 0px across
       the full scroll range instead of tracking scrollY 1:1. */}
   <div class="min-w-0 md:sticky md:top-0 md:self-start md:py-16">
-    <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} />
+    <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
   </div>
 
   {/* Desktop (md+): callouts scroll past the pinned diagram, one block per step (D-06) */}
