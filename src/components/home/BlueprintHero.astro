@@ -67,13 +67,15 @@ if (!heroDiagram) {
 
   if (overlay && prefersMotion) {
     overlay.classList.add('opacity-0');
+    const reveal = () => overlay.classList.remove('opacity-0');
     const heroSchematicRoot = document.getElementById('hero-schematic');
-    heroSchematicRoot?.addEventListener(
-      'schematic:autoplay-complete',
-      () => {
-        overlay.classList.remove('opacity-0');
-      },
-      { once: true }
-    );
+    heroSchematicRoot?.addEventListener('schematic:autoplay-complete', reveal, { once: true });
+    // CR-02 fix: the schematic's own async chain (IntersectionObserver ->
+    // JSON.parse -> dynamic import() -> gsap matchMedia) has multiple
+    // silent-failure points (see WR-13), any of which leaves this event
+    // never dispatched and the name/title hidden forever. The name must
+    // never depend on all of them succeeding, so a fixed timer reveals the
+    // overlay regardless — the event is an optimization, not a dependency.
+    setTimeout(reveal, 2500);
   }
 </script>
