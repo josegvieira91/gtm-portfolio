@@ -231,7 +231,9 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // page-wide promise, so this only ever adds a few cheap, idempotent
   // refresh() calls, never duplicate ScrollTrigger instances.
   if (typeof document !== 'undefined' && document.fonts?.ready) {
-    document.fonts.ready.then(() => ScrollTrigger.refresh());
+    document.fonts.ready
+      .then(() => ScrollTrigger.refresh())
+      .catch((err) => console.error('[schematic] font-ready refresh failed', err));
   }
 
   return mm;

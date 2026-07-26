@@ -74,7 +74,8 @@ async function hydrate(schematicRoot: Element): Promise<void> {
   let payload: DiagramPayload;
   try {
     payload = JSON.parse(payloadEl.textContent);
-  } catch {
+  } catch (err) {
+    console.error('[schematic] hydrate failed: invalid diagram payload JSON', err);
     return;
   }
 
@@ -111,7 +112,7 @@ export function initSchematics(root: ParentNode = document): void {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             observer.disconnect();
-            void hydrate(schematicRoot);
+            hydrate(schematicRoot).catch((err) => console.error('[schematic] hydrate failed', err));
           }
         }
       },

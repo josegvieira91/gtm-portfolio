@@ -46,7 +46,9 @@ const { videoSrc, posterSrc, label } = Astro.props;
       video.playsInline = true;
       video.className = 'block w-full';
       facade.replaceChildren(video);
-      video.play();
+      video.play().catch(() => {
+        /* controls are visible; user can start manually */
+      });
     });
   });
 </script>
