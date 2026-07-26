@@ -21,11 +21,18 @@ const { videoSrc, posterSrc, label } = Astro.props;
 ---
 
 <div
-  class="video-facade group relative overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface"
+  class="video-facade group relative aspect-video overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface"
   data-src={videoSrc}
   data-poster={posterSrc}
 >
-  <img src={posterSrc} loading="lazy" alt={`${label} recording preview`} class="block w-full" />
+  <img
+    src={posterSrc}
+    loading="lazy"
+    width="1280"
+    height="720"
+    alt={`${label} recording preview`}
+    class="block h-full w-full object-cover"
+  />
   <button
     type="button"
     aria-label={`Play ${label} recording`}
@@ -46,6 +53,10 @@ const { videoSrc, posterSrc, label } = Astro.props;
       video.playsInline = true;
       video.className = 'block w-full';
       facade.replaceChildren(video);
+      // WR-10 fix: replaceChildren() destroys the <button> that currently
+      // holds focus, silently resetting it to <body> and losing a keyboard
+      // user's place. Move focus onto the new video so it doesn't vanish.
+      video.focus();
       video.play().catch(() => {
         /* controls are visible; user can start manually */
       });
