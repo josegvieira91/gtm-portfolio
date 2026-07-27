@@ -20,10 +20,15 @@ gsap.registerPlugin(ScrollTrigger, DrawSVGPlugin);
 /** DOM refs collected by SchematicController.ts before mounting. Callouts
  * map to an array because the same step id can render twice in the DOM
  * (desktop column + mobile layout, toggled by CSS breakpoint) — both tween
- * together, only the CSS-visible one is ever seen. */
+ * together, only the CSS-visible one is ever seen.
+ *
+ * IN-03 fix: this used to also carry an `svg` ref (`querySelector('[data-
+ * schematic-svg]')`), collected by SchematicController.ts but read by
+ * nothing here or anywhere else. Dropped from both this interface and the
+ * collection site -- the `data-schematic-svg` DOM attribute itself stays in
+ * Schematic.astro's SSR markup, only the unused JS lookup goes. */
 export interface SchematicRefs {
   section: Element;
-  svg: Element | null;
   nodes: Record<string, Element>;
   edges: Record<string, Element>;
   callouts: Record<string, Element[]>;

@@ -10,21 +10,22 @@
 // anywhere in this file — gsap is only ever reachable through the
 // `import()` below, inside the observer callback.
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
-import type { Diagram, NodePosition } from '../../lib/schematic/types';
+import type { Diagram } from '../../lib/schematic/types';
+// IN-04 fix: this was a locally-declared `CollectedRefs` interface,
+// structurally identical to `SchematicRefs` below except `packet`
+// optionality, that had to be kept in sync by hand. Type-only import is
+// required so the gsap-bearing module is not pulled into the initial
+// bundle (see header comment above) -- exactly the same type-only pattern
+// already used for `Diagram` from `../../lib/schematic/types`.
+import type { SchematicRefs } from '../../lib/schematic/timeline';
 
+// IN-01 fix: `positions` and `layout` were serialized into every embedded
+// payload but nothing on the client ever read either -- coordinates come
+// from the node's own SSR `data-cx`/`data-cy` attributes instead
+// (timeline.ts, layout.ts stays the single source of truth). Reduced to
+// the one field the client actually mounts with.
 interface DiagramPayload {
   diagram: Diagram;
-  positions: Record<string, NodePosition>;
-  layout: unknown;
-}
-
-interface CollectedRefs {
-  section: Element;
-  svg: Element | null;
-  nodes: Record<string, Element>;
-  edges: Record<string, Element>;
-  callouts: Record<string, Element[]>;
-  packet: Element | null;
 }
 
 /**
@@ -35,7 +36,7 @@ interface CollectedRefs {
  * (D-06). Standalone usage (hero/mini schematics with no such ancestor)
  * falls back to the schematic root itself.
  */
-function collectRefs(schematicRoot: Element): CollectedRefs {
+function collectRefs(schematicRoot: Element): SchematicRefs {
   const section = schematicRoot.closest('[data-pin-section]') ?? schematicRoot;
 
   const nodes: Record<string, Element> = {};
@@ -62,9 +63,8 @@ function collectRefs(schematicRoot: Element): CollectedRefs {
   });
 
   const packet = schematicRoot.querySelector('[data-packet]');
-  const svg = schematicRoot.querySelector('[data-schematic-svg]');
 
-  return { section, svg, nodes, edges, callouts, packet };
+  return { section, nodes, edges, callouts, packet };
 }
 
 async function hydrate(schematicRoot: Element): Promise<void> {
