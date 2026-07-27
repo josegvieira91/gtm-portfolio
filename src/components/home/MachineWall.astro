@@ -84,12 +84,7 @@ const cases = caseEntries
             data-filter-chip
             data-filter-match={chip.match ?? ''}
             aria-pressed={chip.id === 'all'}
-            class:list={[
-              'rounded-full border px-4 py-1.5 text-xs uppercase tracking-wide transition-colors',
-              chip.id === 'all'
-                ? 'border-blueprint-line bg-blueprint-line text-blueprint-bg'
-                : 'border-blueprint-line/30 text-blueprint-dim hover:border-blueprint-line/60',
-            ]}
+            class="rounded-full border px-4 py-1.5 text-xs uppercase tracking-wide transition-colors"
           >
             {chip.label}
           </button>
@@ -168,6 +163,36 @@ const cases = caseEntries
   </div>
 </section>
 
+<style>
+  /* IN-09 fix: the filter chip's look used to have three sources of truth
+     -- an SSR class:list ternary, plus two class-name arrays the click
+     handler toggled by hand -- that had to stay in sync manually. The
+     unselected chip's SSR markup carried a hover-only Tailwind utility the
+     click handler's arrays never removed, so an active chip's border
+     reverted to the unselected look on hover; the "All" chip, SSR'd
+     without that same utility, then behaved differently from its siblings
+     once deselected and reselected. `aria-pressed` (already required for
+     WR-07) is now the single source of truth: both looks are pure
+     attribute-selector CSS below, and the click handler only ever toggles
+     the attribute. */
+  [data-filter-chip][aria-pressed="true"] {
+    border-color: var(--color-blueprint-line);
+    background-color: var(--color-blueprint-line);
+    color: var(--color-blueprint-bg);
+  }
+
+  [data-filter-chip][aria-pressed="false"] {
+    border-color: color-mix(in oklab, var(--color-blueprint-line) 30%, transparent);
+    color: var(--color-blueprint-dim);
+  }
+
+  /* Scoped to aria-pressed="false" only -- an active chip must never revert
+     on hover (the exact bug IN-09 reports). */
+  [data-filter-chip][aria-pressed="false"]:hover {
+    border-color: color-mix(in oklab, var(--color-blueprint-line) 60%, transparent);
+  }
+</style>
+
 <script>
   // D-10 filter: single-select + All (Gate 1 discretion pick). A card
   // matches when its raw `stack` (data-tools, pipe-separated) contains the
@@ -175,9 +200,6 @@ const cases = caseEntries
   // micro-transition rather than being removed from the grid outright.
   const chipButtons = document.querySelectorAll<HTMLButtonElement>('[data-filter-chip]');
   const cards = document.querySelectorAll<HTMLElement>('[data-wall-card]');
-
-  const ACTIVE_CLASSES = ['border-blueprint-line', 'bg-blueprint-line', 'text-blueprint-bg'];
-  const INACTIVE_CLASSES = ['border-blueprint-line/30', 'text-blueprint-dim'];
 
   function applyFilter(match: string | null): void {
     cards.forEach((card) => {
@@ -197,13 +219,7 @@ const cases = caseEntries
 
   chipButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      chipButtons.forEach((b) => {
-        b.classList.remove(...ACTIVE_CLASSES);
-        b.classList.add(...INACTIVE_CLASSES);
-        b.setAttribute('aria-pressed', 'false');
-      });
-      btn.classList.remove(...INACTIVE_CLASSES);
-      btn.classList.add(...ACTIVE_CLASSES);
+      chipButtons.forEach((b) => b.setAttribute('aria-pressed', 'false'));
       btn.setAttribute('aria-pressed', 'true');
       applyFilter(btn.getAttribute('data-filter-match') || null);
     });
