@@ -60,6 +60,16 @@ function restingNodeId(): string | undefined {
 }
 const restPos = positions[restingNodeId() ?? ''];
 
+// IN-01 fix: `positions` and `layout` were serialized into every embedded
+// payload but nothing on the client ever read either -- timeline.ts reads
+// coordinates from the node's own SSR `data-cx`/`data-cy` attributes
+// instead (layout.ts stays the single source of truth), and the client
+// controller only ever needs `diagram` to mount. Measured on the built home
+// page: 2,387 of 12,093 diagram-payload bytes across 11 embedded payloads
+// were these two unused fields. `positions` and `LAYOUT` stay as SSR-only
+// locals above (still feed SchematicEdge/SchematicNode rendering and
+// restPos) -- only the client payload shrinks.
+//
 // IN-13 fix: `</script` escaping is the documented and sufficient mitigation
 // for this set:html payload, and the data is zod-validated owner-authored
 // content, so there is no exploitable path today -- but JSON.stringify also
@@ -68,7 +78,7 @@ const restPos = positions[restingNodeId() ?? ''];
 // JSON.parse identically. U+2028/U+2029 are matched via their `\uXXXX` regex
 // escape (a LineTerminator character cannot appear raw inside a regex
 // literal's pattern per the ECMAScript grammar).
-const diagramPayload = JSON.stringify({ diagram, positions, layout: LAYOUT })
+const diagramPayload = JSON.stringify({ diagram })
   .replace(/<\/script/gi, '<\\/script')
   .replace(/</g, '\\u003c')
   .replace(/\u2028/g, '\\u2028')
