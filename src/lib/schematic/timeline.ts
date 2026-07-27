@@ -151,6 +151,20 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
 export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: MountOptions): gsap.MatchMedia {
   const mm = gsap.matchMedia();
 
+  // IN-12 fix: both matchMedia branches below used to repeat the same four
+  // steps inline -- setUndrawnStart, build a gsap.timeline gated on
+  // `options.mode`, run buildStepTimeline, return the ScrollTrigger cleanup
+  // -- differing only in the ScrollTrigger options object. That duplication
+  // is exactly what let the desktop `end:` fix (WR-02's subject) land in
+  // one branch and not the other. Extracted once here, called from both
+  // `mm.add` callbacks below with only the branch-specific options object.
+  const mount = (stOptions: ScrollTrigger.Vars): (() => void) => {
+    setUndrawnStart(diagram, refs);
+    const tl = gsap.timeline(options.mode === 'scroll' ? { scrollTrigger: stOptions } : {});
+    buildStepTimeline(diagram, refs, tl);
+    return () => tl.scrollTrigger?.kill();
+  };
+
   // Desktop (D-06): the diagram stays fixed while callouts scroll past it in
   // the right column. 02-07 Gate 2 fix: this used to be a GSAP `pin:true`
   // with `end: '+=' + diagram.steps.length * 400` — a magic-number scroll
@@ -167,24 +181,15 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // hitting the viewport top to its bottom hitting the viewport bottom),
   // which is precisely how long the sticky diagram stays stuck — the two
   // mechanisms share the same underlying DOM height by construction.
-  mm.add('(prefers-reduced-motion: no-preference) and (min-width: 768px)', () => {
-    setUndrawnStart(diagram, refs);
-    const tl = gsap.timeline(
-      options.mode === 'scroll'
-        ? {
-            scrollTrigger: {
-              trigger: refs.section,
-              start: 'top top', // matches md:sticky md:top-0 engaging
-              scrub: 1,
-              end: 'bottom bottom',
-              snap: 'labels', // D-08: soft snap to each step
-            },
-          }
-        : {}
-    );
-    buildStepTimeline(diagram, refs, tl);
-    return () => tl.scrollTrigger?.kill();
-  });
+  mm.add('(prefers-reduced-motion: no-preference) and (min-width: 768px)', () =>
+    mount({
+      trigger: refs.section,
+      start: 'top top', // matches md:sticky md:top-0 engaging
+      scrub: 1,
+      end: 'bottom bottom',
+      snap: 'labels', // D-08: soft snap to each step
+    })
+  );
 
   // Mobile (D-07): pin only if SCHEMATIC_CONFIG.mobilePin === 'pin' (spike-
   // decided in 02-07); when unpinned, the diagram still draws progressively
@@ -201,25 +206,15 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // (layout.ts), which WebKit paints outside the viewport where Chrome
   // clips. The 02-01 real-iPhone spike verdict ("smooth") was recorded
   // against this default pinType.
-  mm.add('(prefers-reduced-motion: no-preference) and (max-width: 767px)', () => {
-    setUndrawnStart(diagram, refs);
-    const pinMobile = options.mode === 'scroll' && options.mobilePin === 'pin';
-    const tl = gsap.timeline(
-      options.mode === 'scroll'
-        ? {
-            scrollTrigger: {
-              trigger: refs.section,
-              pin: pinMobile,
-              scrub: 1,
-              end: '+=' + diagram.steps.length * 320,
-              snap: 'labels',
-            },
-          }
-        : {}
-    );
-    buildStepTimeline(diagram, refs, tl);
-    return () => tl.scrollTrigger?.kill();
-  });
+  mm.add('(prefers-reduced-motion: no-preference) and (max-width: 767px)', () =>
+    mount({
+      trigger: refs.section,
+      pin: options.mode === 'scroll' && options.mobilePin === 'pin',
+      scrub: 1,
+      end: '+=' + diagram.steps.length * 320,
+      snap: 'labels',
+    })
+  );
 
   // No third branch exists. When the OS's reduced-motion preference is set,
   // neither query above matches, this function has done nothing to the DOM,
