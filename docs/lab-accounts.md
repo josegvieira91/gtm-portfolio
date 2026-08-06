@@ -64,6 +64,46 @@ Creation checklist for later use, in Case 3 build week:
 3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
 4. Record the video the same day the final clean run completes.
 
+### D-12 paid-exception decision (Case 5: OpenAI + Instantly)
+
+Case 5's locked stack (`Apollo`, `OpenAI`, `Instantly`, `n8n`) includes two tools with no
+usable free tier. D-12 required this decision to surface at Batch A planning, before build
+starts, with no pre-approved spending ceiling.
+
+**Decision (2026-08-05): option-a — approve both, timed and capped.**
+
+- **OpenAI:** approved at zero incremental cost. The lab already holds roughly US$10 of
+  existing prepaid credit on the OpenAI account from prior use, so no new purchase happens.
+  That existing credit covers lab-scale usage for Cases 5 and 6 (a few dozen drafts/
+  classifications), which is cents, not dollars. No new spend is authorized here; if actual
+  usage would exhaust the existing credit and require a top-up, that is a new decision, not
+  covered by this approval.
+- **Instantly:** approved as the 14-day no-card trial, same timed-window discipline already
+  locked for Clay — design the flow first, dry-run what can be dry-run, and activate the
+  trial only when the clean run and the recording can happen inside the window. The trial is
+  NOT activated by this decision; activation belongs to the Case 5 build plan.
+- Locked stack is unchanged by this decision (option-a keeps Apollo/OpenAI/Instantly/n8n as
+  already recorded in `case-05.mdx` frontmatter), so no downstream file changes to case
+  frontmatter, diagrams, or tool-icon usage are needed.
+- The portfolio's "only fixed cost is the domain" line survives intact: no new money changes
+  hands for Case 5's stack.
+- OpenRouter credit on the lab operator's account was considered and not used here — the
+  locked stack specifies OpenAI as the draft writer, not a swappable provider.
+
+### OpenAI API
+
+Approved under the D-12 decision above (option-a), funded entirely from an existing prepaid
+credit balance — no new purchase for this decision. Account and API key creation happen in
+Task 2 of this plan; the key goes into n8n's credential store only, never into this repository.
+Auto-recharge must stay off so the existing balance is a hard ceiling, not a recurring charge.
+
+### Instantly.ai
+
+Approved under the D-12 decision above (option-a) as a 14-day no-card trial. Do NOT sign up
+now. The trial clock starts only at Case 5 build day, once the flow is designed and dry-run
+work is done, so the clean run and its recording can happen inside the 14-day window. Signup
+for this account belongs to the Case 5 build plan, not this one.
+
 ### Google (lab account)
 
 Create a dedicated Google account for this lab, separate from any personal or Axera account. This inbox holds synthetic mail only — never forward or import real mail into it. This account backs Gmail (Case 6), Google Calendar (Case 8), and Google Sheets (Case 3).
