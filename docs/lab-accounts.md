@@ -64,6 +64,43 @@ Creation checklist for later use, in Case 3 build week:
 3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
 4. Record the video the same day the final clean run completes.
 
+### Make.com
+
+Unconditional lab account, not part of the D-12 decision — needed for Case 4 (CRM Hygiene
+Engine orchestration).
+
+1. Sign up at `make.com` with the lab Gmail address, English, Edmonton timezone, organization
+   named "Vieira GTM Lab."
+2. Free plan observed limits (2026-08-05): 1,000 operations per month (dashboard verbatim:
+   "Credits left 1,000 / 1,000," usage resets monthly), 2 active scenarios allowed (dashboard
+   verbatim: "Active scenarios 0 / 2"). Both match the researched estimate exactly.
+3. Minimum scheduling interval was not shown anywhere on the dashboard's plan/usage page. Make's
+   own documentation states 15 minutes on the Free plan; treat that as the working assumption
+   until a scenario is actually scheduled and the interval picker in the scenario editor is
+   checked directly.
+4. Whether multi-module scenarios are allowed on Free was likewise not shown on the usage page.
+   The research expectation is that they are allowed — confirm empirically during the Case 4
+   build, before assuming a multi-step scenario will run on this plan.
+
+### Apollo.io
+
+Unconditional lab account, not part of the D-12 decision — needed for Cases 3 and 5. This is
+the account whose real credit figure governs both cases' publishable metrics; see the `TBD`
+placeholders left in `case-03.mdx` and `case-05.mdx` until the recorded runs fill them in.
+
+1. Sign up at `apollo.io` with the lab Gmail address, English, Edmonton timezone, workspace
+   named "Vieira GTM Lab."
+2. Free plan observed limit (2026-08-05): 75 email credits per month (dashboard verbatim:
+   "Available credits 75 / 75," "Credits will renew on Sep 5, 2026"). This is lower than the
+   researched ~100/month estimate — the real, binding number for Cases 3 and 5 is 75, not the
+   research guess.
+3. Monthly export allowance and daily sending cap were not visible on the credit-usage screen
+   at signup. Recorded as not-yet-observed; read the real figures off the dashboard the first
+   time an export or a send actually happens.
+4. Accounts-enrichable-per-pass estimate (agreed with José, 2026-08-05): roughly 50 accounts in
+   a single pass, leaving margin inside the 75-credit monthly budget for retries and for Case
+   5's separate share of the same credit pool.
+
 ### D-12 paid-exception decision (Case 5: OpenAI + Instantly)
 
 Case 5's locked stack (`Apollo`, `OpenAI`, `Instantly`, `n8n`) includes two tools with no
@@ -72,12 +109,13 @@ starts, with no pre-approved spending ceiling.
 
 **Decision (2026-08-05): option-a — approve both, timed and capped.**
 
-- **OpenAI:** approved at zero incremental cost. The lab already holds roughly US$10 of
-  existing prepaid credit on the OpenAI account from prior use, so no new purchase happens.
-  That existing credit covers lab-scale usage for Cases 5 and 6 (a few dozen drafts/
-  classifications), which is cents, not dollars. No new spend is authorized here; if actual
-  usage would exhaust the existing credit and require a top-up, that is a new decision, not
-  covered by this approval.
+- **OpenAI:** approved at zero incremental cost. The lab already holds an existing prepaid
+  credit of US$5 on the OpenAI account from prior use (corrected here from an initial
+  ~US$10 estimate recorded before the account balance was actually checked), so no new
+  purchase happens. That existing credit covers lab-scale usage for Cases 5 and 6 (a few
+  dozen drafts/classifications), which is cents, not dollars. No new spend is authorized
+  here; if actual usage would exhaust the existing credit and require a top-up, that is a
+  new decision, not covered by this approval.
 - **Instantly:** approved as the 14-day no-card trial, same timed-window discipline already
   locked for Clay — design the flow first, dry-run what can be dry-run, and activate the
   trial only when the clean run and the recording can happen inside the window. The trial is
@@ -128,6 +166,10 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Mailtrap | Created | 2026-07-24 |
 | Google (lab account) | Created | 2026-08-05 |
 | Clay | Deferred (Phase 3 Batch B) | — |
+| Make.com | Created | 2026-08-05 |
+| Apollo.io | Created | 2026-08-05 |
+| OpenAI API | Created | 2026-08-05 |
+| Instantly.ai | Deferred (Case 5 build day — 14-day trial clock) | — |
 
 ## Section 2: Free-Tier Constraints
 
@@ -140,6 +182,10 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Slack | Free: 90-day rolling message history, hidden rather than deleted. | A case built early and revisited late loses searchable history once it rolls past 90 days. | Case 10's digest |
 | Mailtrap | Free: 150 emails per day, 4,000 per month, 3-day log retention. | A live demo or a burst of testing silently exhausts the daily quota, and the logs are gone before anyone diagnoses it. | Case 5, and Phase 4's live demo |
 | Google (lab account) | OAuth apps in "Testing" status force-expire refresh tokens 7 days after consent. Lifetime authorized-user cap of 100, irrelevant for a 1-user lab. | Leaving the app in Testing would silently break the Gmail/Calendar/Sheets credentials mid-batch with `invalid_grant`. Moved to "In production" at creation time to avoid this by construction rather than by discovering it mid-recording. | Cases 3, 6, 8 |
+| Make.com | Free: 1,000 operations/month, 2 active scenarios. Minimum scheduling interval and multi-module-scenario support were not shown in the dashboard (research expects 15 min and "yes," respectively; unconfirmed). | A nightly Case 4 scenario that fans out into many operations per execution can burn the monthly operation budget well before a clean recording happens. | Case 4 |
+| Apollo.io | Free: 75 email credits/month (verbatim from dashboard, renews Sep 5, 2026). Monthly export allowance and daily sending cap not yet observed. | The real allowance is lower than the researched ~100 estimate and is the hard ceiling on what Cases 3 and 5 may publish — burning credits on a bad test pass before the real run leaves nothing for the recording. | Cases 3, 5 |
+| OpenAI API | Existing prepaid credit: US$5 (corrected from an initial ~US$10 estimate). Auto-recharge confirmed OFF. | A runaway loop or retry storm during a lab run could exhaust the prepaid balance mid-run with no auto-recharge fallback, silently truncating the recording. | Cases 5, 6 |
+| Instantly.ai | 14-day no-card trial, not yet started. | Once started, the trial clock is the hard deadline for finishing the Case 5 flow, dry-running it, and completing the recording — starting it before the flow is ready burns days against nothing. | Case 5 |
 
 ## Section 3: Credential Handling
 
