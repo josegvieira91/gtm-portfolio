@@ -64,6 +64,19 @@ Creation checklist for later use, in Case 3 build week:
 3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
 4. Record the video the same day the final clean run completes.
 
+### Google (lab account)
+
+Create a dedicated Google account for this lab, separate from any personal or Axera account. This inbox holds synthetic mail only — never forward or import real mail into it. This account backs Gmail (Case 6), Google Calendar (Case 8), and Google Sheets (Case 3).
+
+1. Create the account at `accounts.google.com`. Locale English, timezone America/Edmonton.
+2. Sign in to Google Cloud Console with that account and create a project named "Vieira GTM Lab."
+3. Go to APIs & Services → OAuth consent screen. User type: External.
+4. Enable three APIs in the project: Gmail API, Google Calendar API, Google Sheets API.
+5. Move the publishing status from "Testing" to "In production" immediately, before any case depends on it. This step is not optional: while the app sits in Testing, Google force-expires every refresh token 7 days after consent, and n8n's Gmail/Calendar/Sheets credentials fail mid-batch with `invalid_grant`.
+6. Create an OAuth 2.0 Client ID (type: Web application). The client ID and secret go into n8n's credential store only, never into this repo.
+
+Observed outcome: the app flipped to "In production" immediately, with no app-verification review requested and no stated turnaround. The consent screen may still show an "unverified app" warning at consent time for the sensitive Gmail scopes, since the app itself is unverified — watch for this during the Case 6 recording and account for it in the shot list if it appears.
+
 ### Status
 
 | Account | Status | Date |
@@ -73,6 +86,7 @@ Creation checklist for later use, in Case 3 build week:
 | Cal.com | Created | 2026-07-24 |
 | Slack | Created | 2026-07-24 |
 | Mailtrap | Created | 2026-07-24 |
+| Google (lab account) | Created | 2026-08-05 |
 | Clay | Deferred (Phase 3 Batch B) | — |
 
 ## Section 2: Free-Tier Constraints
@@ -85,6 +99,7 @@ Creation checklist for later use, in Case 3 build week:
 | Cal.com | Free: unlimited event types and bookings for one user. | No trap. Free is sufficient for Case 8. | — |
 | Slack | Free: 90-day rolling message history, hidden rather than deleted. | A case built early and revisited late loses searchable history once it rolls past 90 days. | Case 10's digest |
 | Mailtrap | Free: 150 emails per day, 4,000 per month, 3-day log retention. | A live demo or a burst of testing silently exhausts the daily quota, and the logs are gone before anyone diagnoses it. | Case 5, and Phase 4's live demo |
+| Google (lab account) | OAuth apps in "Testing" status force-expire refresh tokens 7 days after consent. Lifetime authorized-user cap of 100, irrelevant for a 1-user lab. | Leaving the app in Testing would silently break the Gmail/Calendar/Sheets credentials mid-batch with `invalid_grant`. Moved to "In production" at creation time to avoid this by construction rather than by discovering it mid-recording. | Cases 3, 6, 8 |
 
 ## Section 3: Credential Handling
 
