@@ -2,13 +2,23 @@
 title: "AI-Personalized Outbound"
 slug: "ai-personalized-outbound"
 category: "Outbound"
+# provisional (D-03): "drafted and gated at scale" -- the "at scale" claim in
+# particular is unlikely to survive a lab run bounded by Apollo's real 75
+# credits/month allowance; must be proven (or reworded down) by the plan
+# 03-07 lab run before this phrase ships as written.
 heroMetric: "One researched email per prospect, drafted and gated at scale"
 stack: ["Apollo", "OpenAI", "Instantly", "n8n"]
+# Values below are placeholders bounded by the real Apollo free-tier allowance
+# documented in docs/lab-accounts.md (75 email credits/month, shared with
+# Case 3) -- the prior "emails sent" placeholder is a research-stage guess
+# this allowance cannot support, and the prior reply-rate label is D-01's
+# own named example of an unmeasurable metric. Plan 03-07 (Case 5: build,
+# record, publish) fills in the real measured values.
 metrics:
   - label: "Emails sent"
-    value: "2,000+"
-  - label: "Reply rate"
-    value: "8%"
+    value: "TBD"
+  - label: "Share of drafts that cleared the QA gate on first pass"
+    value: "TBD"
   - label: "Manual drafting"
     value: "0"
 diagramId: "case-05"
