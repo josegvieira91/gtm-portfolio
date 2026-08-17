@@ -1,0 +1,1471 @@
+{
+  "name": "Inbound Speed-to-Lead",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PLACEHOLDER",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "n01-webhook",
+      "name": "Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        400
+      ],
+      "webhookId": "PLACEHOLDER",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "owFNJ0hyfsqLng0D",
+          "name": "PLACEHOLDER_WEBHOOK_AUTH"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Checks required fields + basic email shape. Kept as its own node (not buried inside\n// normalization) so Phase 4 can reuse this webhook behind a public form without dragging\n// idempotency/auth logic along. On failure, 'Submission Valid?' routes to Respond Invalid\n// (400) before Normalize, Idempotency Gate or Persist Raw Submission ever run.\nconst body = ($json.body) || {};\nconst errors = [];\nconst required = ['email', 'first_name', 'last_name', 'company'];\nfor (const field of required) {\n  const val = body[field];\n  if (val === undefined || val === null || String(val).trim() === '') {\n    errors.push(`missing_${field}`);\n  }\n}\nconst emailRe = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (body.email && !emailRe.test(String(body.email).trim())) {\n  errors.push('invalid_email_shape');\n}\nreturn { json: { valid: errors.length === 0, errors, body } };"
+      },
+      "id": "n02-validate",
+      "name": "Validate Submission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n03-c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n03-validif",
+      "name": "Submission Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"invalid\", \"errors\": $json.errors } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "n03b-respinvalid",
+      "name": "Respond Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        512,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Idempotency key computed at the door -- before Idempotency Gate or Persist Raw\n// Submission run (build checkpoint 1). Auth no longer lives here: it moved to the\n// webhook's native Header Auth credential. UUID fallback is generated inline\n// (Math.random based); `crypto` is NOT a Code-node global here.\nconst body = $json.body || {};\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst domain = email.includes('@') ? email.split('@')[1] : '';\nlet companySize = null;\nif (body.company_size !== undefined && body.company_size !== null && body.company_size !== '') {\n  const n = Number(body.company_size);\n  companySize = Number.isFinite(n) ? n : null;\n}\nconst submission_uuid = (body.submission_id && String(body.submission_id).trim()) || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random()*16|0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));\nreturn { json: {\n  submission_uuid,\n  email,\n  domain,\n  first_name: body.first_name || null,\n  last_name: body.last_name || null,\n  company: body.company || null,\n  segment: body.segment || null,\n  company_size: companySize,\n  message: body.message || null,\n} };"
+      },
+      "id": "n04-normalize",
+      "name": "Normalize + Compute Idempotency Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (INSERT INTO idempotency_keys(key) VALUES ($1) ON CONFLICT (key) DO NOTHING RETURNING key)\nSELECT EXISTS(SELECT 1 FROM ins) AS is_new;",
+        "options": {
+          "queryReplacement": "={{ [ $('Normalize + Compute Idempotency Key').item.json.submission_uuid ] }}"
+        }
+      },
+      "id": "n05-idem",
+      "name": "Idempotency Gate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        720,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n06-c1",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n06-isnew",
+      "name": "Is New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"duplicate\"\n}",
+        "options": {}
+      },
+      "id": "n07-respdup",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1168,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw_submissions(idempotency_key, source, payload)\nVALUES ($1, 'web_form', $2::jsonb) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Normalize + Compute Idempotency Key').item.json.submission_uuid, JSON.stringify($('Normalize + Compute Idempotency Key').item.json) ] }}"
+        }
+      },
+      "id": "n08-persistraw",
+      "name": "Persist Raw Submission",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1168,
+        208
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://enrichment-mock:3001/enrich?domain={{ $('Normalize + Compute Idempotency Key').item.json.domain }}",
+        "options": {}
+      },
+      "id": "n09-enrich",
+      "name": "Enrichment Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1392,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// REQ5 graceful degradation: falls back to form-supplied firmographics and marks\n// enrichment_status = 'pending' when Enrichment Lookup failed or timed out -- the\n// lead still routes all the way through. Scoring itself lives in the separate\n// \"Score Lead\" node (split out of the source's single Merge+Score node).\nconst norm = $('Normalize + Compute Idempotency Key').item.json;\nconst enr = $json; // Enrichment Lookup output (or its degraded/error item)\n\nconst enrichedOk = enr && typeof enr.company_size === 'number' && !!enr.segment;\nconst enrichment_status = enrichedOk ? 'enriched' : 'pending';\n\nconst company_size = enrichedOk\n  ? Number(enr.company_size)\n  : (norm.company_size != null ? Number(norm.company_size) : null);\nconst segment = enrichedOk ? enr.segment : norm.segment;\nconst company_name = (enr && enr.company_name) ? enr.company_name : norm.company;\n\nreturn { json: {\n  email: norm.email, domain: norm.domain,\n  first_name: norm.first_name, last_name: norm.last_name,\n  company: norm.company, company_name, segment, company_size,\n  message: norm.message, enrichment_status,\n} };"
+      },
+      "id": "n10-mergeenrich",
+      "name": "Merge Enrichment Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// REQ6 config-driven scoring: thresholds/rules live in this node's own const block --\n// vanilla n8n Code nodes have no fs access, same tradeoff the source documents rather\n// than re-architected into a Postgres config table.\nconst cfg = {\n  threshold: 50,\n  rules: [\n    { id: 'size_enterprise', field: 'company_size', op: '>=', value: 200, points: 30 },\n    { id: 'size_midmarket', field: 'company_size', op: '>=', value: 50, points: 15 },\n    { id: 'segment_fit', field: 'segment', op: 'in', value: ['saas', 'fintech'], points: 25 },\n    { id: 'business_email', field: 'email', op: 'not_free_domain', points: 20 },\n    { id: 'has_message', field: 'message', op: 'non_empty', points: 10 },\n  ],\n  free_email_domains: ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'proton.me', 'aol.com'],\n};\nconst ctx = $json; // Merge Enrichment Result output\n\nconst freeDomains = cfg.free_email_domains || [];\nlet score = 0;\nfor (const rule of (cfg.rules || [])) {\n  const val = ctx[rule.field];\n  let match = false;\n  if (rule.op === '>=') match = (val != null) && Number(val) >= Number(rule.value);\n  else if (rule.op === 'in') match = Array.isArray(rule.value) && rule.value.includes(val);\n  else if (rule.op === 'not_free_domain') {\n    const d = (ctx.email || '').split('@')[1];\n    match = !!d && !freeDomains.includes(d);\n  } else if (rule.op === 'non_empty') {\n    match = val !== null && val !== undefined && String(val).trim() !== '';\n  }\n  if (match) score += Number(rule.points) || 0;\n}\nconst threshold = Number(cfg.threshold) || 0;\nconst qualified = score >= threshold;\n\nreturn { json: { ...ctx, score, qualified } };"
+      },
+      "id": "n11-score",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n12-c1",
+              "leftValue": "={{ $json.qualified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n12-qualified",
+      "name": "Qualified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2048,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads(raw_submission_id, email, first_name, last_name, company, domain, score, status, enrichment_status)\nVALUES ($1,$2,$3,$4,$5,$6,$7,'disqualified',$8);",
+        "options": {
+          "queryReplacement": "={{ [ $('Persist Raw Submission').item.json.id, $('Score Lead').item.json.email, $('Score Lead').item.json.first_name, $('Score Lead').item.json.last_name, $('Score Lead').item.json.company, $('Score Lead').item.json.domain, $('Score Lead').item.json.score, $('Score Lead').item.json.enrichment_status ] }}"
+        }
+      },
+      "id": "n13-insertdisq",
+      "name": "Insert Disqualified Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2272,
+        368
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"disqualified\", \"score\": $('Score Lead').item.json.score, \"qualified\": false } }}",
+        "options": {}
+      },
+      "id": "n14-respdisq",
+      "name": "Respond Disqualified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2480,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO accounts(domain, company_name, segment, company_size)\nVALUES ($1,$2,$3,$4)\nON CONFLICT (domain) DO UPDATE SET company_name = COALESCE(accounts.company_name, EXCLUDED.company_name)\nRETURNING id, owner_id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Score Lead').item.json.domain, $('Score Lead').item.json.company_name, $('Score Lead').item.json.segment, $('Score Lead').item.json.company_size ] }}"
+        }
+      },
+      "id": "n15-upsertacct",
+      "name": "Upsert Account",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2272,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n16-c1",
+              "leftValue": "={{ $json.owner_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n16-hasowner",
+      "name": "Account Has Owner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2480,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Account already has an owner -> reuse it (no round robin spent).\nconst acc = $('Upsert Account').item.json;\nreturn { json: { owner_id: acc.owner_id, account_id: acc.id } };"
+      },
+      "id": "n17-reuseowner",
+      "name": "Reuse Existing Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// REQ6 config-driven routing: first matching rule (top to bottom) wins. Routing table\n// inlined in this node's own const block -- same tradeoff as Score Lead above.\nconst rt = {\n  pools: {\n    enterprise: [\n      { rep_id: 'rep_ana', name: 'Ana Costa', hubspot_owner_id: '' },\n      { rep_id: 'rep_bruno', name: 'Bruno Lima', hubspot_owner_id: '' },\n    ],\n    smb: [\n      { rep_id: 'rep_carla', name: 'Carla Nunes', hubspot_owner_id: '' },\n      { rep_id: 'rep_diego', name: 'Diego Souza', hubspot_owner_id: '' },\n    ],\n  },\n  routing: [\n    { match: { company_size_gte: 200 }, pool: 'enterprise' },\n    { match: { company_size_gte: 0 }, pool: 'smb' },\n  ],\n};\nconst size = Number($('Score Lead').item.json.company_size) || 0;\nlet pool_key = 'smb';\nfor (const r of (rt.routing || [])) {\n  const gte = (r.match && r.match.company_size_gte != null) ? r.match.company_size_gte : 0;\n  if (size >= gte) { pool_key = r.pool; break; }\n}\nreturn { json: { pool_key } };"
+      },
+      "id": "n18-resolvepool",
+      "name": "Resolve Routing Pool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO round_robin_state(pool_key, last_index) VALUES ($1, 0)\nON CONFLICT (pool_key) DO UPDATE SET last_index = round_robin_state.last_index + 1, updated_at = now()\nRETURNING last_index;",
+        "options": {
+          "queryReplacement": "={{ [ $('Resolve Routing Pool').item.json.pool_key ] }}"
+        }
+      },
+      "id": "n19-advancerr",
+      "name": "Advance Round Robin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2928,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Round-robin pick using the pointer just advanced in Postgres. Routing table\n// inlined -- same tradeoff as Resolve Routing Pool above.\nconst rt = {\n  pools: {\n    enterprise: [\n      { rep_id: 'rep_ana', name: 'Ana Costa', hubspot_owner_id: '' },\n      { rep_id: 'rep_bruno', name: 'Bruno Lima', hubspot_owner_id: '' },\n    ],\n    smb: [\n      { rep_id: 'rep_carla', name: 'Carla Nunes', hubspot_owner_id: '' },\n      { rep_id: 'rep_diego', name: 'Diego Souza', hubspot_owner_id: '' },\n    ],\n  },\n  routing: [\n    { match: { company_size_gte: 200 }, pool: 'enterprise' },\n    { match: { company_size_gte: 0 }, pool: 'smb' },\n  ],\n};\nconst pool_key = $('Resolve Routing Pool').item.json.pool_key;\nconst lastIndex = Number($json.last_index) || 0;\nconst pool = (rt.pools && rt.pools[pool_key]) || [];\nconst owner = pool.length ? pool[lastIndex % pool.length] : {};\nconst account_id = $('Upsert Account').item.json.id;\nreturn { json: {\n  owner_id: owner.rep_id || null,\n  hubspot_owner_id: owner.hubspot_owner_id || '',\n  account_id,\n} };"
+      },
+      "id": "n20-pickowner",
+      "name": "Pick + Persist Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3152,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE accounts SET owner_id = $1 WHERE id = $2 RETURNING owner_id, id AS account_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.owner_id, $json.account_id ] }}"
+        }
+      },
+      "id": "n21-setowner",
+      "name": "Set Account Owner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3360,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Convergence normalizer: both the reuse branch and the round-robin branch arrive\n// here with { owner_id, account_id }. Re-derive hubspot_owner_id from the routing\n// table so downstream is uniform. Routing table inlined -- same tradeoff as above.\nconst rt = {\n  pools: {\n    enterprise: [\n      { rep_id: 'rep_ana', name: 'Ana Costa', hubspot_owner_id: '' },\n      { rep_id: 'rep_bruno', name: 'Bruno Lima', hubspot_owner_id: '' },\n    ],\n    smb: [\n      { rep_id: 'rep_carla', name: 'Carla Nunes', hubspot_owner_id: '' },\n      { rep_id: 'rep_diego', name: 'Diego Souza', hubspot_owner_id: '' },\n    ],\n  },\n  routing: [\n    { match: { company_size_gte: 200 }, pool: 'enterprise' },\n    { match: { company_size_gte: 0 }, pool: 'smb' },\n  ],\n};\nconst owner_id = $json.owner_id;\nconst account_id = $json.account_id;\nlet hubspot_owner_id = '';\nfor (const k of Object.keys(rt.pools || {})) {\n  const found = (rt.pools[k] || []).find((r) => r.rep_id === owner_id);\n  if (found) { hubspot_owner_id = found.hubspot_owner_id || ''; break; }\n}\nreturn { json: { owner_id, hubspot_owner_id, account_id } };"
+      },
+      "id": "n22-ownerres",
+      "name": "Owner Resolved",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads(raw_submission_id, account_id, email, first_name, last_name, company, domain, score, status, enrichment_status, owner_id)\nVALUES ($1,$2,$3,$4,$5,$6,$7,$8,'qualified',$9,$10)\nON CONFLICT (raw_submission_id) DO UPDATE SET owner_id = EXCLUDED.owner_id, status = 'qualified'\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Persist Raw Submission').item.json.id, $('Owner Resolved').item.json.account_id, $('Score Lead').item.json.email, $('Score Lead').item.json.first_name, $('Score Lead').item.json.last_name, $('Score Lead').item.json.company, $('Score Lead').item.json.domain, $('Score Lead').item.json.score, $('Score Lead').item.json.enrichment_status, $('Owner Resolved').item.json.owner_id ] }}"
+        }
+      },
+      "id": "n23-upsertlead",
+      "name": "Upsert Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3808,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/companies/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"filterGroups\": [ { \"filters\": [ { \"propertyName\": \"domain\", \"operator\": \"EQ\", \"value\": $('Score Lead').item.json.domain } ] } ], \"properties\": [\"name\",\"domain\"], \"limit\": 1 } }}",
+        "options": {}
+      },
+      "id": "n24-hssearch",
+      "name": "HubSpot Search Company By Domain",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4032,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2qJIxmnLJljL18I8",
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Build checkpoint 3 (account dedup inside HubSpot, not just Postgres): searches by domain before the write node below decides PATCH vs POST."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n25-c1",
+              "leftValue": "={{ Array.isArray($json.results) && $json.results.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n25-companyfound",
+      "name": "Company Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4240,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company Found? exists as a visible branch for the diagram; this node independently\n// re-derives hubspot_company_id so BOTH branches converge on one write call below --\n// keeps the write node's expressions stable no matter which branch fired.\nconst search = $json; // HubSpot Search Company By Domain output (post-IF passthrough)\nconst found = (Array.isArray(search.results) && search.results.length > 0) ? search.results[0] : null;\nconst ctx = $('Score Lead').item.json;\nreturn { json: {\n  hubspot_company_id: found ? found.id : null,\n  domain: ctx.domain, company_name: ctx.company_name, company: ctx.company,\n} };"
+      },
+      "id": "n26-preparewrite",
+      "name": "Prepare Company Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4464,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "={{ $('Prepare Company Write').item.json.hubspot_company_id ? 'PATCH' : 'POST' }}",
+        "url": "={{ $('Prepare Company Write').item.json.hubspot_company_id ? ('https://api.hubapi.com/crm/v3/objects/companies/' + $('Prepare Company Write').item.json.hubspot_company_id) : 'https://api.hubapi.com/crm/v3/objects/companies' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"properties\": { \"name\": ($('Prepare Company Write').item.json.company_name || $('Prepare Company Write').item.json.company || ''), \"domain\": ($('Prepare Company Write').item.json.domain || '') } } }}",
+        "options": {}
+      },
+      "id": "n27-hswrite",
+      "name": "HubSpot Find-or-Create Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4688,
+        80
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2qJIxmnLJljL18I8",
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Build checkpoint 3: PATCH if Prepare Company Write found an existing id, POST if not. Build checkpoint 4: retryOnFail is off here on purpose -- the explicit Compute Company Backoff / Company Should Retry? / Company Backoff Wait loop below implements 500ms*2^n+jitter honoring Retry-After, which n8n's native fixed waitBetweenTries cannot express."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// REQ4 / build checkpoint 4: exponential backoff with jitter on HubSpot 429s\n// (500ms * 2^n + jitter, capped at 30s), honoring Retry-After when HubSpot sends it.\n// Matches the pattern the sibling outbound workflow documents for its Claude calls,\n// but implemented as a real reactive loop since native retryOnFail can't express\n// exponential growth or read a response header.\n// $runIndex is this node's own run count for the current item -- it increments once\n// per loop pass, which makes it a reliable attempt counter regardless of exactly how\n// n8n shapes the HTTP node's error-output item.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
+      },
+      "id": "n28-companybackoff",
+      "name": "Compute Company Backoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4912,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n29-c1",
+              "leftValue": "={{ $json.shouldRetry }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n29-companyretryif",
+      "name": "Company Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5120,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delayMsSeconds }}"
+      },
+      "id": "n30-companywait",
+      "name": "Company Backoff Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5344,
+        112
+      ],
+      "webhookId": "company-backoff-wait-resume"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Retries exhausted or a non-retryable error: degrade gracefully instead of blocking\n// the pipeline, matching onError: continueRegularOutput's tolerance policy downstream.\nreturn { json: { hubspot_company_id: null, hubspot_write_error: true } };"
+      },
+      "id": "n31-companygiveup",
+      "name": "Company Write Give Up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5344,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Convergence: the success path carries the raw HubSpot company response ({id, ...});\n// the give-up path carries { hubspot_company_id: null }. Normalize both into one shape\n// for everything downstream.\nconst raw = $json;\nconst hubspot_company_id = raw.id || raw.hubspot_company_id || null;\nconst ctx = $('Score Lead').item.json;\nreturn { json: { ...ctx, hubspot_company_id } };"
+      },
+      "id": "n32-mergecompany",
+      "name": "Merge Company Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5600,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const ctx = $('Merge Company Result').item.json; const owner = $('Owner Resolved').item.json; const p = Object.assign({ \"email\": ctx.email, \"firstname\": ctx.first_name, \"lastname\": ctx.last_name, \"company\": ctx.company }, owner.hubspot_owner_id ? { \"hubspot_owner_id\": owner.hubspot_owner_id } : {}); const cid = ctx.hubspot_company_id; const b = { \"properties\": p }; if (cid) { b.associations = [{ \"to\": { \"id\": cid }, \"types\": [{ \"associationCategory\": \"HUBSPOT_DEFINED\", \"associationTypeId\": 279 }] }]; } return b; })() }}",
+        "options": {}
+      },
+      "id": "n33-hscontact",
+      "name": "HubSpot Upsert Contact (with backoff)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5792,
+        80
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2qJIxmnLJljL18I8",
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Same backoff-with-jitter upgrade as HubSpot Find-or-Create Company. Contacts already upsert cleanly by email in HubSpot's API, so no find-or-create split is needed here -- only the retry upgrade."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Same exponential-backoff-with-jitter logic as Compute Company Backoff.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
+      },
+      "id": "n34-contactbackoff",
+      "name": "Compute Contact Backoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6000,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "n35-c1",
+              "leftValue": "={{ $json.shouldRetry }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n35-contactretryif",
+      "name": "Contact Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delayMsSeconds }}"
+      },
+      "id": "n36-contactwait",
+      "name": "Contact Backoff Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6448,
+        112
+      ],
+      "webhookId": "contact-backoff-wait-resume"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Retries exhausted or a non-retryable error: degrade gracefully instead of blocking\n// the pipeline, matching onError: continueRegularOutput's tolerance policy downstream.\nreturn { json: { hubspot_contact_id: null, hubspot_write_error: true } };"
+      },
+      "id": "n37-contactgiveup",
+      "name": "Contact Write Give Up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6448,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Convergence: success path carries the raw HubSpot contact response ({id, ...});\n// give-up path carries { hubspot_contact_id: null }. Normalize both, carrying forward\n// everything Update Lead HubSpot IDs / Enqueue Slack Outbox / Post Slack Alert need.\nconst raw = $json;\nconst hubspot_contact_id = raw.id || raw.hubspot_contact_id || null;\nconst ctx = $('Merge Company Result').item.json;\nconst owner = $('Owner Resolved').item.json;\nreturn { json: { ...ctx, hubspot_contact_id, owner_id: owner.owner_id, account_id: owner.account_id } };"
+      },
+      "id": "n38-mergecontact",
+      "name": "Merge Contact Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6688,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH l AS (\n  UPDATE leads SET hubspot_contact_id = COALESCE($1, leads.hubspot_contact_id), updated_at = now()\n  WHERE id = $2 RETURNING 1\n)\nUPDATE accounts SET hubspot_company_id = COALESCE($3, accounts.hubspot_company_id)\nWHERE id = $4;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Merge Contact Result').item.json.hubspot_contact_id || null), $('Upsert Lead').item.json.id, ($('Merge Contact Result').item.json.hubspot_company_id || null), $('Merge Contact Result').item.json.account_id ] }}"
+        }
+      },
+      "id": "n39-updateleadids",
+      "name": "Update Lead HubSpot IDs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6880,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO outbox(channel, aggregate_id, payload, status)\nVALUES ('slack', $1, $2::jsonb, 'pending') RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Upsert Lead').item.json.id, JSON.stringify({ company: $('Merge Contact Result').item.json.company, email: $('Merge Contact Result').item.json.email, score: $('Merge Contact Result').item.json.score, owner_id: $('Merge Contact Result').item.json.owner_id, domain: $('Merge Contact Result').item.json.domain }) ] }}"
+        }
+      },
+      "id": "n40-enqueueoutbox",
+      "name": "Enqueue Slack Outbox",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7104,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#gtm-lab-inbound-alerts",
+          "mode": "name",
+          "cachedResultName": "#gtm-lab-inbound-alerts"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ JSON.stringify({ \"blocks\": [ { \"type\": \"header\", \"text\": { \"type\": \"plain_text\", \"text\": \"\ud83d\udd25 New qualified lead\" } }, { \"type\": \"section\", \"fields\": [ { \"type\": \"mrkdwn\", \"text\": \"*Company:*\\n\" + ($('Merge Contact Result').item.json.company || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Contact:*\\n\" + (($('Merge Contact Result').item.json.first_name || '') + ' ' + ($('Merge Contact Result').item.json.last_name || '')).trim() + ' <' + ($('Merge Contact Result').item.json.email || '') + '>' }, { \"type\": \"mrkdwn\", \"text\": \"*Score:*\\n\" + $('Merge Contact Result').item.json.score }, { \"type\": \"mrkdwn\", \"text\": \"*Owner:*\\n\" + ($('Merge Contact Result').item.json.owner_id || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Domain:*\\n\" + ($('Merge Contact Result').item.json.domain || '-') } ] }, { \"type\": \"context\", \"elements\": [ { \"type\": \"mrkdwn\", \"text\": \"HubSpot: https://app.hubspot.com/contacts/\" } ] } ] }) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "n41-slackalert",
+      "name": "Post Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        7328,
+        80
+      ],
+      "webhookId": "b2427276-e5f2-4847-bf51-63d11b0e3221",
+      "credentials": {
+        "slackApi": {
+          "id": "vAu3XqnEfjaH2RTK",
+          "name": "PLACEHOLDER_SLACK"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbox SET status = 'sent', sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Enqueue Slack Outbox').item.json.id ] }}"
+        }
+      },
+      "id": "n42-marksent",
+      "name": "Mark Outbox Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7552,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"qualified\": true, \"score\": $('Merge Contact Result').item.json.score, \"owner\": $('Merge Contact Result').item.json.owner_id } }}",
+        "options": {}
+      },
+      "id": "n43-respok",
+      "name": "Respond Qualified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7760,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Inbound Speed-to-Lead -- 5 stages, 43 working nodes\n\n**Stages:** Intake -> Enrichment -> Scoring -> Routing -> Persistence.\n\n**Flow:** Form Webhook -> Validate Submission -> Submission Valid? -> (no) Respond Invalid (400) /\n(yes) Normalize+Idempotency Key -> Idempotency Gate -> Is New? -> (dup) Respond Duplicate /\n(new) Persist Raw Submission -> Enrichment Lookup -> Merge Enrichment Result -> Score Lead\n-> Qualified? -> (no) Insert Disqualified + Respond / (yes) Upsert Account -> Account Has Owner?\n-> reuse OR round-robin -> Owner Resolved -> Upsert Lead -> HubSpot Search Company By Domain\n-> Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (+backoff loop)\n-> Merge Company Result -> HubSpot Upsert Contact (+backoff loop) -> Merge Contact Result\n-> Update Lead HubSpot IDs -> Enqueue Slack Outbox -> Post Slack Alert -> Mark Outbox Sent\n-> Respond Qualified.\n\n**Three required upgrades over the source (see docs/case-01 build brief):**\n1. HubSpot company is find-or-create, not create-only: HubSpot Search Company By Domain ->\n   Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (PATCH if found,\n   POST if not).\n2. Exponential backoff with jitter on both HubSpot write calls (500ms * 2^n + jitter, capped\n   30s, honors Retry-After): Compute Company/Contact Backoff -> Should Retry? -> Backoff Wait\n   loops back into the write node; Give Up nodes degrade gracefully after 5 attempts.\n3. Inbound webhook auth is n8n's native Header Auth credential on Form Webhook -- not a\n   hardcoded token compared inside a Code node.\n\n**Config-as-code (REQ6, ported as-is from source):** Score Lead's scoring rules and Resolve\nRouting Pool / Pick + Persist Owner / Owner Resolved's routing table are inlined in each\nnode's own const block -- vanilla n8n Code nodes have no fs access.\n\n**Setup on import:** assign PLACEHOLDER_POSTGRES (Postgres), PLACEHOLDER_HUBSPOT (HTTP Header\nAuth: header `Authorization` = `Bearer <private app token>`), PLACEHOLDER_SLACK (Slack API bot\ntoken), and PLACEHOLDER_WEBHOOK_AUTH (Header Auth on Form Webhook) to real credentials in the\nlab accounts. Confirm #gtm-lab-inbound-alerts exists in the Vieira GTM Lab Slack workspace.\nWebhook path stays `PLACEHOLDER` (a working endpoint) until the last step before export, per\ndocs/sanitization-checklist.md item 2 -- do not rename to PLACEHOLDER before Task 2's recording\nrun is captured.",
+        "height": 640,
+        "width": 640,
+        "color": 4
+      },
+      "id": "n00-sticky",
+      "name": "Flow Guide",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        -288
+      ]
+    }
+  ],
+  "connections": {
+    "Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Submission": {
+      "main": [
+        [
+          {
+            "node": "Submission Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submission Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Compute Idempotency Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Compute Idempotency Key": {
+      "main": [
+        [
+          {
+            "node": "Idempotency Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Idempotency Gate": {
+      "main": [
+        [
+          {
+            "node": "Is New?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New?": {
+      "main": [
+        [
+          {
+            "node": "Persist Raw Submission",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Raw Submission": {
+      "main": [
+        [
+          {
+            "node": "Enrichment Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrichment Lookup": {
+      "main": [
+        [
+          {
+            "node": "Merge Enrichment Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Enrichment Result": {
+      "main": [
+        [
+          {
+            "node": "Score Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Lead": {
+      "main": [
+        [
+          {
+            "node": "Qualified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualified?": {
+      "main": [
+        [
+          {
+            "node": "Upsert Account",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Disqualified Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Disqualified Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond Disqualified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Account": {
+      "main": [
+        [
+          {
+            "node": "Account Has Owner?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Account Has Owner?": {
+      "main": [
+        [
+          {
+            "node": "Reuse Existing Owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolve Routing Pool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reuse Existing Owner": {
+      "main": [
+        [
+          {
+            "node": "Owner Resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Routing Pool": {
+      "main": [
+        [
+          {
+            "node": "Advance Round Robin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance Round Robin": {
+      "main": [
+        [
+          {
+            "node": "Pick + Persist Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick + Persist Owner": {
+      "main": [
+        [
+          {
+            "node": "Set Account Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Account Owner": {
+      "main": [
+        [
+          {
+            "node": "Owner Resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Owner Resolved": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Lead": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Search Company By Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Search Company By Domain": {
+      "main": [
+        [
+          {
+            "node": "Company Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Found?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Company Write",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Company Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Company Write": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Find-or-Create Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Find-or-Create Company": {
+      "main": [
+        [
+          {
+            "node": "Merge Company Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compute Company Backoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Company Backoff": {
+      "main": [
+        [
+          {
+            "node": "Company Should Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Should Retry?": {
+      "main": [
+        [
+          {
+            "node": "Company Backoff Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Company Write Give Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Backoff Wait": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Find-or-Create Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Write Give Up": {
+      "main": [
+        [
+          {
+            "node": "Merge Company Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Company Result": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact (with backoff)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Upsert Contact (with backoff)": {
+      "main": [
+        [
+          {
+            "node": "Merge Contact Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compute Contact Backoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Contact Backoff": {
+      "main": [
+        [
+          {
+            "node": "Contact Should Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Should Retry?": {
+      "main": [
+        [
+          {
+            "node": "Contact Backoff Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contact Write Give Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Backoff Wait": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact (with backoff)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Write Give Up": {
+      "main": [
+        [
+          {
+            "node": "Merge Contact Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Contact Result": {
+      "main": [
+        [
+          {
+            "node": "Update Lead HubSpot IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead HubSpot IDs": {
+      "main": [
+        [
+          {
+            "node": "Enqueue Slack Outbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enqueue Slack Outbox": {
+      "main": [
+        [
+          {
+            "node": "Post Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Mark Outbox Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Outbox Sent": {
+      "main": [
+        [
+          {
+            "node": "Respond Qualified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "tags": [],
+  "active": false
+}

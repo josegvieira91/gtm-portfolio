@@ -8,6 +8,7 @@
 
 # HubSpot
 api.hubapi.com
+app.hubspot.com
 
 # Salesforce
 login.salesforce.com
@@ -38,3 +39,7 @@ api.clay.com
 
 # Local development
 localhost
+# Case 1's Docker-compose mock enrichment service (simulates a third-party
+# enrichment vendor for the graceful-degradation scenario). Internal-only
+# hostname, no external DNS record, no credential attached.
+enrichment-mock
