@@ -6,46 +6,67 @@ heroMetric: "Under 60 seconds from form submit to owner alert"
 stack: ["n8n", "HubSpot", "Slack", "Postgres"]
 metrics:
   - label: "Form to alert"
-    value: "<60s"
+    value: "2s"
   - label: "Leads routed"
-    value: "1,200+"
+    value: "2"
   - label: "Manual touches"
     value: "0"
-video: "/videos/deploy-test.mp4"
+video: "/videos/case-01-inbound-speed-to-lead.mp4"
 diagramId: "case-01"
 featured: true
 draft: true
 ---
 
-Inbound leads go cold fast. A prospect fills out a form, and if nobody
-responds within a few minutes, the odds of a real conversation drop hard.
-Most teams still route new leads through manual triage: someone checks a
-shared inbox or a CRM view, decides who owns the lead, and pings them
-separately. That gap between form submit and a human noticing is where
-deals die quietly, with no error and no alert to explain why.
+A lead that fills out a form is ready to talk right now. By the time
+someone spots the submission in a shared inbox or a CRM view, that
+readiness is gone, and the deal dies quietly with no error to explain
+why. Most teams lose inbound leads to exactly this gap. The plumbing
+is slow, so the conversation never starts.
 
-This engine closes that gap. A form submission moves from raw payload to
-an owner's Slack notification, with no manual step in between.
+I built this engine to close that gap end to end. In the recorded lab
+run, a form submission became an owner's Slack alert in about two
+seconds, with no manual step in between.
 
 ## How it works
 
-**Intake.** The form posts straight to an n8n webhook. Every payload gets
-an idempotency key at the door, so a double submit or a retried request
-never creates a duplicate lead downstream.
+**Intake.** The form posts to an n8n webhook behind header auth.
+I chose to compute the idempotency key at the door, before enrichment
+or scoring ever run, because a duplicate should be caught while it is
+still cheap. Deduplicating later would burn an enrichment call and a
+scoring pass on a lead the system already has. The trade-off: the key
+comes from the raw submission, so a resubmit with edited fields counts
+as a new lead. I accepted that, because dropping a real lead is worse
+than an occasional near-twin.
 
-**Enrichment.** The lead runs through an enrichment waterfall: try the
-primary data provider first, fall back to a secondary source if the first
-one returns nothing. A lead never stalls just because one provider is
-down or missing a record.
+**Persist first.** The raw payload is written to Postgres before any
+processing starts. If a downstream step dies mid-run, the submission
+still exists and can be replayed instead of being lost. That costs one
+insert on the hot path and buys a hard guarantee: no lead that reached
+the webhook ever disappears.
 
-**Scoring.** Enriched data feeds a deterministic scoring step. A lead
-that clears the hot threshold routes in seconds, not minutes, so timing
-never depends on how busy the scoring logic happens to be that day.
+**Enrichment.** The enrichment call retries on failure, and when the
+provider stays down the run does not fail. The flow falls back to the
+firmographics the form supplied, marks the lead pending enrichment,
+and keeps moving. In the recorded run I forced the provider to answer
+429 on every call, and the lead still reached its owner in 5.27
+seconds. Degraded data costs some scoring precision. A stalled lead
+costs the deal.
 
-**Routing and alert.** Hot leads route to their owner and land in Slack
-with full context attached: who the lead is, what they filled in, and
-why the score triggered an alert.
+**Scoring and routing.** Scoring is a config block of five explicit
+rules, so the same input produces the same score on every run, and any
+score can be explained by reading the rule list. Qualified leads then
+resolve an owner: an account that already has one reuses it, and a new
+account pulls the next rep from a round-robin pointer stored in
+Postgres. The pointer lives in the database on purpose, so parallel
+runs cannot grab the same slot and double-book a rep.
 
-**CRM and nurture.** Every lead lands in HubSpot as a deal, hot or not.
-Leads that do not clear the hot threshold enter a nurture queue instead
-of getting dropped, so nothing that came through the form goes unworked.
+**CRM and alert.** The lead lands in HubSpot as a company and a
+contact, found or created by domain so reruns never spawn duplicates.
+Both HubSpot writes retry with exponential backoff and honor
+Retry-After on 429s; after five attempts the flow records the failure
+and moves on rather than blocking the alert. I wired the Slack message
+through a Postgres outbox, so a failed post can be retried instead of
+vanishing. The owner gets the lead with its score and company context
+attached, and every lead, qualified or not, is recorded in Postgres
+with its score and status. Nothing that came through the form goes
+unworked.

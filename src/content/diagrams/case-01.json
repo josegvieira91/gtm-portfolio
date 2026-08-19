@@ -3,21 +3,23 @@
   "nodes": [
     { "id": "form", "label": "Web Form", "stage": 0, "lane": 1, "kind": "trigger", "tool": "n8n" },
     { "id": "webhook", "label": "n8n Webhook", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "raw", "label": "Raw Payload Log", "stage": 2, "lane": 0, "kind": "store", "tool": "postgres" },
     { "id": "enrich", "label": "Enrichment", "stage": 2, "lane": 1, "kind": "process", "tool": "n8n" },
     { "id": "score", "label": "Lead Scoring", "stage": 3, "lane": 1, "kind": "process", "tool": "n8n" },
-    { "id": "route", "label": "Router", "stage": 4, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "route", "label": "Owner Routing", "stage": 4, "lane": 1, "kind": "process", "tool": "n8n" },
     { "id": "slack", "label": "Slack Alert", "stage": 5, "lane": 0, "kind": "output", "tool": "slack" },
-    { "id": "crm", "label": "HubSpot Deal", "stage": 5, "lane": 1, "kind": "store", "tool": "hubspot" },
-    { "id": "nurture", "label": "Nurture Queue", "stage": 5, "lane": 2, "kind": "output", "tool": "postgres" }
+    { "id": "crm", "label": "HubSpot Contact", "stage": 5, "lane": 1, "kind": "store", "tool": "hubspot" },
+    { "id": "ledger", "label": "Lead Record", "stage": 5, "lane": 2, "kind": "store", "tool": "postgres" }
   ],
   "edges": [
     { "id": "e1", "from": "form", "to": "webhook" },
-    { "id": "e2", "from": "webhook", "to": "enrich" },
-    { "id": "e3", "from": "enrich", "to": "score" },
-    { "id": "e4", "from": "score", "to": "route" },
-    { "id": "e5", "from": "route", "to": "slack" },
-    { "id": "e6", "from": "route", "to": "crm" },
-    { "id": "e7", "from": "route", "to": "nurture" }
+    { "id": "e2", "from": "webhook", "to": "raw" },
+    { "id": "e3", "from": "webhook", "to": "enrich" },
+    { "id": "e4", "from": "enrich", "to": "score" },
+    { "id": "e5", "from": "score", "to": "route" },
+    { "id": "e6", "from": "route", "to": "slack" },
+    { "id": "e7", "from": "route", "to": "crm" },
+    { "id": "e8", "from": "score", "to": "ledger" }
   ],
   "steps": [
     {
@@ -25,18 +27,18 @@
       "activateNodes": ["form", "webhook"],
       "activateEdges": ["e1"],
       "callout": {
-        "text": "Sub-second intake: every payload gets an idempotency key at the webhook",
+        "text": "Every payload gets an idempotency key at the webhook, before anything else runs",
         "anchor": "webhook",
         "side": "top"
       }
     },
     {
       "id": "s2",
-      "activateNodes": ["enrich"],
-      "activateEdges": ["e2"],
+      "activateNodes": ["raw", "enrich"],
+      "activateEdges": ["e2", "e3"],
       "packetPath": ["webhook", "enrich"],
       "callout": {
-        "text": "Enrichment waterfall with a fallback path when a provider returns nothing",
+        "text": "The raw payload is persisted first; if enrichment fails, the lead falls back to form data and routes anyway",
         "anchor": "enrich",
         "side": "top"
       }
@@ -44,10 +46,10 @@
     {
       "id": "s3",
       "activateNodes": ["score"],
-      "activateEdges": ["e3"],
+      "activateEdges": ["e4"],
       "packetPath": ["enrich", "score"],
       "callout": {
-        "text": "Deterministic scoring: the hot threshold routes in seconds, not minutes",
+        "text": "Config-driven scoring: the same input produces the same score, every run",
         "anchor": "score",
         "side": "top"
       }
@@ -55,21 +57,21 @@
     {
       "id": "s4",
       "activateNodes": ["route", "slack"],
-      "activateEdges": ["e4", "e5"],
+      "activateEdges": ["e5", "e6"],
       "packetPath": ["score", "route", "slack"],
       "callout": {
-        "text": "Hot leads ping the owner in Slack with full context",
+        "text": "Qualified leads round-robin to an owner and land in Slack with full context",
         "anchor": "slack",
         "side": "top"
       }
     },
     {
       "id": "s5",
-      "activateNodes": ["crm", "nurture"],
-      "activateEdges": ["e6", "e7"],
+      "activateNodes": ["crm", "ledger"],
+      "activateEdges": ["e7", "e8"],
       "packetPath": ["route", "crm"],
       "callout": {
-        "text": "Every lead lands in the CRM; the rest enter the nurture queue",
+        "text": "HubSpot gets the contact by find-or-create; every lead, qualified or not, is recorded in Postgres",
         "anchor": "crm",
         "side": "bottom"
       }
