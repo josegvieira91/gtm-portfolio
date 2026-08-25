@@ -7,18 +7,16 @@
 // Assembles the LOCKED 7-part anatomy in order: (1) hero + the MDX body's
 // problem-framing intro, (2) the scroll-scrubbed diagram (DiagramSection,
 // shared with zero bespoke per-case diagram code), (3) the rest of the MDX
-// body ("How it works"), (4) stack badges, (5) the evidence pack (recording
-// for Case 1, execution screenshots for the others) plus the export link,
-// (6) metric counters, (7) a static CTA back to /contact and the machine
-// wall.
+// body ("How it works"), (4) stack badges, (5) the evidence pack (sanitized
+// execution screenshots, per D-15 -- no video, for any case) plus the
+// export link, (6) metric counters, (7) a static CTA back to /contact and
+// the machine wall.
 //
 // getStaticPaths INCLUDES draft entries on purpose during construction:
 // the whole site is served noindex (D-11, BaseLayout) while the Phase 3
 // catalog fills in, and filtering drafts out of the build is a Phase 5
 // launch-gate concern — not this template's job. Do not add a
 // `!entry.data.draft` filter here.
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CaseHero from '../../components/case/CaseHero.astro';
@@ -55,21 +53,6 @@ if (!diagramEntry) {
   );
 }
 const diagram = diagramEntry.data as Diagram;
-
-// Poster images are small static assets and live under public/ (unlike raw
-// video, which never does — 02-PATTERNS.md shared pattern 5), named to
-// match the diagram/case identifier (case-01.webp), not the human-readable
-// slug. Cases without a poster yet (Phase 3 backlog) fall back to a
-// token-styled placeholder instead of RecordingPlayer, still shipping zero
-// video bytes.
-const posterSrc = `/posters/${diagramId}.webp`;
-// WR-06 fix: process.cwd() is the directory the build was invoked from, not
-// the project root — resolving through the module's own URL is invariant to
-// that, so `astro build` from a CI wrapper/monorepo runner/subdirectory
-// still finds the real poster instead of silently falling back to "Recording
-// coming soon" for every case.
-const posterPath = fileURLToPath(new URL(`../../../public/posters/${diagramId}.webp`, import.meta.url));
-const hasPoster = existsSync(posterPath);
 ---
 
 <BaseLayout title={`${entry.data.title} - Jose Vieira`} description={entry.data.heroMetric ?? entry.data.category}>
@@ -88,14 +71,7 @@ const hasPoster = existsSync(posterPath);
     </section>
 
     <section class="px-6 py-16" aria-label="Evidence">
-      <EvidencePack
-        video={entry.data.video}
-        posterSrc={posterSrc}
-        hasPoster={hasPoster}
-        evidence={entry.data.evidence}
-        exportPath={entry.data.export}
-        label={entry.data.title}
-      />
+      <EvidencePack evidence={entry.data.evidence} exportPath={entry.data.export} />
     </section>
 
     {entry.data.metrics && <MetricsCounters metrics={entry.data.metrics} />}

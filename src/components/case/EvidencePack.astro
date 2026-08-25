@@ -1,16 +1,15 @@
 ---
 // src/components/case/EvidencePack.astro
 //
-// D-14 (03-06 Task 3): the approved template-lock exception that replaces
-// part (5) of the locked 7-part case anatomy. Case 1 keeps its recorded
-// video via RecordingPlayer (D-14 carve-out); Cases 2-10 ship 2-3 sanitized
-// execution screenshots instead of a recording; a case with neither yet
-// still renders the original "Recording coming soon." placeholder so
-// nothing regresses before a case is captured. Zero client JS added here --
-// the only script on this page section remains RecordingPlayer's existing
-// click-to-play facade, unchanged.
+// D-15 (2026-08-25): one standard for all 10 cases, no video anywhere. Every
+// case ships an evidence pack of 2-3 sanitized execution screenshots plus a
+// download link to the sanitized workflow JSON. Replaces the earlier D-14
+// carve-out where Case 1 kept a recorded video via RecordingPlayer -- that
+// component and the video/poster frontmatter fields are gone. A case with
+// no evidence captured yet still renders the original "Evidence coming
+// soon." placeholder so nothing regresses before a case is captured. Zero
+// client JS in this component.
 import { Image } from 'astro:assets';
-import RecordingPlayer from './RecordingPlayer.astro';
 import { repoFileUrl } from '../../lib/site';
 
 interface EvidenceItem {
@@ -20,21 +19,15 @@ interface EvidenceItem {
 }
 
 interface Props {
-  video?: string;
-  posterSrc: string;
-  hasPoster: boolean;
   evidence?: EvidenceItem[];
   exportPath?: string;
-  label: string;
 }
 
-const { video, posterSrc, hasPoster, evidence, exportPath, label } = Astro.props;
+const { evidence, exportPath } = Astro.props;
 ---
 
 <div class="mx-auto max-w-3xl">
-  {video && hasPoster ? (
-    <RecordingPlayer videoSrc={video} posterSrc={posterSrc} label={label} />
-  ) : evidence && evidence.length > 0 ? (
+  {evidence && evidence.length > 0 ? (
     <div class="space-y-6">
       {evidence.map((item) => (
         <figure class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface">
@@ -47,7 +40,7 @@ const { video, posterSrc, hasPoster, evidence, exportPath, label } = Astro.props
     </div>
   ) : (
     <div class="rounded-lg border border-dashed border-blueprint-line/30 bg-blueprint-surface p-10 text-center text-sm text-blueprint-dim">
-      Recording coming soon.
+      Evidence coming soon.
     </div>
   )}
 

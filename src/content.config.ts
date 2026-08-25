@@ -29,7 +29,11 @@ const cases = defineCollection({
       heroMetric: z.string().optional(),
       stack: z.array(z.string()),
       metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
-      video: z.string().optional(),
+      // D-15 (2026-08-25): the video path is retired for every case, this
+      // one included -- one standard, no video anywhere. `video` used to be
+      // an optional string here (Case 1's recording path); removed rather
+      // than left optional-and-unused, so a stray `video:` line in a case's
+      // frontmatter fails `astro check` instead of silently doing nothing.
       // D-14 evidence pack (Cases 2-10): 2-3 stills of one real execution.
       // `image()` resolves each `src` at build time -- a missing file under
       // src/assets/cases/<slug>/ fails `astro check`/`astro build`, not a

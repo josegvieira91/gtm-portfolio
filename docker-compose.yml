@@ -10,6 +10,7 @@ services:
       dockerfile: docker/Dockerfile
     restart: unless-stopped
     volumes:
+      # unused since D-15 2026-08-25; safe to remove at Phase 5
       - ${VIDEOS_DIR:-./videos}:/usr/share/nginx/videos:ro
     networks:
       - proxy
