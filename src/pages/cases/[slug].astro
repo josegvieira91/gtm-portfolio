@@ -7,9 +7,10 @@
 // Assembles the LOCKED 7-part anatomy in order: (1) hero + the MDX body's
 // problem-framing intro, (2) the scroll-scrubbed diagram (DiagramSection,
 // shared with zero bespoke per-case diagram code), (3) the rest of the MDX
-// body ("How it works"), (4) stack badges, (5) the click-to-play recording
-// facade, (6) metric counters, (7) a static CTA back to /contact and the
-// machine wall.
+// body ("How it works"), (4) stack badges, (5) the evidence pack (recording
+// for Case 1, execution screenshots for the others) plus the export link,
+// (6) metric counters, (7) a static CTA back to /contact and the machine
+// wall.
 //
 // getStaticPaths INCLUDES draft entries on purpose during construction:
 // the whole site is served noindex (D-11, BaseLayout) while the Phase 3
@@ -24,7 +25,7 @@ import CaseHero from '../../components/case/CaseHero.astro';
 import DiagramSection from '../../components/case/DiagramSection.astro';
 import HowItWorks from '../../components/case/HowItWorks.astro';
 import StackBadges from '../../components/case/StackBadges.astro';
-import RecordingPlayer from '../../components/case/RecordingPlayer.astro';
+import EvidencePack from '../../components/case/EvidencePack.astro';
 import MetricsCounters from '../../components/case/MetricsCounters.astro';
 import type { Diagram } from '../../lib/schematic/types';
 
@@ -86,16 +87,15 @@ const hasPoster = existsSync(posterPath);
       <StackBadges stack={entry.data.stack} />
     </section>
 
-    <section class="px-6 py-16" aria-label="Recording">
-      {entry.data.video && hasPoster ? (
-        <div class="mx-auto max-w-3xl">
-          <RecordingPlayer videoSrc={entry.data.video} posterSrc={posterSrc} label={entry.data.title} />
-        </div>
-      ) : (
-        <div class="mx-auto max-w-3xl rounded-lg border border-dashed border-blueprint-line/30 bg-blueprint-surface p-10 text-center text-sm text-blueprint-dim">
-          Recording coming soon.
-        </div>
-      )}
+    <section class="px-6 py-16" aria-label="Evidence">
+      <EvidencePack
+        video={entry.data.video}
+        posterSrc={posterSrc}
+        hasPoster={hasPoster}
+        evidence={entry.data.evidence}
+        exportPath={entry.data.export}
+        label={entry.data.title}
+      />
     </section>
 
     {entry.data.metrics && <MetricsCounters metrics={entry.data.metrics} />}

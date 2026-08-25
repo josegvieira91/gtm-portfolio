@@ -11,24 +11,51 @@ import { glob } from 'astro/loaders';
 
 const cases = defineCollection({
   loader: glob({ pattern: '**/*.mdx', base: './src/content/cases' }),
-  schema: z.object({
-    title: z.string(),
-    // IN-07 fix: slug flows straight into params.slug and an href with no
-    // encoding, and diagramId flows into a filesystem path -- both are
-    // owner-authored/build-time so not exploitable today, but a stray space,
-    // slash, or ".." should fail at `astro check`, not produce a broken
-    // route or a silent out-of-tree stat with no error.
-    slug: z.string().regex(/^[a-z0-9-]+$/, 'must be lowercase kebab-case'),
-    track: z.enum(['gtm', 'lab']).default('gtm'), // SITE-09
-    category: z.string(),
-    heroMetric: z.string().optional(),
-    stack: z.array(z.string()),
-    metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
-    video: z.string().optional(),
-    diagramId: z.string().regex(/^[a-z0-9-]+$/, 'must be lowercase kebab-case').optional(), // explicit pairing fallback if filename match isn't used
-    featured: z.boolean().default(false),
-    draft: z.boolean().default(true),
-  }),
+  // D-14 (03-06 Task 3): function form gives access to `image()`, which
+  // turns a missing evidence screenshot into a build error -- the
+  // existence check every case plan from 03-07 onward relies on, instead
+  // of a silent broken <img>.
+  schema: ({ image }) =>
+    z.object({
+      title: z.string(),
+      // IN-07 fix: slug flows straight into params.slug and an href with no
+      // encoding, and diagramId flows into a filesystem path -- both are
+      // owner-authored/build-time so not exploitable today, but a stray space,
+      // slash, or ".." should fail at `astro check`, not produce a broken
+      // route or a silent out-of-tree stat with no error.
+      slug: z.string().regex(/^[a-z0-9-]+$/, 'must be lowercase kebab-case'),
+      track: z.enum(['gtm', 'lab']).default('gtm'), // SITE-09
+      category: z.string(),
+      heroMetric: z.string().optional(),
+      stack: z.array(z.string()),
+      metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+      video: z.string().optional(),
+      // D-14 evidence pack (Cases 2-10): 2-3 stills of one real execution.
+      // `image()` resolves each `src` at build time -- a missing file under
+      // src/assets/cases/<slug>/ fails `astro check`/`astro build`, not a
+      // silent broken image at runtime.
+      evidence: z
+        .array(
+          z.object({
+            src: image(),
+            alt: z.string(),
+            caption: z.string(),
+          })
+        )
+        .min(2)
+        .max(3)
+        .optional(),
+      // D-14: sanitized workflow JSON download. Either one file
+      // (workflows/<slug>/<file>.json) or a whole case folder for a
+      // multi-export chain (trailing slash, e.g. Case 8's Zaps).
+      export: z
+        .string()
+        .regex(/^workflows\/[a-z0-9-]+\/([a-z0-9-]+\.json)?$/)
+        .optional(),
+      diagramId: z.string().regex(/^[a-z0-9-]+$/, 'must be lowercase kebab-case').optional(), // explicit pairing fallback if filename match isn't used
+      featured: z.boolean().default(false),
+      draft: z.boolean().default(true),
+    }),
 });
 
 const diagrams = defineCollection({

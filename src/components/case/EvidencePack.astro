@@ -1,0 +1,66 @@
+---
+// src/components/case/EvidencePack.astro
+//
+// D-14 (03-06 Task 3): the approved template-lock exception that replaces
+// part (5) of the locked 7-part case anatomy. Case 1 keeps its recorded
+// video via RecordingPlayer (D-14 carve-out); Cases 2-10 ship 2-3 sanitized
+// execution screenshots instead of a recording; a case with neither yet
+// still renders the original "Recording coming soon." placeholder so
+// nothing regresses before a case is captured. Zero client JS added here --
+// the only script on this page section remains RecordingPlayer's existing
+// click-to-play facade, unchanged.
+import { Image } from 'astro:assets';
+import RecordingPlayer from './RecordingPlayer.astro';
+import { repoFileUrl } from '../../lib/site';
+
+interface EvidenceItem {
+  src: ImageMetadata;
+  alt: string;
+  caption: string;
+}
+
+interface Props {
+  video?: string;
+  posterSrc: string;
+  hasPoster: boolean;
+  evidence?: EvidenceItem[];
+  exportPath?: string;
+  label: string;
+}
+
+const { video, posterSrc, hasPoster, evidence, exportPath, label } = Astro.props;
+---
+
+<div class="mx-auto max-w-3xl">
+  {video && hasPoster ? (
+    <RecordingPlayer videoSrc={video} posterSrc={posterSrc} label={label} />
+  ) : evidence && evidence.length > 0 ? (
+    <div class="space-y-6">
+      {evidence.map((item) => (
+        <figure class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface">
+          <Image src={item.src} alt={item.alt} class="block w-full" />
+          <figcaption class="border-t border-blueprint-line/20 px-4 py-3 text-center text-xs text-blueprint-dim">
+            {item.caption}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  ) : (
+    <div class="rounded-lg border border-dashed border-blueprint-line/30 bg-blueprint-surface p-10 text-center text-sm text-blueprint-dim">
+      Recording coming soon.
+    </div>
+  )}
+
+  {exportPath && (
+    <p class="mt-6 text-center text-sm">
+      <a
+        href={repoFileUrl(exportPath)}
+        rel="noopener"
+        target="_blank"
+        class="text-blueprint-line underline hover:text-blueprint-ink"
+      >
+        Download the workflow JSON
+      </a>
+    </p>
+  )}
+</div>
