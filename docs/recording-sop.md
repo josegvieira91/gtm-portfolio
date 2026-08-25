@@ -1,5 +1,8 @@
 # Recording SOP
 
+> Per D-15 (2026-08-25), the video path is retired for every case; this document now governs
+> screenshot capture for each case's evidence pack instead.
+
 A checklist run before, during, and after every capture session. There will be roughly ten to
 fourteen of these across the ten cases, so this is a repeatable procedure, not a one-time
 setup note.

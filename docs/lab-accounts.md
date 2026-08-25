@@ -62,7 +62,8 @@ Creation checklist for later use, in Case 3 build week:
 1. Sign up at Clay's signup page with the lab Gmail address, English, Edmonton timezone, workspace named "Vieira GTM Lab."
 2. Do not start the Pro trial until the enrichment table structure, formulas, and provider waterfall order are already validated on free-tier credits (100/month).
 3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
-4. Record the video the same day the final clean run completes.
+4. Capture the evidence pack screenshots the same day the final clean run completes (video
+   retired per D-15, 2026-08-25 -- see `docs/recording-sop.md`).
 
 ### Make.com
 
