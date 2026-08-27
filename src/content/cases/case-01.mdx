@@ -27,9 +27,11 @@ readiness is gone, and the deal dies quietly with no error to explain
 why. Most teams lose inbound leads to exactly this gap. The plumbing
 is slow, so the conversation never starts.
 
-I built this engine to close that gap end to end. In the recorded lab
-run, a form submission became an owner's Slack alert in about two
-seconds, with no manual step in between.
+I built this engine to close that gap end to end. In a clean lab run,
+a form submission became an owner's Slack alert in about two seconds,
+with no manual step in between. The replay below shows a harder run,
+with the enrichment provider rate-limiting the flow, and the lead still
+reached its owner in under five seconds.
 
 ## How it works
 
@@ -51,10 +53,10 @@ the webhook ever disappears.
 **Enrichment.** The enrichment call retries on failure, and when the
 provider stays down the run does not fail. The flow falls back to the
 firmographics the form supplied, marks the lead pending enrichment,
-and keeps moving. In the recorded run I forced the provider to answer
-429 on every call, and the lead still reached its owner in 5.27
-seconds. Degraded data costs some scoring precision. A stalled lead
-costs the deal.
+and keeps moving. In the run replayed below the provider answered 429,
+the flow waited three seconds for it and then gave up, and the lead
+still reached its owner in 4.77 seconds. Degraded data costs some
+scoring precision. A stalled lead costs the deal.
 
 **Scoring and routing.** Scoring is a config block of five explicit
 rules, so the same input produces the same score on every run, and any
