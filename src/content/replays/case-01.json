@@ -1,0 +1,52 @@
+{
+  "caseSlug": "inbound-speed-to-lead",
+  "source": "n8n execution #67, 2026-08-17 18:38:12 MDT, lab run with a synthetic lead",
+  "totalMs": 4773,
+  "windows": [
+    { "id": "n8n", "kind": "log", "title": "n8n / Inbound Speed-to-Lead / execution #67" },
+    { "id": "hubspot", "kind": "contact", "title": "HubSpot / Contacts" },
+    { "id": "slack", "kind": "slack", "title": "Slack / #gtm-lab-inbound-alerts" }
+  ],
+  "steps": [
+    { "at": 16, "node": "Form Webhook", "line": "POST /webhook received: first_name=Marcus last_name=Webb company=Meridian Software" },
+    { "at": 17, "node": "Validate Submission", "line": "valid=true errors=[]" },
+    { "at": 34, "node": "Normalize + Compute Idempotency Key", "line": "email lowercased, domain=meridian-software.example.com, key computed" },
+    { "at": 43, "node": "Idempotency Gate", "line": "is_new=true (no earlier submission with this key)" },
+    { "at": 55, "node": "Persist Raw Submission", "line": "raw submission stored in Postgres" },
+    { "at": 59, "node": "Enrichment Lookup", "line": "calling enrichment service...", "tone": "wait" },
+    { "at": 3084, "node": "Merge Enrichment Result", "line": "enrichment rate-limited after 3.0s, continuing with form data only", "tone": "warn" },
+    { "at": 3095, "node": "Score Lead", "line": "score=70", "tone": "ok" },
+    { "at": 3107, "node": "Qualified?", "line": "score 70 >= threshold, route to a rep", "tone": "ok" },
+    { "at": 3108, "node": "Upsert Account", "line": "account Meridian Software upserted, no owner yet" },
+    { "at": 3114, "node": "Resolve Routing Pool", "line": "pool=smb" },
+    { "at": 3124, "node": "Advance Round Robin", "line": "round robin advanced, index=8" },
+    { "at": 3128, "node": "Pick + Persist Owner", "line": "owner=rep_carla", "tone": "ok" },
+    { "at": 3150, "node": "Upsert Lead", "line": "lead row written with score and owner" },
+    { "at": 3157, "node": "HubSpot Search Company By Domain", "line": "GET companies/search domain=meridian-software.example.com -> 1 match (312ms)" },
+    { "at": 3480, "node": "HubSpot Find-or-Create Company", "line": "company found, reused (320ms)" },
+    { "at": 3811, "node": "HubSpot Upsert Contact (with backoff)", "line": "POST contacts -> created Marcus Webb (618ms)", "tone": "ok", "window": "hubspot" },
+    { "at": 4440, "node": "Update Lead HubSpot IDs", "line": "HubSpot ids written back to the lead row" },
+    { "at": 4458, "node": "Enqueue Slack Outbox", "line": "alert queued in outbox table" },
+    { "at": 4473, "node": "Post Slack Alert", "line": "chat.postMessage -> ok (290ms)", "tone": "ok", "window": "slack" },
+    { "at": 4763, "node": "Mark Outbox Sent", "line": "outbox row marked sent" },
+    { "at": 4769, "node": "Respond Qualified", "line": "200 OK returned to the form. Done in 4.773s", "tone": "done" }
+  ],
+  "contact": {
+    "name": "Marcus Webb",
+    "company": "Meridian Software",
+    "email": "marcus.webb@meridian-software.example.com",
+    "created": "08/17/2026 6:38 PM MDT"
+  },
+  "slack": {
+    "bot": "GTM Lab Bot",
+    "time": "6:38 PM",
+    "headline": "New qualified lead",
+    "fields": [
+      { "label": "Company", "value": "Meridian Software" },
+      { "label": "Contact", "value": "Marcus Webb <marcus.webb@meridian-software.example.com>" },
+      { "label": "Score", "value": "70" },
+      { "label": "Owner", "value": "rep_carla" },
+      { "label": "Domain", "value": "meridian-software.example.com" }
+    ]
+  }
+}

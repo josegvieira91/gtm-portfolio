@@ -34,10 +34,13 @@ const cases = defineCollection({
       // an optional string here (Case 1's recording path); removed rather
       // than left optional-and-unused, so a stray `video:` line in a case's
       // frontmatter fails `astro check` instead of silently doing nothing.
-      // D-14 evidence pack (Cases 2-10): 2-3 stills of one real execution.
+      // D-14 evidence pack (Cases 2-10): 1-3 stills of one real execution.
       // `image()` resolves each `src` at build time -- a missing file under
       // src/assets/cases/<slug>/ fails `astro check`/`astro build`, not a
-      // silent broken image at runtime.
+      // silent broken image at runtime. D-16 (2026-08-26): min dropped from
+      // 2 to 1 -- the HTML ExecutionReplay now carries the explanation, so
+      // one real still (the execution header, the receipt) is enough; the
+      // still no longer has to also narrate the CRM record and the alert.
       evidence: z
         .array(
           z.object({
@@ -46,7 +49,7 @@ const cases = defineCollection({
             caption: z.string(),
           })
         )
-        .min(2)
+        .min(1)
         .max(3)
         .optional(),
       // D-14: sanitized workflow JSON download. Either one file
@@ -97,4 +100,50 @@ const diagrams = defineCollection({
   }),
 });
 
-export const collections = { cases, diagrams };
+// D-16 (2026-08-26): the execution replay data feeding
+// ExecutionReplay.astro -- one JSON file per case under
+// src/content/replays/, derived from that case's sanitized execution
+// export. Data hygiene per D-16: never a hostname, webhook path, token,
+// credential name, record id or channel id -- only node names, timings,
+// synthetic lead data and statuses. `step.window`, when present, is the
+// id of one of this replay's own `windows` entries (loose string, not an
+// enum of the two ids seen in Case 1, since a future case's window ids
+// may differ, e.g. Salesforce or email instead of HubSpot/Slack).
+const replays = defineCollection({
+  loader: glob({ pattern: '**/*.json', base: './src/content/replays' }),
+  schema: z.object({
+    caseSlug: z.string().regex(/^[a-z0-9-]+$/, 'must be lowercase kebab-case'),
+    source: z.string(),
+    totalMs: z.number(),
+    windows: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(['log', 'contact', 'slack']),
+        title: z.string(),
+      })
+    ),
+    steps: z.array(
+      z.object({
+        at: z.number(),
+        node: z.string(),
+        line: z.string(),
+        tone: z.enum(['ok', 'warn', 'wait', 'done']).optional(),
+        window: z.string().optional(),
+      })
+    ),
+    contact: z.object({
+      name: z.string(),
+      company: z.string(),
+      email: z.string(),
+      created: z.string(),
+    }),
+    slack: z.object({
+      bot: z.string(),
+      time: z.string(),
+      headline: z.string(),
+      fields: z.array(z.object({ label: z.string(), value: z.string() })),
+    }),
+  }),
+});
+
+export const collections = { cases, diagrams, replays };
