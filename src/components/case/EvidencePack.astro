@@ -46,7 +46,12 @@ const replay = replays[0]?.data;
     <div class="space-y-6">
       {evidence.map((item) => (
         <figure class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface">
-          <Image src={item.src} alt={item.alt} class="block w-full" />
+          {/* Full-size still opens in a new tab: a 45-node canvas cannot be
+              legible at column width, so the inline image is the overview and
+              the click is the zoom. */}
+          <a href={item.src.src} target="_blank" rel="noopener" title="Open full size">
+            <Image src={item.src} alt={item.alt} class="block w-full" />
+          </a>
           <figcaption class="border-t border-blueprint-line/20 px-4 py-3 text-center text-xs text-blueprint-dim">
             {item.caption}
           </figcaption>
