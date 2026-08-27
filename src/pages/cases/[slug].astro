@@ -71,7 +71,7 @@ const diagram = diagramEntry.data as Diagram;
     </section>
 
     <section class="px-6 py-16" aria-label="Evidence">
-      <EvidencePack evidence={entry.data.evidence} exportPath={entry.data.export} />
+      <EvidencePack evidence={entry.data.evidence} exportPath={entry.data.export} caseSlug={entry.data.slug} />
     </section>
 
     {entry.data.metrics && <MetricsCounters metrics={entry.data.metrics} />}

@@ -1,0 +1,388 @@
+---
+// src/components/case/ExecutionReplay.astro
+//
+// D-16 (2026-08-26): the explanation layer of the evidence pack. One real
+// execution (src/content/replays/<case>.json, derived from the sanitized
+// execution export) replayed in real time inside three "windows" in the
+// style of the CS50P presentation windows José pointed at (title bar,
+// three dots, mono body, fade-in lines, blinking cursor on a wait step).
+// The still screenshot next to this component is the receipt (cannot be
+// forged); this component is what explains the receipt. No GSAP: the
+// motion here is a sequential line fade and a counter tick, both plain
+// CSS/JS, no scroll-scrubbing or SVG drawing involved, so the project's
+// CSS-over-GSAP rule keeps this out of the animation-library bundle.
+//
+// Progressive by construction: the SSR markup below already renders the
+// finished state (every log line visible, the HubSpot card filled in, the
+// Slack message filled in, the counter at the total). With JS and without
+// reduced motion, the client script clears that to the "before playback"
+// state and replays it once the component enters the viewport, then again
+// on every "Replay" click. With JS disabled, the finished state stands.
+// Under prefers-reduced-motion: reduce, the client script only hides the
+// Replay button and leaves the finished state exactly as SSR'd -- no
+// playback runs.
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  replay: CollectionEntry<'replays'>['data'];
+}
+
+const { replay } = Astro.props;
+
+const logWindow = replay.windows.find((w) => w.kind === 'log');
+const contactWindow = replay.windows.find((w) => w.kind === 'contact');
+const slackWindow = replay.windows.find((w) => w.kind === 'slack');
+
+function fmtOffset(ms: number): string {
+  return `+${(ms / 1000).toFixed(3)}s`;
+}
+
+function fmtCounter(ms: number): string {
+  return `${(ms / 1000).toFixed(3)} s`;
+}
+
+const totalLabel = fmtCounter(replay.totalMs);
+---
+
+<section
+  class="mx-auto mb-10 max-w-5xl"
+  aria-label={`Execution replay, source: ${replay.source}`}
+  data-replay-component
+>
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+    <div>
+      <p class="text-xs uppercase tracking-[0.25em] text-blueprint-dim">Execution replay</p>
+      <p class="mt-1 text-xs text-blueprint-dim">{replay.source}</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="font-mono text-sm tabular-nums text-blueprint-line" data-replay-counter aria-live="off">
+        {totalLabel}
+      </span>
+      <button
+        type="button"
+        class="rounded-full border border-blueprint-line/40 px-4 py-1.5 text-xs uppercase tracking-[0.15em] text-blueprint-line transition hover:bg-blueprint-line/10 disabled:cursor-not-allowed disabled:opacity-40"
+        data-replay-button
+      >
+        Replay
+      </button>
+    </div>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-[3fr_2fr]" data-replay-grid>
+    <div class="flex flex-col overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface">
+      <div class="flex items-center gap-2 border-b border-blueprint-line/20 bg-blueprint-bg/40 px-3 py-2">
+        <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+        <span class="ml-2 truncate text-xs text-blueprint-dim">{logWindow?.title}</span>
+      </div>
+      <div
+        class="max-h-[28rem] flex-1 overflow-y-auto px-4 py-3 font-mono text-[13px] leading-relaxed text-blueprint-ink md:text-sm"
+        role="log"
+        aria-live="polite"
+        aria-label={logWindow?.title}
+        data-replay-log
+      >
+        {replay.steps.map((step) => (
+          <p
+            class:list={[
+              'replay-line whitespace-pre-wrap',
+              step.tone === 'ok' && 'text-blueprint-accent',
+              step.tone === 'warn' && 'text-amber-400',
+              step.tone === 'done' && 'font-bold text-blueprint-accent',
+              !step.tone && 'text-blueprint-dim',
+            ]}
+            data-at={step.at}
+            data-tone={step.tone ?? ''}
+          >
+            <span class="text-blueprint-dim">{fmtOffset(step.at)}</span>
+            {'  '}
+            <span class="text-blueprint-line">{step.node}</span>
+            {'  '}
+            <span>
+              {step.tone === 'ok' && '✓ '}
+              {step.line}
+              {step.tone === 'wait' && <span class="replay-cursor" data-replay-cursor></span>}
+            </span>
+          </p>
+        ))}
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface" data-replay-window="contact">
+        <div class="flex items-center gap-2 border-b border-blueprint-line/20 bg-blueprint-bg/40 px-3 py-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="ml-2 truncate text-xs text-blueprint-dim">{contactWindow?.title}</span>
+        </div>
+        <div
+          class="min-h-[8.5em] px-4 py-3 font-mono text-[13px] text-blueprint-ink md:text-sm"
+          aria-label={contactWindow?.title}
+        >
+          <p class="hidden text-blueprint-dim" data-replay-empty>waiting for the upsert...</p>
+          <div class="replay-fade space-y-1" data-replay-filled>
+            <p class="font-bold text-blueprint-ink">{replay.contact.name}</p>
+            <p class="text-blueprint-dim">{replay.contact.company}</p>
+            <p class="text-blueprint-dim">{replay.contact.email}</p>
+            <p class="text-blueprint-dim">Created {replay.contact.created}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface" data-replay-window="slack">
+        <div class="flex items-center gap-2 border-b border-blueprint-line/20 bg-blueprint-bg/40 px-3 py-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
+          <span class="ml-2 truncate text-xs text-blueprint-dim">{slackWindow?.title}</span>
+        </div>
+        <div
+          class="min-h-[8.5em] px-4 py-3 font-mono text-[13px] text-blueprint-ink md:text-sm"
+          aria-label={slackWindow?.title}
+        >
+          <p class="hidden text-blueprint-dim" data-replay-empty>no alert yet</p>
+          <div class="replay-fade space-y-2" data-replay-filled>
+            <p class="flex items-center gap-2 text-blueprint-dim">
+              <span class="font-bold text-blueprint-ink">{replay.slack.bot}</span>
+              <span class="rounded bg-blueprint-line/15 px-1 text-[10px] uppercase tracking-wide text-blueprint-line">App</span>
+              <span>{replay.slack.time}</span>
+            </p>
+            <p class="font-bold text-blueprint-ink">{replay.slack.headline}</p>
+            <dl class="grid grid-cols-2 gap-x-3 gap-y-1">
+              {replay.slack.fields.map((field) => (
+                <>
+                  <dt class="text-blueprint-dim">{field.label}</dt>
+                  <dd class="text-blueprint-ink">{field.value}</dd>
+                </>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" set:html={JSON.stringify({ steps: replay.steps, windows: replay.windows, totalMs: replay.totalMs })} data-replay-json></script>
+</section>
+
+<style>
+  /* Default (no JS, or JS not yet run) is plain full opacity -- the
+     finished-state fallback the design contract requires. JS-driven
+     playback works by toggling `.replay-hidden` before the scheduled
+     reveal; a *transition* only fires on an actual class/style change,
+     unlike an autoplaying `animation: ... both`, whose forwards fill
+     would otherwise keep winning over a later inline-style opacity
+     write (a real bug caught in this component's own manual QA pass --
+     every line rendered immediately regardless of its `at` offset,
+     because the animation's fill-forwards outranks inline opacity once
+     the short keyframe animation has already finished playing itself
+     out on page load). */
+  .replay-line,
+  .replay-fade {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.25s ease,
+      transform 0.25s ease;
+  }
+  .replay-line.replay-hidden,
+  .replay-fade.replay-hidden {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .replay-cursor {
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 0.15em;
+    vertical-align: text-bottom;
+    background: currentColor;
+    animation: replay-blink 1s steps(1) infinite;
+  }
+  .replay-cursor.is-hidden {
+    display: none;
+  }
+  @keyframes replay-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .replay-line,
+    .replay-fade {
+      transition: none;
+    }
+    .replay-cursor {
+      animation: none;
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  interface ReplayStep {
+    at: number;
+    node: string;
+    line: string;
+    tone?: 'ok' | 'warn' | 'wait' | 'done';
+    window?: string;
+  }
+  interface ReplayWindow {
+    id: string;
+    kind: 'log' | 'contact' | 'slack';
+    title: string;
+  }
+  interface ReplayPayload {
+    steps: ReplayStep[];
+    windows: ReplayWindow[];
+    totalMs: number;
+  }
+
+  function fmtCounter(ms: number): string {
+    return `${(ms / 1000).toFixed(3)} s`;
+  }
+
+  function initReplay(root: HTMLElement) {
+    const jsonEl = root.querySelector<HTMLScriptElement>('script[data-replay-json]');
+    if (!jsonEl?.textContent) return;
+
+    let data: ReplayPayload;
+    try {
+      data = JSON.parse(jsonEl.textContent);
+    } catch {
+      return;
+    }
+
+    const counterEl = root.querySelector<HTMLElement>('[data-replay-counter]');
+    const buttonEl = root.querySelector<HTMLButtonElement>('[data-replay-button]');
+    const logEl = root.querySelector<HTMLElement>('[data-replay-log]');
+    const gridEl = root.querySelector<HTMLElement>('[data-replay-grid]');
+    if (!counterEl || !buttonEl || !logEl || !gridEl) return;
+
+    // Re-bound as new, definitely-non-null consts: TypeScript's null-check
+    // narrowing above does not carry into the nested closures below (reset,
+    // tick, play each re-widen the captured outer variable back to
+    // `T | null`), so the nested functions read these instead of the ones
+    // just checked.
+    const counter = counterEl;
+    const button = buttonEl;
+    const log = logEl;
+    const grid = gridEl;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      // Final state is already what the server rendered -- just remove the
+      // control that would otherwise promise a replay that never plays.
+      button.hidden = true;
+      return;
+    }
+
+    const lineEls = Array.from(log.querySelectorAll<HTMLElement>('.replay-line'));
+    const windowEls = Array.from(grid.querySelectorAll<HTMLElement>('[data-replay-window]'));
+
+    function windowElFor(windowId: string | undefined): HTMLElement | undefined {
+      if (!windowId) return undefined;
+      const win = data.windows.find((w) => w.id === windowId);
+      if (!win) return undefined;
+      return windowEls.find((el) => el.dataset.replayWindow === win.kind);
+    }
+
+    let timers: number[] = [];
+    let rafId = 0;
+
+    function clearScheduled() {
+      timers.forEach((t) => window.clearTimeout(t));
+      timers = [];
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+
+    function reset() {
+      clearScheduled();
+      lineEls.forEach((el) => {
+        el.classList.add('replay-hidden');
+        el.querySelector<HTMLElement>('[data-replay-cursor]')?.classList.remove('is-hidden');
+      });
+      windowEls.forEach((el) => {
+        el.querySelector<HTMLElement>('[data-replay-empty]')?.classList.remove('hidden');
+        el.querySelector<HTMLElement>('[data-replay-filled]')?.classList.add('hidden');
+      });
+      counter.textContent = '0.000 s';
+      button.disabled = true;
+    }
+
+    function play() {
+      reset();
+      const start = performance.now();
+
+      function tick() {
+        const elapsed = Math.min(performance.now() - start, data.totalMs);
+        counter.textContent = fmtCounter(elapsed);
+        if (elapsed < data.totalMs) {
+          rafId = window.requestAnimationFrame(tick);
+        }
+      }
+      rafId = window.requestAnimationFrame(tick);
+
+      data.steps.forEach((step, i) => {
+        const el = lineEls[i];
+        if (!el) return;
+        const timer = window.setTimeout(() => {
+          el.classList.remove('replay-hidden');
+          // Not-yet-revealed lines are hidden via opacity/transform, not
+          // `display: none`, so they still occupy their layout space below
+          // the last visible line -- `scrollTop = scrollHeight` would jump
+          // straight past the line that just appeared, into that still-
+          // invisible space below. `el.offsetTop` is also the wrong
+          // number here: it is relative to `el`'s offsetParent, which is
+          // not necessarily `log` (log has no `position: relative`), so it
+          // does not describe a position inside log's own scroll range.
+          // getBoundingClientRect deltas are relative to the viewport for
+          // both elements, so the difference is exactly the line's
+          // position inside log regardless of the offsetParent chain.
+          const logRect = log.getBoundingClientRect();
+          const lineRect = el.getBoundingClientRect();
+          const lineBottomInLog = lineRect.bottom - logRect.top + log.scrollTop;
+          log.scrollTop = Math.max(0, lineBottomInLog - log.clientHeight);
+
+          // A wait tone blinks until the next step lands -- stop the blink
+          // on the previous line once this one arrives.
+          const prev = data.steps[i - 1];
+          if (prev?.tone === 'wait') {
+            lineEls[i - 1]?.querySelector<HTMLElement>('[data-replay-cursor]')?.classList.add('is-hidden');
+          }
+
+          const target = windowElFor(step.window);
+          if (target) {
+            target.querySelector<HTMLElement>('[data-replay-empty]')?.classList.add('hidden');
+            target.querySelector<HTMLElement>('[data-replay-filled]')?.classList.remove('hidden');
+          }
+        }, step.at);
+        timers.push(timer);
+      });
+
+      const finalTimer = window.setTimeout(() => {
+        counter.textContent = fmtCounter(data.totalMs);
+        button.disabled = false;
+      }, data.totalMs + 40);
+      timers.push(finalTimer);
+    }
+
+    reset();
+    button.addEventListener('click', play);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        play();
+      },
+      { threshold: 0.2 }
+    );
+    observer.observe(root);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-replay-component]').forEach(initReplay);
+</script>
