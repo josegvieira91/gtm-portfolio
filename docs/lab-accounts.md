@@ -165,10 +165,10 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Cal.com | Created | 2026-07-24 |
 | Slack | Created | 2026-07-24 |
 | Mailtrap | Created | 2026-07-24 |
-| Google (lab account) | Created | 2026-08-05 |
+| Google (lab account) | Disabled by Google on creation day (appeal filed 2026-08-28) | 2026-08-05 |
 | Clay | Deferred (Phase 3 Batch B) | — |
-| Make.com | Created | 2026-08-05 |
-| Apollo.io | Created | 2026-08-05 |
+| Make.com | Created; login blocked since the lab Google account was disabled | 2026-08-05 |
+| Apollo.io | Created; login blocked since the lab Google account was disabled | 2026-08-05 |
 | OpenAI API | Created | 2026-08-05 |
 | Instantly.ai | Deferred (Case 5 build day — 14-day trial clock) | — |
 
