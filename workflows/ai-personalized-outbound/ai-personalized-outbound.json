@@ -1,0 +1,950 @@
+{
+  "name": "AI-Personalized Outbound",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c5-01",
+      "name": "Run Outbound Batch",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-00",
+              "name": "run_id",
+              "value": "={{ 'run-' + $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "cfg-01",
+              "name": "prospect_csv_path",
+              "value": "/home/node/.n8n-files/apollo-prospects.csv",
+              "type": "string"
+            },
+            {
+              "id": "cfg-02",
+              "name": "prospect_row_limit",
+              "value": 20,
+              "type": "number"
+            },
+            {
+              "id": "cfg-03",
+              "name": "apollo_column_map",
+              "value": "{\"first_name\":[\"First Name\",\"first_name\",\"firstname\"],\"last_name\":[\"Last Name\",\"last_name\",\"lastname\"],\"title\":[\"Title\",\"Job Title\",\"Person Title\"],\"email\":[\"Email\",\"Email Address\",\"Work Email\",\"Primary Email\"],\"company\":[\"Company\",\"Company Name\",\"Company Name for Emails\",\"Account Name\",\"Organization Name\"],\"company_domain\":[\"Website\",\"Primary Domain\",\"Company Domain\",\"Domain\",\"Company Website\"],\"industry\":[\"Industry\",\"Primary Industry\"],\"employee_count\":[\"# Employees\",\"Employees\",\"Employee Count\",\"Number of Employees\",\"# of Employees\"],\"city\":[\"City\",\"Contact City\"],\"state\":[\"State\",\"Contact State\"],\"country\":[\"Country\",\"Contact Country\"],\"description\":[\"Short Description\",\"SEO Description\",\"Company Description\"],\"prospect_id\":[\"Apollo Contact Id\",\"Contact Id\",\"Person Id\"]}",
+              "type": "object"
+            },
+            {
+              "id": "cfg-04",
+              "name": "loop_batch_size",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "cfg-05",
+              "name": "openai_model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "cfg-06",
+              "name": "openai_max_tokens",
+              "value": 300,
+              "type": "number"
+            },
+            {
+              "id": "cfg-07",
+              "name": "openai_temperature",
+              "value": 0.6,
+              "type": "number"
+            },
+            {
+              "id": "cfg-08",
+              "name": "openai_input_cost_per_1k",
+              "value": 0.00015,
+              "type": "number"
+            },
+            {
+              "id": "cfg-09",
+              "name": "openai_output_cost_per_1k",
+              "value": 0.0006,
+              "type": "number"
+            },
+            {
+              "id": "cfg-10",
+              "name": "max_redraft_attempts",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "cfg-11",
+              "name": "instantly_campaign_id",
+              "value": "SET_ME_INSTANTLY_CAMPAIGN_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-12",
+              "name": "lab_recipient_email",
+              "value": "SET_ME_LAB_RECIPIENT@example.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-13",
+              "name": "lab_recipient_allowlist",
+              "value": "SET_ME_LAB_RECIPIENT@example.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5-02",
+      "name": "Load Run Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -900,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $json.prospect_csv_path }}",
+        "options": {}
+      },
+      "id": "c5-03",
+      "name": "Pull Apollo Prospect List",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        460
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "csv",
+        "binaryPropertyName": "data",
+        "options": {
+          "headerRow": true,
+          "enableBOM": true
+        }
+      },
+      "id": "b5f1e0a2-7c44-4a11-9c1d-3f2a6d8e0011",
+      "name": "Parse Apollo Export",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sourcing reads an Apollo saved-search CSV export, not the Apollo API: the Free\n// plan blocks every prospecting endpoint even with a master key (checked\n// 2026-09-08). Apollo writes a different header set per column preset, so the\n// column mapping lives in `apollo_column_map` on Load Run Config and this node\n// only resolves it. Nothing about the column set is hardcoded here.\nconst cfg = $('Load Run Config').first().json;\n\nlet map = cfg.apollo_column_map;\nif (typeof map === 'string') { map = JSON.parse(map); }\nif (!map || typeof map !== 'object') {\n  throw new Error('Normalize Prospect List: apollo_column_map is missing or unparseable on Load Run Config');\n}\n\nconst limit = Number(cfg.prospect_row_limit) || 20;\nconst rows = $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nif (rows.length === 0) {\n  throw new Error('Normalize Prospect List: the export parsed to zero rows. Check prospect_csv_path and that the file has a header row.');\n}\n\n// Header matching ignores case, spaces, punctuation and a leading BOM, so\n// \"# Employees\", \"#employees\" and \"Employees\" all resolve to the same field.\nconst norm = s => String(s == null ? '' : s).replace(/^\\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');\nconst headers = Object.keys(rows[0]);\nconst byNorm = {};\nfor (const h of headers) { byNorm[norm(h)] = h; }\n\nconst resolved = {};\nconst unresolved = [];\nfor (const [field, aliases] of Object.entries(map)) {\n  const list = Array.isArray(aliases) ? aliases : [aliases];\n  const hit = list.map(norm).find(a => byNorm[a]);\n  if (hit) { resolved[field] = byNorm[hit]; } else { unresolved.push(field); }\n}\n\n// Fail loud, not quiet. The company name is what the QA gate checks the draft\n// for (rule 3), so an unresolved company column would let generic mail pass the\n// gate on a technicality.\nif (!resolved.company) {\n  throw new Error('Normalize Prospect List: no company column resolved. Add the real header to apollo_column_map.company. Headers found: ' + headers.join(' | '));\n}\n// With no research column there is nothing to personalize from, and \"one\n// researched email per prospect\" would stop being true.\nconst research = ['title', 'industry', 'employee_count', 'company_domain'].filter(f => resolved[f]);\nif (research.length === 0) {\n  throw new Error('Normalize Prospect List: no research column resolved (title, industry, employee count or domain). Headers found: ' + headers.join(' | '));\n}\n\nconst val = (row, field) => {\n  if (!resolved[field]) return '';\n  const raw = row[resolved[field]];\n  return String(raw == null ? '' : raw).trim();\n};\n\n// Real addresses stop here. The destination is overridden before the send\n// anyway (Force Lab Recipient), so the flow keeps a masked form as proof the\n// row carried an address and drops the deliverable one. Nothing downstream,\n// including the outbox table and any screenshot of a run, sees a real inbox.\nconst maskEmail = e => {\n  const at = e.indexOf('@');\n  if (at < 1) return '';\n  return e.slice(0, 1) + '***@' + e.slice(at + 1);\n};\n\nconst out = [];\nrows.slice(0, limit).forEach((row, idx) => {\n  const company = val(row, 'company');\n  if (!company) return;\n  const first = val(row, 'first_name');\n  const last = val(row, 'last_name');\n  const employees = val(row, 'employee_count');\n  const notes = [\n    val(row, 'industry'),\n    employees ? employees + ' employees' : '',\n    [val(row, 'city'), val(row, 'state'), val(row, 'country')].filter(Boolean).join(', '),\n    val(row, 'company_domain'),\n    val(row, 'description'),\n  ].filter(Boolean).join(' | ');\n\n  out.push({ json: {\n    run_id: cfg.run_id,\n    prospect_id: val(row, 'prospect_id') || ('csv-' + (idx + 1)),\n    company: company,\n    contact: [first, last].filter(Boolean).join(' ') || 'there',\n    contact_title: val(row, 'title'),\n    prospect_email: maskEmail(val(row, 'email')),\n    prospect_email_masked: true,\n    website: val(row, 'company_domain'),\n    industry: val(row, 'industry'),\n    employee_count: employees ? (Number(String(employees).replace(/[^0-9]/g, '')) || null) : null,\n    research_notes: notes,\n    source: 'apollo_saved_search_csv_export',\n    csv_columns_resolved: Object.keys(resolved).join(','),\n    csv_columns_unresolved: unresolved.join(','),\n    qa_attempts: 0,\n    qa_reason: '',\n  } });\n});\n\nif (out.length === 0) {\n  throw new Error('Normalize Prospect List: every parsed row was missing a company name');\n}\nreturn out;\n"
+      },
+      "id": "c5-04",
+      "name": "Normalize Prospect List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ Number($('Load Run Config').first().json.loop_batch_size) || 5 }}",
+        "options": {}
+      },
+      "id": "c5-05",
+      "name": "Batch Prospects",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Takes a plain { company, contact } item. Nothing here reads batch state, so a\n// single-company call (Phase 4 DEMO-02) can feed this node directly.\nconst item = $json;\nconst company = String(item.company || item.company_name || '').trim();\nconst contact = String(item.contact || item.first_name || 'there').trim();\nconst title = String(item.contact_title || item.title || '').trim();\nconst research = String(\n  item.research_notes ||\n  [item.industry, item.employee_count ? item.employee_count + ' employees' : '', item.website]\n    .filter(Boolean).join(' | ')\n).trim();\n\nif (!company) {\n  throw new Error('Build Personalization Prompt needs a company name on the input item');\n}\n\nconst qaAttempts = Number(item.qa_attempts || 0);\nconst qaReason = String(item.qa_reason || '');\n\nconst rules = [\n  'Write one cold outbound opening email.',\n  'The body must be between 25 and 60 words. Count the words before answering.',\n  'The body must name the company exactly as \"' + company + '\".',\n  'Never write \"I hope this email finds you\", \"I hope you are doing well\", \"Dear Sir/Madam\" or \"To whom it may concern\".',\n  'Leave no template token unfilled. No {{ }}, no [Company], no [Name].',\n  'Never copy more than 15 words in a row from the research notes.',\n  'Plain sentences, no em dash, no exclamation marks.',\n  'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n];\n\nlet user = 'Prospect'\n  + '\\nContact: ' + contact + (title ? ' (' + title + ')' : '')\n  + '\\nCompany: ' + company\n  + (research ? '\\nResearch notes: ' + research : '')\n  + '\\n\\nRules\\n' + rules.map((r, i) => (i + 1) + '. ' + r).join('\\n');\n\nif (qaReason) {\n  user += '\\n\\nThe previous draft was rejected by the QA gate. Reason: ' + qaReason\n    + '\\nFix exactly that and keep every rule above. This is redraft attempt '\n    + qaAttempts + '.';\n}\n\nreturn { json: Object.assign({}, item, {\n  company: company,\n  contact: contact,\n  contact_title: title,\n  research_notes: research,\n  qa_attempts: qaAttempts,\n  qa_reason: qaReason,\n  system_prompt: 'You write short cold outbound emails for B2B sales. You answer with JSON only.',\n  user_prompt: user,\n}) };"
+      },
+      "id": "c5-06",
+      "name": "Build Personalization Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const c = $('Load Run Config').first().json; const p = $('Build Personalization Prompt').item.json; return { model: c.openai_model, temperature: Number(c.openai_temperature), max_tokens: Number(c.openai_max_tokens), response_format: { type: 'json_object' }, messages: [ { role: 'system', content: p.system_prompt }, { role: 'user', content: p.user_prompt } ] }; })() }}",
+        "options": {}
+      },
+      "id": "c5-07",
+      "name": "Draft Email (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        460,
+        560
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": false,
+      "notes": "Retry is handled by the explicit Compute Draft Backoff / Draft Should Retry? / Draft Backoff Wait loop, so retryOnFail stays OFF. n8n's built-in retry waits a flat interval with no jitter and ignores Retry-After.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "h9v4wLkrNWJG6PkZ",
+          "name": "PLACEHOLDER_OPENAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Real exponential backoff with jitter: wait = 500ms * 2^attempt + jitter,\n// capped at 30s, and a Retry-After header wins over the computed value.\nconst attempt = $runIndex;\nconst errRaw = $json.error !== undefined ? $json.error : $json;\n// n8n hands the error back as a string on some node types and as an object on others.\nconst errObj = (typeof errRaw === 'string') ? { message: errRaw } : (errRaw || {});\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 3;\nconst retryableCodes = [408, 409, 425, 429, 500, 502, 503, 504];\nconst isRetryable = statusCode === null || retryableCodes.indexOf(Number(statusCode)) !== -1;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: {\n  attempt: attempt,\n  statusCode: statusCode,\n  shouldRetry: shouldRetry,\n  delaySeconds: Math.max(Math.ceil(delayMs / 1000), 1),\n  reason: String(errObj.message || errObj.description || 'openai call failed').slice(0, 400),\n} };"
+      },
+      "id": "c5-08",
+      "name": "Compute Draft Backoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c5-retry",
+              "leftValue": "={{ $json.shouldRetry }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c5-09",
+      "name": "Draft Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        680,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delaySeconds }}"
+      },
+      "id": "c5-10",
+      "name": "Draft Backoff Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        940
+      ],
+      "webhookId": "c5b4c0ff-0000-4000-8000-000000000001"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Backoff exhausted. Do not drop the prospect: hand it to the needs_review path\n// with the failure recorded, same as a draft the QA gate could not clear.\n//\n// The lookback is deliberately defensive. An error output does not always carry\n// paired-item metadata back to the node that produced the input, and this node\n// exists precisely so a failed draft call cannot lose a prospect. It must never\n// be the thing that throws.\nlet src = {};\ntry {\n  src = $('Build Personalization Prompt').item.json;\n} catch (e) {\n  const all = $('Build Personalization Prompt').all();\n  const picked = all[$itemIndex] || all[0];\n  src = (picked && picked.json) || {};\n}\n\nreturn { json: Object.assign({}, src, {\n  qa_pass: false,\n  qa_reason: 'draft_call_failed_after_backoff: ' + String($json.reason || ''),\n  qa_attempts: Number(src.qa_attempts || 0),\n  draft_subject: '',\n  draft_body: '',\n}) };\n"
+      },
+      "id": "c5-11",
+      "name": "Draft Give Up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO outbound_spend\n  (run_id, prospect_id, company, model, prompt_tokens, completion_tokens,\n   total_tokens, estimated_cost_usd, attempt)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\nRETURNING id, estimated_cost_usd;",
+        "options": {
+          "queryReplacement": "={{ (() => { const c = $('Load Run Config').first().json; const p = $('Build Personalization Prompt').item.json; const u = $json.usage || {}; const pt = Number(u.prompt_tokens || 0); const ct = Number(u.completion_tokens || 0); const cost = (pt / 1000) * Number(c.openai_input_cost_per_1k) + (ct / 1000) * Number(c.openai_output_cost_per_1k); return [ c.run_id, p.prospect_id || '', p.company, $json.model || c.openai_model, pt, ct, Number(u.total_tokens || (pt + ct)), Number(cost.toFixed(6)), Number(p.qa_attempts || 0) ]; })() }}"
+        }
+      },
+      "id": "c5-12",
+      "name": "Record Draft Spend",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        680,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Spend accounting is its own node so Phase 4 can read a running total from outbound_spend to enforce a daily cap, without opening the drafting node."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const src = $('Build Personalization Prompt').item.json;\nconst resp = $('Draft Email (OpenAI)').item.json;\nconst choice = (resp.choices || [])[0] || {};\nconst raw = String((choice.message && choice.message.content) || '');\n\nlet subject = '';\nlet body = '';\ntry {\n  const parsed = JSON.parse(raw);\n  subject = String(parsed.subject || '').trim();\n  body = String(parsed.body || '').trim();\n} catch (e) {\n  // The model ignored the JSON contract. Fall back to first line = subject.\n  const lines = raw.split('\\n').map(l => l.trim()).filter(Boolean);\n  subject = (lines.shift() || '').replace(/^subject\\s*:\\s*/i, '').trim();\n  body = lines.join(' ').trim();\n}\n\nreturn { json: Object.assign({}, src, {\n  draft_subject: subject,\n  draft_body: body,\n  draft_raw: raw,\n  finish_reason: choice.finish_reason || '',\n}) };"
+      },
+      "id": "c5-13",
+      "name": "Extract Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Four deterministic rules. Any one of them rejects the draft. No model judges\n// the model here -- every check is something you can re-run by hand.\nconst item = $json;\nconst subject = String(item.draft_subject || '');\nconst body = String(item.draft_body || '');\nconst company = String(item.company || '');\nconst research = String(item.research_notes || '');\nconst attempts = Number(item.qa_attempts || 0);\nconst reasons = [];\n\n// Rule 1 -- body word count must sit between 25 and 60.\nconst words = body.split(/\\s+/).filter(Boolean);\nif (words.length < 25 || words.length > 60) {\n  reasons.push('rule_1_word_count: body has ' + words.length + ' words, allowed range is 25 to 60');\n}\n\n// Rule 2 -- no denylisted generic phrase, no unfilled template token.\nconst denylist = [\n  'i hope this email finds you',\n  'dear sir/madam',\n  'to whom it may concern',\n  \"i hope you're doing well\",\n  'i hope you are doing well',\n  'dear [first name]',\n];\nconst haystack = (subject + ' ' + body).toLowerCase();\nconst phraseHit = denylist.find(p => haystack.indexOf(p) !== -1);\nif (phraseHit) {\n  reasons.push('rule_2_generic_phrase: contains \"' + phraseHit + '\"');\n}\nconst tokenHit = (subject + ' ' + body).match(/\\{\\{|\\[Company\\]|\\[Name\\]|\\[First Name\\]/i);\nif (tokenHit) {\n  reasons.push('rule_2_unfilled_token: contains \"' + tokenHit[0] + '\"');\n}\n\n// Rule 3 -- the company name has to appear in the body.\nif (!company || body.toLowerCase().indexOf(company.toLowerCase()) === -1) {\n  reasons.push('rule_3_company_missing: the body never names \"' + company + '\"');\n}\n\n// Rule 4 -- no run of more than 15 words copied verbatim from the research text.\nif (research) {\n  const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\\s+/g, ' ').trim();\n  const src = norm(research).split(' ').filter(Boolean);\n  const dst = norm(body).split(' ').filter(Boolean);\n  const N = 16; // \"more than 15 words in a row\"\n  if (src.length >= N && dst.length >= N) {\n    const seen = new Set();\n    for (let i = 0; i + N <= src.length; i++) { seen.add(src.slice(i, i + N).join(' ')); }\n    for (let i = 0; i + N <= dst.length; i++) {\n      if (seen.has(dst.slice(i, i + N).join(' '))) {\n        reasons.push('rule_4_verbatim_copy: 16 or more words copied straight from the research notes');\n        break;\n      }\n    }\n  }\n}\n\nconst qaPass = reasons.length === 0;\nreturn { json: Object.assign({}, item, {\n  qa_pass: qaPass,\n  qa_reason: qaPass ? '' : reasons.join('; '),\n  qa_attempts: attempts,\n  qa_word_count: words.length,\n}) };"
+      },
+      "id": "c5-14",
+      "name": "QA Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c5-qa",
+              "leftValue": "={{ $json.qa_pass }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c5-15",
+      "name": "Draft Cleared?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1340,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// One redraft costs one more OpenAI call, so the cap is what keeps a bad\n// prospect from looping the run (and the spend) forever.\nconst cfg = $('Load Run Config').first().json;\nconst max = Number(cfg.max_redraft_attempts || 2);\nconst item = $json;\nconst attempts = Number(item.qa_attempts || 0) + 1;\n\nreturn { json: Object.assign({}, item, {\n  qa_attempts: attempts,\n  redraft_exhausted: attempts > max,\n  qa_reason: String(item.qa_reason || 'draft rejected by the QA gate'),\n}) };"
+      },
+      "id": "c5-16",
+      "name": "Redraft Loop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c5-cap",
+              "leftValue": "={{ $json.redraft_exhausted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c5-17",
+      "name": "Redraft Limit Reached?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO outbound_outbox\n  (run_id, prospect_id, company, contact, contact_title, prospect_email,\n   draft_subject, draft_body, qa_attempts, qa_reason, status)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'needs_review')\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ (() => { const d = $json; const c = $('Load Run Config').first().json; return [ c.run_id, d.prospect_id || '', d.company, d.contact || '', d.contact_title || '', d.prospect_email || '', d.draft_subject || '', d.draft_body || '', Number(d.qa_attempts || 0), String(d.qa_reason || '') ]; })() }}"
+        }
+      },
+      "id": "c5-18",
+      "name": "Mark Needs Review",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        900,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "notes": "A capped-out prospect is parked here, never force-sent."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO outbound_outbox\n  (run_id, prospect_id, company, contact, contact_title, prospect_email,\n   draft_subject, draft_body, qa_attempts, qa_reason, status)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ (() => { const d = $json; const c = $('Load Run Config').first().json; return [ c.run_id, d.prospect_id || '', d.company, d.contact || '', d.contact_title || '', d.prospect_email || '', d.draft_subject || '', d.draft_body || '', Number(d.qa_attempts || 0), '' ]; })() }}"
+        }
+      },
+      "id": "c5-19",
+      "name": "Persist Outbox (pending)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "notes": "Persist before send. The row exists before Instantly is called, so a failed send loses nothing."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Recipient safety. Apollo returns real people; this is a portfolio lab, so the\n// destination is overridden to a controlled address before the send node runs.\n// The real prospect fields stay only in the draft text and the outbox row.\nconst cfg = $('Load Run Config').first().json;\nconst src = $('QA Gate').item.json;\nconst outboxId = $json.id;\n\nconst lab = String(cfg.lab_recipient_email || '').trim();\nconst allow = String(cfg.lab_recipient_allowlist || '')\n  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\n\nif (!lab) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is empty in Load Run Config. Refusing to send.');\n}\nif (lab.indexOf('SET_ME') === 0) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is still the placeholder. Refusing to send.');\n}\nif (allow.length && allow.indexOf(lab.toLowerCase()) === -1) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is not on lab_recipient_allowlist. Refusing to send.');\n}\n\nreturn { json: {\n  run_id: cfg.run_id,\n  outbox_id: outboxId,\n  send_to: lab,\n  prospect_email_suppressed: true,\n  company: src.company,\n  contact: src.contact,\n  contact_title: src.contact_title,\n  draft_subject: src.draft_subject,\n  draft_body: src.draft_body,\n} };"
+      },
+      "id": "c5-20",
+      "name": "Force Lab Recipient",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.instantly.ai/api/v2/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const c = $('Load Run Config').first().json; const d = $json; const parts = String(d.contact || '').trim().split(/\\s+/).filter(Boolean); return { campaign: c.instantly_campaign_id, email: d.send_to, first_name: parts[0] || 'Lab', last_name: parts.slice(1).join(' ') || 'Recipient', company_name: d.company, personalization: d.draft_body, skip_if_in_campaign: false, custom_variables: { draft_subject: d.draft_subject, run_id: d.run_id, outbox_id: String(d.outbox_id) } }; })() }}",
+        "options": {}
+      },
+      "id": "c5-21",
+      "name": "Send via Instantly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        460
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": false,
+      "notes": "Error output is wired on purpose: a failed send must land on Mark Outbox Failed, never drop the row.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NqYjzLWoPSWCBdJF",
+          "name": "PLACEHOLDER_INSTANTLY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbound_outbox\n   SET status = 'sent', sent_at = now(), send_to = $2, instantly_lead_id = $3\n WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Force Lab Recipient').item.json.outbox_id, $('Force Lab Recipient').item.json.send_to, String($json.id || '') ] }}"
+        }
+      },
+      "id": "c5-22",
+      "name": "Mark Outbox Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2220,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbound_outbox\n   SET status = 'failed', send_to = $2, error = $3\n WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ (() => { const f = $('Force Lab Recipient').item.json; const e = $json.error !== undefined ? $json.error : $json; const msg = (typeof e === 'string' ? e : String(e.message || e.description || JSON.stringify(e))).slice(0, 800); return [ f.outbox_id, f.send_to, msg ]; })() }}"
+        }
+      },
+      "id": "c5-23",
+      "name": "Mark Outbox Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2220,
+        620
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "c5-24",
+      "name": "Throttle",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2440,
+        500
+      ],
+      "webhookId": "c5b4c0ff-0000-4000-8000-000000000002"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status, count(*)::int AS items\n  FROM outbound_outbox\n WHERE run_id = $1\n GROUP BY status\n ORDER BY status;",
+        "options": {
+          "queryReplacement": "={{ [ $('Load Run Config').first().json.run_id ] }}"
+        }
+      },
+      "id": "c5-25",
+      "name": "Run Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3cOvvmri475DDNEv",
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "## AI-Personalized Outbound -- 4 stages, 26 working nodes\n\n**Stages:** Sourcing -> Drafting -> QA Gate -> Sending.\n\n**Flow:** Run Outbound Batch -> Load Run Config -> Pull Apollo Prospect List ->\nParse Apollo Export -> Normalize Prospect List -> Batch Prospects (5 at a time) ->\nBuild Personalization Prompt -> Draft Email (OpenAI) -> Record Draft Spend -> Extract Draft\n-> QA Gate -> Draft Cleared? -> (yes) Persist Outbox (pending) -> Force Lab Recipient\n-> Send via Instantly -> Mark Outbox Sent / Mark Outbox Failed -> Throttle -> Batch Prospects.\nWhen Batch Prospects runs dry it goes to Run Summary.\n\n**Sourcing reads a saved-search export, not an API.** Apollo's Free plan blocks every\nprospecting endpoint (`mixed_people/api_search`, `people/match` and the rest) even with a\nmaster key, so the prospect list arrives as a CSV export of a saved search. Pull Apollo\nProspect List reads the file at `prospect_csv_path`, Parse Apollo Export turns it into one\nitem per row, and Normalize Prospect List maps the columns. Apollo writes a different header\nset per column preset, so the mapping is data, not code: `apollo_column_map` in Load Run\nConfig lists candidate header names per field, and Normalize resolves them ignoring case,\nspaces and punctuation. It refuses to run when no company column resolves (the QA gate\nchecks the draft for the company name, so a silent miss would ship generic mail that passes\non a technicality) or when no research column resolves at all.\n\n**No real inbox travels through the flow.** The export carries real addresses. Normalize\nProspect List keeps only a masked form (`p***@company.example.com`) and drops the\ndeliverable one, so the outbox table and any screenshot of a run are safe by construction\nrather than by careful cropping. Real company, name, title and firmographics are kept,\nbecause that is what the personalization is built from.\n\n**QA Gate -- four deterministic rules, any one rejects the draft:**\n1. Body word count outside 25 to 60.\n2. A denylisted generic phrase (\"I hope this email finds you\", \"Dear Sir/Madam\",\n   \"To whom it may concern\", \"I hope you're doing well\", \"Dear [First Name]\") or an\n   unfilled template token ({{, [Company], [Name]).\n3. The body never names the prospect's company.\n4. More than 15 words copied verbatim from the research notes.\nA rejected draft goes to Redraft Loop, which attaches the exact rejection reason and\nrebuilds the prompt. Two redrafts maximum. After that the row is written as\n`needs_review` and the run moves on. Nothing is ever force-sent.\n\n**Real exponential backoff, not a flat retry.** Draft Email (OpenAI) has retryOnFail OFF.\nIts error output goes to Compute Draft Backoff, which computes\n`wait = 500ms * 2^attempt + jitter`, caps at 30s, and lets a Retry-After header win.\nDraft Should Retry? -> Draft Backoff Wait loops back into the call, three attempts max,\nthen Draft Give Up parks the prospect as needs_review.\n\n**Persist before send.** Persist Outbox (pending) writes the row and returns its id\nbefore Instantly is called. Send failures land on Mark Outbox Failed with the error\ntext. No draft is lost to a bad API call.\n\n**Recipient safety.** Force Lab Recipient sits between the outbox write and the send.\nIt replaces the destination with the controlled address from Load Run Config and refuses\nto run if that address is empty, still a placeholder, or off the allowlist. Real prospect\ndata is used for personalization only, never as a destination.\n\n**Spend accounting is its own node.** Record Draft Spend writes tokens and estimated cost\nper call to `outbound_spend`. A later visitor-facing slice reads that running total to\nenforce a daily cap without touching the drafting node.\n\n**Config-as-code:** every tunable lives in Load Run Config -- the export path, the row\nlimit and the column map, the loop batch size, the OpenAI model / max_tokens / temperature /\nprice per 1k tokens, the redraft cap, the Instantly campaign id, and the controlled recipient\naddress plus its allowlist. Nothing is hardcoded inline.\n\n**Setup on import:** assign PLACEHOLDER_OPENAI (HTTP Header Auth, `Authorization` =\n`Bearer <key>`), PLACEHOLDER_INSTANTLY (HTTP Header Auth, `Authorization` = `Bearer <key>`)\nand PLACEHOLDER_POSTGRES. No Apollo credential is needed, because there is no Apollo API\ncall. Then drop the saved-search export at `prospect_csv_path`, check the real header\nstrings against `apollo_column_map`, and fill `instantly_campaign_id`,\n`lab_recipient_email` and `lab_recipient_allowlist` in Load Run Config. Tables\n`outbound_outbox` and `outbound_spend` must exist first.\n",
+        "height": 1260,
+        "width": 820,
+        "color": 4
+      },
+      "id": "c5-26",
+      "name": "Flow Guide",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Run Outbound Batch": {
+      "main": [
+        [
+          {
+            "node": "Load Run Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Run Config": {
+      "main": [
+        [
+          {
+            "node": "Pull Apollo Prospect List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull Apollo Prospect List": {
+      "main": [
+        [
+          {
+            "node": "Parse Apollo Export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Prospect List": {
+      "main": [
+        [
+          {
+            "node": "Batch Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Prospects": {
+      "main": [
+        [
+          {
+            "node": "Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Personalization Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Personalization Prompt": {
+      "main": [
+        [
+          {
+            "node": "Draft Email (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Email (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Record Draft Spend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compute Draft Backoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Draft Backoff": {
+      "main": [
+        [
+          {
+            "node": "Draft Should Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Should Retry?": {
+      "main": [
+        [
+          {
+            "node": "Draft Backoff Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Draft Give Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Backoff Wait": {
+      "main": [
+        [
+          {
+            "node": "Draft Email (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Give Up": {
+      "main": [
+        [
+          {
+            "node": "Mark Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Draft Spend": {
+      "main": [
+        [
+          {
+            "node": "Extract Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Draft": {
+      "main": [
+        [
+          {
+            "node": "QA Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Gate": {
+      "main": [
+        [
+          {
+            "node": "Draft Cleared?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Cleared?": {
+      "main": [
+        [
+          {
+            "node": "Persist Outbox (pending)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redraft Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redraft Loop": {
+      "main": [
+        [
+          {
+            "node": "Redraft Limit Reached?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redraft Limit Reached?": {
+      "main": [
+        [
+          {
+            "node": "Mark Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Personalization Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Needs Review": {
+      "main": [
+        [
+          {
+            "node": "Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Outbox (pending)": {
+      "main": [
+        [
+          {
+            "node": "Force Lab Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Force Lab Recipient": {
+      "main": [
+        [
+          {
+            "node": "Send via Instantly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via Instantly": {
+      "main": [
+        [
+          {
+            "node": "Mark Outbox Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Outbox Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Outbox Sent": {
+      "main": [
+        [
+          {
+            "node": "Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Outbox Failed": {
+      "main": [
+        [
+          {
+            "node": "Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Throttle": {
+      "main": [
+        [
+          {
+            "node": "Batch Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Apollo Export": {
+      "main": [
+        [
+          {
+            "node": "Normalize Prospect List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {}
+}

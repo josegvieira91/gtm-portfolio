@@ -157,10 +157,25 @@ this scale; an unbounded retry loop would be, which is why the retry and redraft
 
 ### Instantly.ai
 
-Approved under the D-12 decision above (option-a) as a 14-day no-card trial. Do NOT sign up
-now. The trial clock starts only at Case 5 build day, once the flow is designed and dry-run
-work is done, so the clean run and its recording can happen inside the 14-day window. Signup
-for this account belongs to the Case 5 build plan, not this one.
+Approved under the D-12 decision above (option-a) as a no-card trial. Created 2026-09-09, on
+Case 5 build day, after the flow was already designed and dry-run, so the trial window is spent
+on the real run rather than on debugging.
+
+What exists, as created:
+
+1. One sending mailbox, the lab Google address, connected over a Gmail app password. Status
+   active, sending cap 30 emails per day, warmup off.
+2. One campaign, `GTM Lab Outbound`, with a single step whose subject and body are the
+   `{{subject}}` and `{{body}}` variables the flow supplies per lead, and the lab mailbox
+   selected under Accounts To Use.
+3. `INSTANTLY_API_KEY` and `INSTANTLY_CAMPAIGN_ID` in the repo's gitignored `.env`, per D-17.
+   The matching n8n credential is `PLACEHOLDER_INSTANTLY` (HTTP Header Auth, `Authorization:
+   Bearer <key>`), created over the n8n API.
+
+**The campaign stays in Draft and is never launched.** The flow's job is to push approved
+drafts into it, and the API accepting a lead is the whole proof. Launching it would start real
+sending, which no part of this project needs. API v2 authenticates with
+`Authorization: Bearer <key>`, not the v1 query-string key.
 
 ### Google (lab account)
 
@@ -189,7 +204,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Make.com | Created; login restored 2026-09-08 after the lab Google account was reinstated | 2026-08-05 |
 | Apollo.io | Created; login restored 2026-09-08. Prospecting API not available on Free, so sourcing runs on saved-search CSV exports | 2026-08-05 |
 | OpenAI API | Created; key and n8n credential verified 2026-09-09 | 2026-08-05 |
-| Instantly.ai | Deferred (Case 5 build day — 14-day trial clock) | — |
+| Instantly.ai | Created; mailbox connected, campaign `GTM Lab Outbound` in Draft, key and n8n credential verified 2026-09-09 | 2026-09-09 |
 
 ## Section 2: Free-Tier Constraints
 
@@ -205,7 +220,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Make.com | Free: 1,000 operations/month, 2 active scenarios. Minimum scheduling interval and multi-module-scenario support were not shown in the dashboard (research expects 15 min and "yes," respectively; unconfirmed). | A nightly Case 4 scenario that fans out into many operations per execution can burn the monthly operation budget well before a clean recording happens. | Case 4 |
 | Apollo.io | Free: 75 email credits/month (verbatim from dashboard, renews Sep 5, 2026). **No prospecting API on Free** (verified 2026-09-08): people-search and enrichment endpoints are denied even with a master key. Monthly export allowance and daily sending cap not yet observed. | Two traps, not one. The credit allowance is lower than the researched ~100 estimate and is the hard ceiling on what Cases 3 and 5 may publish. And the API being closed means anything planned as "call Apollo" has to become "export a saved search and read the file": a design change, discovered late, that both cases now state plainly instead of implying an API integration they do not have. | Cases 3, 5 |
 | OpenAI API | Existing prepaid credit: US$4.29 (verified 2026-09-08; earlier notes said US$5). Auto-recharge confirmed OFF. Measured cost on `gpt-4o-mini`: about US$0.00008 per drafted email. | A runaway loop or retry storm could exhaust the prepaid balance mid-run with no auto-recharge fallback. Per-call cost is negligible, so the risk is loop count, not token price: the retry cap (3 attempts) and the redraft cap (2 rewrites) are what bound it. | Cases 5, 6 |
-| Instantly.ai | 14-day no-card trial, not yet started. | Once started, the trial clock is the hard deadline for finishing the Case 5 flow, dry-running it, and completing the recording — starting it before the flow is ready burns days against nothing. | Case 5 |
+| Instantly.ai | No-card trial, started 2026-09-09. One connected mailbox, 30 emails/day sending cap, warmup off. Leads are upserted by (campaign, email): the API returns 200 for every push, and pushes that repeat an address already in the campaign update that one lead instead of adding another. | Two traps. The trial clock is the deadline for anything that still needs the account, and the dedupe rule means a run that forces every recipient to one lab address leaves exactly one lead record in the campaign however many drafts were pushed. Measured, not assumed: 17 pushes, 17 HTTP 200s, the same lead id in all 17 responses. Per-prospect proof therefore lives in the outbox table, not in the campaign. | Case 5 |
 
 ## Section 3: Credential Handling
 
