@@ -1,61 +1,156 @@
 {
   "id": "case-04",
   "nodes": [
-    { "id": "cron", "label": "Nightly Sweep", "stage": 0, "lane": 1, "kind": "trigger", "tool": "make" },
-    { "id": "scan", "label": "Dupe Scan", "stage": 1, "lane": 1, "kind": "process", "tool": "make" },
-    { "id": "rules", "label": "Merge Rules", "stage": 2, "lane": 1, "kind": "process", "tool": "make" },
-    { "id": "merge", "label": "Auto-Merge", "stage": 3, "lane": 0, "kind": "store", "tool": "hubspot" },
-    { "id": "review", "label": "Review Queue", "stage": 3, "lane": 2, "kind": "store", "tool": "hubspot" },
-    { "id": "digest", "label": "Slack Digest", "stage": 4, "lane": 1, "kind": "output", "tool": "slack" }
+    {
+      "id": "cron",
+      "label": "Nightly Sweep",
+      "stage": 0,
+      "lane": 1,
+      "kind": "trigger",
+      "tool": "make"
+    },
+    {
+      "id": "scan",
+      "label": "Dupe Scan",
+      "stage": 1,
+      "lane": 1,
+      "kind": "process",
+      "tool": "make"
+    },
+    {
+      "id": "rules",
+      "label": "Merge Rules",
+      "stage": 2,
+      "lane": 1,
+      "kind": "process",
+      "tool": "make"
+    },
+    {
+      "id": "merge",
+      "label": "Auto-Merge",
+      "stage": 3,
+      "lane": 0,
+      "kind": "store",
+      "tool": "hubspot"
+    },
+    {
+      "id": "review",
+      "label": "Review Queue",
+      "stage": 3,
+      "lane": 2,
+      "kind": "store",
+      "tool": "make"
+    },
+    {
+      "id": "digest",
+      "label": "Slack Digest",
+      "stage": 4,
+      "lane": 1,
+      "kind": "output",
+      "tool": "slack"
+    }
   ],
   "edges": [
-    { "id": "e1", "from": "cron", "to": "scan" },
-    { "id": "e2", "from": "scan", "to": "rules" },
-    { "id": "e3", "from": "rules", "to": "merge" },
-    { "id": "e4", "from": "rules", "to": "review" },
-    { "id": "e5", "from": "merge", "to": "digest" },
-    { "id": "e6", "from": "review", "to": "digest" }
+    {
+      "id": "e1",
+      "from": "cron",
+      "to": "scan"
+    },
+    {
+      "id": "e2",
+      "from": "scan",
+      "to": "rules"
+    },
+    {
+      "id": "e3",
+      "from": "rules",
+      "to": "merge"
+    },
+    {
+      "id": "e4",
+      "from": "rules",
+      "to": "review"
+    },
+    {
+      "id": "e5",
+      "from": "merge",
+      "to": "digest"
+    },
+    {
+      "id": "e6",
+      "from": "review",
+      "to": "digest"
+    }
   ],
   "steps": [
     {
       "id": "s1",
-      "activateNodes": ["cron", "scan"],
-      "activateEdges": ["e1"],
+      "activateNodes": [
+        "cron",
+        "scan"
+      ],
+      "activateEdges": [
+        "e1"
+      ],
       "callout": {
-        "text": "A Make scenario sweeps the CRM nightly for dupes, dead fields, stale owners",
+        "text": "Six reads a night: three defect scans, the orphan scan, the review scan, one baseline list",
         "anchor": "scan",
         "side": "top"
       }
     },
     {
       "id": "s2",
-      "activateNodes": ["rules"],
-      "activateEdges": ["e2"],
-      "packetPath": ["scan", "rules"],
+      "activateNodes": [
+        "rules"
+      ],
+      "activateEdges": [
+        "e2"
+      ],
+      "packetPath": [
+        "scan",
+        "rules"
+      ],
       "callout": {
-        "text": "Deterministic merge rules: exact-match dupes merge themselves, no guessing",
+        "text": "Exact match on the canonical domain merges itself. The earliest record wins",
         "anchor": "rules",
         "side": "top"
       }
     },
     {
       "id": "s3",
-      "activateNodes": ["merge", "review"],
-      "activateEdges": ["e3", "e4"],
-      "packetPath": ["rules", "merge"],
+      "activateNodes": [
+        "merge",
+        "review"
+      ],
+      "activateEdges": [
+        "e3",
+        "e4"
+      ],
+      "packetPath": [
+        "rules",
+        "merge"
+      ],
       "callout": {
-        "text": "Ambiguous matches queue for a human instead of merging wrong silently",
+        "text": "No deterministic key to merge on, so it queues with the reason attached",
         "anchor": "review",
         "side": "bottom"
       }
     },
     {
       "id": "s4",
-      "activateNodes": ["digest"],
-      "activateEdges": ["e5", "e6"],
-      "packetPath": ["merge", "digest"],
+      "activateNodes": [
+        "digest"
+      ],
+      "activateEdges": [
+        "e5",
+        "e6"
+      ],
+      "packetPath": [
+        "merge",
+        "digest"
+      ],
       "callout": {
-        "text": "Every run ends with a Slack digest: what merged, what needs eyes",
+        "text": "Every run writes an audit row, then posts what changed and what needs eyes",
         "anchor": "digest",
         "side": "top"
       }

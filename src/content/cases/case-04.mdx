@@ -2,22 +2,67 @@
 title: "CRM Hygiene Engine"
 slug: "crm-hygiene-engine"
 category: "Ops"
-heroMetric: "CRM data stays clean without a manual cleanup pass"
+heroMetric: "Deterministic CRM fixes land nightly on their own, judgment calls queue with a reason"
 stack: ["HubSpot", "Make", "Slack"]
+# Every value below is read off Make execution dd61aa18, the seeded-defect run of
+# 2026-09-09 19:59 MDT: 30 operations, 5.039 s, 11 records repaired, 4 companies
+# merged. The clean follow-up run spent 12 operations and wrote nothing.
 metrics:
+  - label: "Records repaired"
+    value: "11"
   - label: "Duplicates merged"
-    value: "300+"
-  - label: "Fields normalized"
+    value: "4"
+  - label: "Operations per night"
     value: "12"
-  - label: "Nightly runtime"
-    value: "<5min"
+export: "workflows/crm-hygiene-engine/crm-hygiene-engine.json"
 diagramId: "case-04"
 featured: false
 draft: true
 ---
 
-A Make scenario sweeps HubSpot nightly for duplicates, dead fields, and
-stale owners. Exact-match dupes merge themselves under deterministic rules,
-ambiguous matches queue for a human, and every run ends with a Slack digest
-of what changed. The full rule set and audit trail ship with the Phase 3
-build.
+A CRM rots quietly. Nobody schedules the decay, and nobody notices it until a rep
+works a duplicate or a territory rule misfires on a country spelled three
+different ways. On HubSpot's free tier there is no workflow engine to fix any of
+it, so every trigger, branch and schedule has to live somewhere else.
+
+I built this sweep on Make rather than n8n, because the shape of the problem fits
+Make's cost model and that cost model forces a real design decision. Make bills
+one operation per module execution per bundle. Pushing 49 companies through a
+single module costs 49 operations, and the free plan allows 1,000 a month. A
+nightly job that walks the whole portal would be out of budget inside a week.
+
+## How it works
+
+**The scan is server-side, the decision is client-side.** Each defect class gets
+one HubSpot search that returns only candidate records, so the read cost is fixed
+at six calls a night whatever the portal size. The module that writes then carries
+its own filter, comparing the stored value against its canonical form. The search
+keeps the operation count down; the filter is what makes the sweep idempotent,
+because a record already in canonical form never reaches a write. The run right
+after the repair run spent 12 operations and touched nothing. Twelve a night is
+360 a month against the 1,000 allowance.
+
+**The merge rule is boring on purpose.** Two companies are duplicates when their
+canonical domain matches exactly, lowercased and stripped of a `www.` prefix. The
+earlier record wins, and the loser goes through HubSpot's own merge endpoint
+instead of field-by-field logic I would have to maintain. The survivor can
+therefore keep the duplicate's version of a field, which I accepted: HubSpot's
+conflict resolution is documented and consistent, and rebuilding it inside Make
+would be a second source of truth for the same question.
+
+Normalization runs before deduplication, and the merge pass re-reads the portal,
+so a duplicate hiding behind a `www.` prefix arrives as an exact match rather than
+a near one. One of the four merges in the published run only existed because the
+domain fix exposed it.
+
+**What it will not decide, it queues.** HubSpot enforces email uniqueness on
+contacts, so an exact-duplicate contact cannot exist in this portal at all. The
+shape that does occur is a record with no email shadowing a real person, and there
+is no deterministic key to merge on. Those go to a review queue with the reason
+attached, next to contacts with no company and companies with no contact. Nothing
+in that queue gets guessed at.
+
+**The audit row goes out before the digest does.** Every run writes one row,
+including runs that change nothing, so a missing row is never ambiguous between
+"there was nothing to do" and "it never ran". Only then does the Slack digest go
+out with what changed and what needs a human.
