@@ -1,0 +1,61 @@
+{
+  "caseSlug": "ai-personalized-outbound",
+  "source": "n8n execution #80, 2026-09-09 20:25:32 MDT, 17 prospects from one Apollo saved-search export. Timings, counts and costs are read off that execution; the prospect in the outbox window is a stand-in, because the run itself used real companies.",
+  "totalMs": 18057,
+  "windows": [
+    { "id": "n8n", "kind": "log", "title": "n8n / AI-Personalized Outbound / execution #80" },
+    { "id": "outbox", "kind": "contact", "title": "outbound_outbox / one row after the run" },
+    { "id": "instantly", "kind": "slack", "title": "Instantly / GTM Lab Outbound / what the API answered" }
+  ],
+  "steps": [
+    { "at": 14, "node": "Run Outbound Batch", "line": "batch run started, one saved-search export as the whole input" },
+    { "at": 15, "node": "Pull Apollo Prospect List", "line": "export read off disk, 1 file, no call to Apollo" },
+    { "at": 20, "node": "Parse Apollo Export", "line": "17 rows out of the CSV, header row read first" },
+    { "at": 49, "node": "Normalize Prospect List", "line": "12 of the 13 mapped columns resolved against this export's headers, description is absent from the preset", "tone": "warn" },
+    { "at": 49, "node": "Normalize Prospect List", "line": "17 prospects normalized, every deliverable address dropped at the boundary and only a masked form kept", "tone": "ok" },
+    { "at": 80, "node": "Batch Prospects", "line": "batch 1 of 4, five prospects" },
+    { "at": 114, "node": "Draft Email (OpenAI)", "line": "five drafts requested, one call per prospect...", "tone": "wait" },
+    { "at": 4398, "node": "Record Draft Spend", "line": "five drafts back in 4.284 s, US$0.000366 for the batch", "tone": "ok" },
+    { "at": 4429, "node": "QA Gate", "line": "four rules per draft: five passed, 37 to 44 words against the 25 to 60 rule", "tone": "ok" },
+    { "at": 4445, "node": "Persist Outbox (pending)", "line": "five rows written as pending, before the sender is touched at all", "window": "outbox" },
+    { "at": 4451, "node": "Force Lab Recipient", "line": "destination overridden to the lab address on all five, the prospect address is never the target" },
+    { "at": 4467, "node": "Send via Instantly", "line": "five leads pushed into the campaign, HTTP 200 each", "tone": "ok", "window": "instantly" },
+    { "at": 4733, "node": "Mark Outbox Sent", "line": "the five rows flip from pending to sent" },
+    { "at": 4745, "node": "Throttle", "line": "2 s pause before the next batch...", "tone": "wait" },
+    { "at": 6745, "node": "Batch Prospects", "line": "batch 2 of 4, five prospects" },
+    { "at": 6755, "node": "Draft Email (OpenAI)", "line": "1.872 s for five drafts, US$0.000363", "tone": "ok" },
+    { "at": 8655, "node": "QA Gate", "line": "five passed, 38 to 43 words", "tone": "ok" },
+    { "at": 8691, "node": "Send via Instantly", "line": "five persisted, then five pushed, HTTP 200 each", "tone": "ok" },
+    { "at": 9000, "node": "Throttle", "line": "2 s pause...", "tone": "wait" },
+    { "at": 11001, "node": "Batch Prospects", "line": "batch 3 of 4, five prospects" },
+    { "at": 11014, "node": "Draft Email (OpenAI)", "line": "1.355 s for five drafts, US$0.000361", "tone": "ok" },
+    { "at": 12399, "node": "QA Gate", "line": "five passed, 32 to 44 words", "tone": "ok" },
+    { "at": 12434, "node": "Send via Instantly", "line": "five persisted, then five pushed, HTTP 200 each", "tone": "ok" },
+    { "at": 12665, "node": "Throttle", "line": "2 s pause...", "tone": "wait" },
+    { "at": 14666, "node": "Batch Prospects", "line": "batch 4 of 4, the last two prospects" },
+    { "at": 14675, "node": "Draft Email (OpenAI)", "line": "1.105 s for two drafts, US$0.000146", "tone": "ok" },
+    { "at": 15806, "node": "QA Gate", "line": "two passed, 40 and 42 words", "tone": "ok" },
+    { "at": 15836, "node": "Send via Instantly", "line": "two pushed, HTTP 200 each", "tone": "ok" },
+    { "at": 18052, "node": "Run Summary", "line": "17 sourced, 17 drafted, 17 cleared the gate on the first pass, 17 sent. 4,905 tokens, US$0.001236. Done in 18.057 s", "tone": "done" }
+  ],
+  "contact": {
+    "name": "Dana Whitfield (stand-in for a real prospect)",
+    "company": "Director of Revenue Operations, Northgate Analytics",
+    "email": "d***@northgate-analytics.example.com",
+    "created": "09/09/2026 8:25 PM MDT"
+  },
+  "slack": {
+    "bot": "Send via Instantly",
+    "time": "8:25 PM",
+    "headline": "Lead accepted into GTM Lab Outbound",
+    "fields": [
+      { "label": "Campaign", "value": "GTM Lab Outbound, kept in Draft and never launched" },
+      { "label": "Recipient", "value": "one lab address, forced on every item before this node runs" },
+      { "label": "Subject", "value": "the campaign step's own variable, filled per lead" },
+      { "label": "Body", "value": "the approved draft, 40 words" },
+      { "label": "Pushes this run", "value": "17 accepted with HTTP 200" },
+      { "label": "Leads in the campaign", "value": "1, because the sender upserts by campaign and address" },
+      { "label": "Cost", "value": "4,905 tokens, US$0.001236, 18.057 s" }
+    ]
+  }
+}
