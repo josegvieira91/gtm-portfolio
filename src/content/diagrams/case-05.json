@@ -1,7 +1,7 @@
 {
   "id": "case-05",
   "nodes": [
-    { "id": "source", "label": "Apollo Search", "stage": 0, "lane": 1, "kind": "trigger", "tool": "apollo" },
+    { "id": "source", "label": "Apollo Export", "stage": 0, "lane": 1, "kind": "trigger", "tool": "apollo" },
     { "id": "pipe", "label": "n8n Pipeline", "stage": 1, "lane": 1, "kind": "process", "tool": "n8n" },
     { "id": "draft", "label": "OpenAI Draft", "stage": 2, "lane": 1, "kind": "process", "tool": "openai" },
     { "id": "gate", "label": "QA Gate", "stage": 3, "lane": 1, "kind": "process", "tool": "n8n" },
@@ -22,7 +22,7 @@
       "activateNodes": ["source", "pipe"],
       "activateEdges": ["e1"],
       "callout": {
-        "text": "Apollo saved searches feed the pipeline, targeting logic lives in one place",
+        "text": "A saved-search export feeds the pipeline, the column map lives in one place",
         "anchor": "pipe",
         "side": "top"
       }
@@ -33,7 +33,7 @@
       "activateEdges": ["e2"],
       "packetPath": ["pipe", "draft"],
       "callout": {
-        "text": "OpenAI drafts one email per prospect from enriched fields, not a template",
+        "text": "OpenAI drafts one email per prospect from that export's own fields",
         "anchor": "draft",
         "side": "top"
       }
@@ -55,7 +55,7 @@
       "activateEdges": ["e6"],
       "packetPath": ["gate", "send"],
       "callout": {
-        "text": "Only approved copy reaches Instantly, on a warmed sending domain",
+        "text": "Only approved copy reaches Instantly, and only after the outbox row exists",
         "anchor": "send",
         "side": "bottom"
       }
