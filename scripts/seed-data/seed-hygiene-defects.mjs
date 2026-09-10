@@ -236,14 +236,21 @@ async function seed() {
     for (let i = 0; i < 4; i += 1) {
       const source = companies[5 + i];
       const domain = i === 3 ? `www.${source.properties.domain}` : source.properties.domain;
+      // Append the suffix only when it is not already there. HubSpot's merge can hand the
+      // surviving record the duplicate's name, so a naive append stacks a suffix on every
+      // seed-and-sweep cycle ("Douglas LLC Holdings Holdings Holdings").
+      const sourceName = source.properties.name || '';
+      const dupName = sourceName.endsWith(DUPLICATE_SUFFIXES[i])
+        ? sourceName
+        : `${sourceName}${DUPLICATE_SUFFIXES[i]}`;
       const created = await hs('POST', '/crm/v3/objects/companies', {
         properties: {
-          name: `${source.properties.name}${DUPLICATE_SUFFIXES[i]}`,
+          name: dupName,
           domain,
           country: source.properties.country || 'Canada',
         },
       });
-      console.log(`dup      ${created.id} "${source.properties.name}${DUPLICATE_SUFFIXES[i]}" domain=${domain} (shadows ${source.id})`);
+      console.log(`dup      ${created.id} "${dupName}" domain=${domain} (shadows ${source.id})`);
     }
   } else console.log('duplicate companies already present, skipping');
 
