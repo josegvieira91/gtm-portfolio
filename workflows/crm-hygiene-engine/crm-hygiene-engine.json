@@ -1,0 +1,787 @@
+{
+  "flow": [
+    {
+      "id": 1,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/companies/search",
+        "data": "{\"limit\":100,\"properties\":[\"name\",\"domain\",\"country\"],\"filterGroups\":[{\"filters\":[{\"propertyName\":\"domain\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"*example.com\"},{\"propertyName\":\"country\",\"operator\":\"HAS_PROPERTY\"},{\"propertyName\":\"country\",\"operator\":\"NOT_IN\",\"values\":[\"Canada\",\"United States\"]}]}]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Find Companies With A Non-Canonical Country"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 2,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/companies/search",
+        "data": "{\"limit\":100,\"properties\":[\"name\",\"domain\"],\"filterGroups\":[{\"filters\":[{\"propertyName\":\"domain\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"*example.com\"},{\"propertyName\":\"domain\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"www*\"}]}]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Find Companies With A Prefixed Domain"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 3,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "data": "{\"limit\":100,\"properties\":[\"email\",\"jobtitle\"],\"filterGroups\":[{\"filters\":[{\"propertyName\":\"jobtitle\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"vp\"}]},{\"filters\":[{\"propertyName\":\"jobtitle\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"sr\"}]},{\"filters\":[{\"propertyName\":\"jobtitle\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"mgr\"}]},{\"filters\":[{\"propertyName\":\"jobtitle\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"dir\"}]}]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Find Contacts With An Abbreviated Job Title"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 4,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "data": "{\"limit\":100,\"properties\":[\"email\",\"firstname\",\"lastname\"],\"filterGroups\":[{\"filters\":[{\"propertyName\":\"email\",\"operator\":\"CONTAINS_TOKEN\",\"value\":\"*example.com\"},{\"propertyName\":\"associatedcompanyid\",\"operator\":\"NOT_HAS_PROPERTY\"}]}]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Find Contacts Without A Company"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 5,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "data": "{\"limit\":100,\"properties\":[\"firstname\",\"lastname\",\"jobtitle\"],\"filterGroups\":[{\"filters\":[{\"propertyName\":\"email\",\"operator\":\"NOT_HAS_PROPERTY\"}]}]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Find Contacts Without An Email"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 6,
+      "mapper": {
+        "ca": "",
+        "qs": [],
+        "url": "https://api.hubapi.com/crm/v3/objects/companies?limit=100&properties=name,domain,num_associated_contacts&archived=false",
+        "data": "",
+        "gzip": true,
+        "method": "get",
+        "headers": [],
+        "timeout": "",
+        "useMtls": false,
+        "bodyType": "",
+        "contentType": "",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendDataAPIKeyAuth",
+      "version": 3,
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "List Companies Before The Sweep"
+        }
+      },
+      "parameters": {
+        "auth": 220470,
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 7,
+      "mapper": null,
+      "module": "builtin:BasicRouter",
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 8,
+              "filter": {
+                "name": "Scan found a non-canonical country",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.data.total}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "array": "{{1.data.results}}"
+              },
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": -600,
+                  "name": "Iterate Country Fixes"
+                }
+              },
+              "parameters": {}
+            },
+            {
+              "id": 9,
+              "filter": {
+                "name": "Country differs from its canonical form",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.properties.country}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{switch(lower(trim(8.properties.country)); \"usa\"; \"United States\"; \"u.s.a.\"; \"United States\"; \"u.s.\"; \"United States\"; \"us\"; \"United States\"; \"united states of america\"; \"United States\"; \"canada\"; \"Canada\"; \"ca\"; \"Canada\"; \"can\"; \"Canada\"; 8.properties.country)}}",
+                      "b": "{{8.properties.country}}",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/companies/{{8.id}}",
+                "data": "{\"properties\":{\"country\":\"{{switch(lower(trim(8.properties.country)); \"usa\"; \"United States\"; \"u.s.a.\"; \"United States\"; \"u.s.\"; \"United States\"; \"us\"; \"United States\"; \"united states of america\"; \"United States\"; \"canada\"; \"Canada\"; \"ca\"; \"Canada\"; \"can\"; \"Canada\"; 8.properties.country)}}\"}}",
+                "gzip": true,
+                "method": "patch",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": -600,
+                  "name": "Normalize Company Country"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 10,
+              "filter": {
+                "name": "Scan found a prefixed domain",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{2.data.total}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "array": "{{2.data.results}}"
+              },
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": -300,
+                  "name": "Iterate Domain Fixes"
+                }
+              },
+              "parameters": {}
+            },
+            {
+              "id": 11,
+              "filter": {
+                "name": "Domain differs from its canonical form",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.properties.domain}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{if(substring(lower(10.properties.domain); 0; 4) = \"www.\"; substring(lower(10.properties.domain); 4; length(10.properties.domain)); lower(10.properties.domain))}}",
+                      "b": "{{10.properties.domain}}",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/companies/{{10.id}}",
+                "data": "{\"properties\":{\"domain\":\"{{if(substring(lower(10.properties.domain); 0; 4) = \"www.\"; substring(lower(10.properties.domain); 4; length(10.properties.domain)); lower(10.properties.domain))}}\"}}",
+                "gzip": true,
+                "method": "patch",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": -300,
+                  "name": "Normalize Company Domain"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 12,
+              "filter": {
+                "name": "Scan found an abbreviated job title",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{3.data.total}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "array": "{{3.data.results}}"
+              },
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Iterate Job Title Fixes"
+                }
+              },
+              "parameters": {}
+            },
+            {
+              "id": 13,
+              "filter": {
+                "name": "Job title differs from its canonical form",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.properties.jobtitle}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{replace(replace(replace(replace(replace(replace(replace(trim(12.properties.jobtitle); \"VP\"; \"Vice President\"); \"Sr.\"; \"Senior\"); \"Mgr.\"; \"Manager\"); \"Dir.\"; \"Director\"); \"  \"; \" \"); \"  \"; \" \"); \"  \"; \" \")}}",
+                      "b": "{{12.properties.jobtitle}}",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/contacts/{{12.id}}",
+                "data": "{\"properties\":{\"jobtitle\":\"{{replace(replace(replace(replace(replace(replace(replace(trim(12.properties.jobtitle); \"VP\"; \"Vice President\"); \"Sr.\"; \"Senior\"); \"Mgr.\"; \"Manager\"); \"Dir.\"; \"Director\"); \"  \"; \" \"); \"  \"; \" \"); \"  \"; \" \")}}\"}}",
+                "gzip": true,
+                "method": "patch",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Normalize Contact Job Title"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 14,
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/companies?limit=100&properties=name,domain&archived=false",
+                "data": "",
+                "gzip": true,
+                "method": "get",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "",
+                "contentType": "",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 300,
+                  "name": "Re-read Companies On Canonical Domains"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            },
+            {
+              "id": 15,
+              "mapper": {
+                "array": "{{14.data.results}}"
+              },
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 300,
+                  "name": "Iterate Companies"
+                }
+              },
+              "parameters": {}
+            },
+            {
+              "id": 16,
+              "filter": {
+                "name": "Same canonical domain, and not the earliest record",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{15.properties.domain}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{15.properties.domain}}",
+                      "b": "example.com",
+                      "o": "text:contain"
+                    },
+                    {
+                      "a": "{{length(map(14.data.results; \"id\"; \"properties.domain\"; 15.properties.domain))}}",
+                      "b": "1",
+                      "o": "number:greater"
+                    },
+                    {
+                      "a": "{{15.id}}",
+                      "b": "{{min(map(14.data.results; \"id\"; \"properties.domain\"; 15.properties.domain))}}",
+                      "o": "number:notequal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/companies/merge",
+                "data": "{\"primaryObjectId\":\"{{min(map(14.data.results; \"id\"; \"properties.domain\"; 15.properties.domain))}}\",\"objectIdToMerge\":\"{{15.id}}\"}",
+                "gzip": true,
+                "method": "post",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 300,
+                  "name": "Merge Duplicate Company"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 17,
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.hubapi.com/crm/v3/objects/companies?limit=100&properties=name,domain,num_associated_contacts&archived=false",
+                "data": "",
+                "gzip": true,
+                "method": "get",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "",
+                "contentType": "",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 600,
+                  "name": "List Companies After The Sweep"
+                }
+              },
+              "parameters": {
+                "auth": 220470,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            },
+            {
+              "id": 18,
+              "mapper": {
+                "scope": "roundtrip",
+                "variables": [
+                  {
+                    "name": "run_started",
+                    "value": "{{formatDate(now; \"YYYY-MM-DD HH:mm:ss\"; \"America/Edmonton\")}}"
+                  },
+                  {
+                    "name": "digest_composed",
+                    "value": "{{formatDate(now; \"x\")}}"
+                  },
+                  {
+                    "name": "records_normalized",
+                    "value": "{{1.data.total + 2.data.total + 3.data.total}}"
+                  },
+                  {
+                    "name": "companies_merged",
+                    "value": "{{length(6.data.results) - length(17.data.results)}}"
+                  },
+                  {
+                    "name": "orphans_flagged",
+                    "value": "{{4.data.total + length(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\")) + length(map(17.data.results; \"id\")) - length(deduplicate(merge(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\"); map(17.data.results; \"id\"))))}}"
+                  },
+                  {
+                    "name": "review_queued",
+                    "value": "{{5.data.total}}"
+                  }
+                ]
+              },
+              "module": "util:SetVariables",
+              "version": 1,
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 600,
+                  "name": "Compose Digest Summary"
+                }
+              },
+              "parameters": {}
+            },
+            {
+              "id": 19,
+              "mapper": {
+                "key": "{{executionId}}",
+                "data": {
+                  "digest": "CRM Hygiene Engine, nightly sweep of the lab portal\nRun started {{18.run_started}} America/Edmonton\n\nRepaired without asking anyone\n- company country rewritten to its canonical form: {{1.data.total}}\n- company domain stripped of its www. prefix: {{2.data.total}}\n- contact job title expanded and de-spaced: {{3.data.total}}\n- duplicate companies merged into the earliest record: {{length(6.data.results) - length(17.data.results)}}\n\nFlagged, not touched\n- contacts with no company: {{4.data.total}}\n- companies with no contact after the sweep: {{length(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\")) + length(map(17.data.results; \"id\")) - length(deduplicate(merge(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\"); map(17.data.results; \"id\"))))}}\n- contacts with no email, so no deterministic key to merge on: {{5.data.total}}\n\nCompany records in the portal: {{length(6.data.results)}} before the sweep, {{length(17.data.results)}} after",
+                  "run_id": "{{executionId}}",
+                  "actions": "country set to canonical: {{1.data.total}} ({{join(map(1.data.results; \"properties.domain\"); \", \")}})\ndomain set to canonical: {{2.data.total}} ({{join(map(2.data.results; \"properties.domain\"); \", \")}})\njob title set to canonical: {{3.data.total}} ({{join(map(3.data.results; \"properties.jobtitle\"); \" | \")}})\nmerged into earliest record: {{length(6.data.results) - length(17.data.results)}}\ncompany records in the portal: {{length(6.data.results)}} before, {{length(17.data.results)}} after\ndigest composed at epoch ms {{18.digest_composed}}",
+                  "run_started": "{{18.run_started}}",
+                  "review_items": "orphan contacts: {{join(map(4.data.results; \"properties.email\"); \", \")}}\ncompanies with no contact at scan time, some of which the sweep merged away as duplicates: {{join(map(6.data.results; \"properties.domain\"; \"properties.num_associated_contacts\"; \"0\"); \", \")}}\nno email, cannot match by rule: {{join(map(5.data.results; \"properties.lastname\"); \", \")}}",
+                  "review_queued": "{{5.data.total}}",
+                  "orphans_flagged": "{{4.data.total + length(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\")) + length(map(17.data.results; \"id\")) - length(deduplicate(merge(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\"); map(17.data.results; \"id\"))))}}",
+                  "companies_merged": "{{length(6.data.results) - length(17.data.results)}}",
+                  "fields_normalized": "3",
+                  "records_normalized": "{{1.data.total + 2.data.total + 3.data.total}}"
+                },
+                "overwrite": false
+              },
+              "module": "datastore:AddRecord",
+              "version": 2,
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 600,
+                  "name": "Write Audit Record"
+                }
+              },
+              "parameters": {
+                "datastore": 147498
+              }
+            },
+            {
+              "id": 20,
+              "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://slack.com/api/chat.postMessage",
+                "data": "{\"channel\":\"#all-vieira-gtm-lab\",\"text\":\"CRM Hygiene Engine, nightly sweep of the lab portal\\nRun started {{18.run_started}} America/Edmonton\\n\\nRepaired without asking anyone\\n- company country rewritten to its canonical form: {{1.data.total}}\\n- company domain stripped of its www. prefix: {{2.data.total}}\\n- contact job title expanded and de-spaced: {{3.data.total}}\\n- duplicate companies merged into the earliest record: {{length(6.data.results) - length(17.data.results)}}\\n\\nFlagged, not touched\\n- contacts with no company: {{4.data.total}}\\n- companies with no contact after the sweep: {{length(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\")) + length(map(17.data.results; \"id\")) - length(deduplicate(merge(map(6.data.results; \"id\"; \"properties.num_associated_contacts\"; \"0\"); map(17.data.results; \"id\"))))}}\\n- contacts with no email, so no deterministic key to merge on: {{5.data.total}}\\n\\nCompany records in the portal: {{length(6.data.results)}} before the sweep, {{length(17.data.results)}} after\"}",
+                "gzip": true,
+                "method": "post",
+                "headers": [],
+                "timeout": "",
+                "useMtls": false,
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": true,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+              },
+              "module": "http:ActionSendDataAPIKeyAuth",
+              "version": 3,
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 600,
+                  "name": "Post Slack Digest"
+                }
+              },
+              "parameters": {
+                "auth": 220473,
+                "handleErrors": false,
+                "useNewZLibDeCompress": true
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1,
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "name": "CRM Hygiene Engine",
+  "metadata": {
+    "zone": "us2.make.com",
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": false,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": true,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}
