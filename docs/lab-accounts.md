@@ -102,6 +102,15 @@ placeholders left in `case-03.mdx` and `case-05.mdx` until the recorded runs fil
    a single pass, leaving margin inside the 75-credit monthly budget for retries and for Case
    5's separate share of the same credit pool.
 
+**Finding, 2026-09-08: the Free plan has no prospecting API.** The API-key dialog lists the
+people-search and enrichment endpoints as not included in Free and not reachable even with a
+master key. No API key was created. The consequence is a real design change, not a workaround
+to hide: prospect sourcing runs on a saved search built in the Apollo UI, exported as CSV, and
+read by the automation. Both cases that use Apollo say "Apollo saved-search export" rather than
+"Apollo API", in prose and in the diagram. Credit arithmetic on the export path: one email
+credit per exported contact that carries an email address, out of the 75 per month, so a
+20-row export is about 20 credits and leaves room for the second case.
+
 ### D-12 paid-exception decision (Case 5: OpenAI + Instantly)
 
 Case 5's locked stack (`Apollo`, `OpenAI`, `Instantly`, `n8n`) includes two tools with no
@@ -132,9 +141,19 @@ starts, with no pre-approved spending ceiling.
 ### OpenAI API
 
 Approved under the D-12 decision above (option-a), funded entirely from an existing prepaid
-credit balance — no new purchase for this decision. Account and API key creation happen in
-Task 2 of this plan; the key goes into n8n's credential store only, never into this repository.
-Auto-recharge must stay off so the existing balance is a hard ceiling, not a recurring charge.
+credit balance, with no new purchase for this decision. The API key lives in the gitignored `.env`
+and in n8n's credential store, never in this repository. Auto-recharge stays off so the existing
+balance is a hard ceiling, not a recurring charge.
+
+Verified 2026-09-08: prepaid balance **US$4.29** (revised down from the earlier US$5 figure),
+auto-recharge confirmed off. The n8n credential for it was created over the n8n API on
+2026-09-09 and proved by real drafting calls.
+
+Model choice, recorded because it is a cost decision and not a quality one: `gpt-4o-mini`, which
+is cheaper than `gpt-4.1-mini` (US$0.15 / US$0.60 per million tokens against US$0.40 / US$1.60).
+Measured on the first case that uses it: **about US$0.00008 per drafted email**, roughly 313
+tokens. Twenty drafts is under a fifth of a cent. The prepaid balance is not the constraint at
+this scale; an unbounded retry loop would be, which is why the retry and redraft caps exist.
 
 ### Instantly.ai
 
@@ -167,9 +186,9 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Mailtrap | Created | 2026-07-24 |
 | Google (lab account) | Disabled by Google on creation day (appeal filed 2026-08-28) | 2026-08-05 |
 | Clay | Deferred (Phase 3 Batch B) | — |
-| Make.com | Created; login blocked since the lab Google account was disabled | 2026-08-05 |
-| Apollo.io | Created; login blocked since the lab Google account was disabled | 2026-08-05 |
-| OpenAI API | Created | 2026-08-05 |
+| Make.com | Created; login restored 2026-09-08 after the lab Google account was reinstated | 2026-08-05 |
+| Apollo.io | Created; login restored 2026-09-08. Prospecting API not available on Free, so sourcing runs on saved-search CSV exports | 2026-08-05 |
+| OpenAI API | Created; key and n8n credential verified 2026-09-09 | 2026-08-05 |
 | Instantly.ai | Deferred (Case 5 build day — 14-day trial clock) | — |
 
 ## Section 2: Free-Tier Constraints
@@ -184,8 +203,8 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Mailtrap | Free: 150 emails per day, 4,000 per month, 3-day log retention. | A live demo or a burst of testing silently exhausts the daily quota, and the logs are gone before anyone diagnoses it. | Case 5, and Phase 4's live demo |
 | Google (lab account) | OAuth apps in "Testing" status force-expire refresh tokens 7 days after consent. Lifetime authorized-user cap of 100, irrelevant for a 1-user lab. | Leaving the app in Testing would silently break the Gmail/Calendar/Sheets credentials mid-batch with `invalid_grant`. Moved to "In production" at creation time to avoid this by construction rather than by discovering it mid-recording. | Cases 3, 6, 8 |
 | Make.com | Free: 1,000 operations/month, 2 active scenarios. Minimum scheduling interval and multi-module-scenario support were not shown in the dashboard (research expects 15 min and "yes," respectively; unconfirmed). | A nightly Case 4 scenario that fans out into many operations per execution can burn the monthly operation budget well before a clean recording happens. | Case 4 |
-| Apollo.io | Free: 75 email credits/month (verbatim from dashboard, renews Sep 5, 2026). Monthly export allowance and daily sending cap not yet observed. | The real allowance is lower than the researched ~100 estimate and is the hard ceiling on what Cases 3 and 5 may publish — burning credits on a bad test pass before the real run leaves nothing for the recording. | Cases 3, 5 |
-| OpenAI API | Existing prepaid credit: US$5 (corrected from an initial ~US$10 estimate). Auto-recharge confirmed OFF. | A runaway loop or retry storm during a lab run could exhaust the prepaid balance mid-run with no auto-recharge fallback, silently truncating the recording. | Cases 5, 6 |
+| Apollo.io | Free: 75 email credits/month (verbatim from dashboard, renews Sep 5, 2026). **No prospecting API on Free** (verified 2026-09-08): people-search and enrichment endpoints are denied even with a master key. Monthly export allowance and daily sending cap not yet observed. | Two traps, not one. The credit allowance is lower than the researched ~100 estimate and is the hard ceiling on what Cases 3 and 5 may publish. And the API being closed means anything planned as "call Apollo" has to become "export a saved search and read the file": a design change, discovered late, that both cases now state plainly instead of implying an API integration they do not have. | Cases 3, 5 |
+| OpenAI API | Existing prepaid credit: US$4.29 (verified 2026-09-08; earlier notes said US$5). Auto-recharge confirmed OFF. Measured cost on `gpt-4o-mini`: about US$0.00008 per drafted email. | A runaway loop or retry storm could exhaust the prepaid balance mid-run with no auto-recharge fallback. Per-call cost is negligible, so the risk is loop count, not token price: the retry cap (3 attempts) and the redraft cap (2 rewrites) are what bound it. | Cases 5, 6 |
 | Instantly.ai | 14-day no-card trial, not yet started. | Once started, the trial clock is the hard deadline for finishing the Case 5 flow, dry-running it, and completing the recording — starting it before the flow is ready burns days against nothing. | Case 5 |
 
 ## Section 3: Credential Handling
