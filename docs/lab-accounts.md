@@ -53,17 +53,39 @@ Verify before creating. An account for the lab Gmail address may already exist, 
 
 ### Clay
 
-Do NOT create this account in this phase.
+Created 2026-09-09 on the **free plan**, workspace "Vieira GTM Lab", with Google Sheets connected
+the same day. **No Pro trial was ever activated (D-19).** Nothing was purchased and no card was
+given. Clay applied an automatic no-card trial badge that lapses on 2026-09-23; Case 3 is designed
+to keep working after it lapses, so the extra credits until then are slack, never a dependency.
 
-Signing up for Clay tends to auto-start the 14-day Pro trial. That trial clock has to start in Case 3 build week (Phase 3, Batch B), after the waterfall enrichment design is already validated on free-tier credits, not now. Creating the account early would burn trial days against nothing.
+Case 3 is built entirely inside the free plan's limits: 100 credits a month, a 200-row table cap,
+and no rollover. That arithmetic, not a clock, is what bounds the case.
 
-Creation checklist for later use, in Case 3 build week:
+| Cost per enriched row | Rows the 100 monthly credits buy | Which limit binds |
+|---|---|---|
+| 25 credits (research worst case) | 4 | credits, by 50x |
+| 15 credits (research midpoint) | 6 | credits, by 33x |
+| 10 credits (research best case) | 10 | credits, by 20x |
+| under 0.5 credits | over 200 | the 200-row table cap |
 
-1. Sign up at Clay's signup page with the lab Gmail address, English, Edmonton timezone, workspace named "Vieira GTM Lab."
-2. Do not start the Pro trial until the enrichment table structure, formulas, and provider waterfall order are already validated on free-tier credits (100/month).
-3. Size the first trial run to roughly 30 to 40 rows, not the full 50-row cap, to leave headroom for at least one rerun.
-4. Capture the evidence pack screenshots the same day the final clean run completes (video
-   retired per D-15, 2026-08-25 -- see `docs/recording-sop.md`).
+The binding limit is the credits, not the row cap, anywhere inside the researched 10-to-25 band:
+filling a 200-row table at that cost would take 2,000 to 5,000 credits, which is 20 to 50 months of
+free allowance. The maximum honest "accounts enriched" figure the free plan allows is
+`floor(100 / measured cost per row)`, capped at 200 by the table and capped again at 40 by the size
+of the synthetic company set the lab list is built from.
+
+The build discipline that follows from it:
+
+1. Design the whole waterfall before spending a credit. Credits refill monthly, so an overspend
+   costs weeks, not minutes.
+2. Dry-run three rows in two stages, reading the credit counter after the first row, so the per-row
+   cost is a measured number before the rest of the budget is committed.
+3. Every enrichment column runs only when its own output is empty, and each cascade leg runs only
+   when the leg before it missed, so re-running already-enriched rows spends nothing.
+4. Use no feature that is Pro-only. The test is what still works after the trial badge lapses, not
+   what the account can do today.
+5. Capture the evidence still the same day the final clean run completes (video retired per D-15,
+   2026-08-25 -- see `docs/recording-sop.md`).
 
 ### Make.com
 
@@ -212,7 +234,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 |---|---|---|---|
 | HubSpot free | 1,000 contacts, 2 seats, no custom objects. **This tier has no native workflows** — single-step "simple automation" and sequences are Starter+ and up. Private-app API limit: 100 requests per 10 seconds. | HubSpot is an API-only data store on the free tier. n8n owns every trigger and every branch; there is no HubSpot-native automation to reach for mid-build. | Cases 1, 4, 7 |
 | Salesforce Developer Edition | Permanent org, roughly 5 MB data storage and 20 MB file storage (verify in Setup → Storage Usage before loading data — this figure is carried forward from older docs). Inactive-user freezing after 60 days without login, and the feature cannot be disabled. | The org quietly freezes right when Case 7 stops getting regular traffic, after its recording is done and published. | Case 7, and any post-launch re-recording |
-| Clay | Free plan: 100 credits per month, 200-row table cap. Pro trial: 14 days, 1,000 credits, 50-row table cap. A multi-provider waterfall costs roughly 10 to 25 credits per row. Credits do not roll over. One trial per account. | A single 50-row waterfall pass can burn 500 to 1,250 credits, so debugging inside the trial window kills the case before a clean recording happens. | Case 3 |
+| Clay | Free plan: 100 credits per month, 200-row table cap, no rollover. A multi-provider waterfall costs roughly 10 to 25 credits per row. The Pro trial is never activated (D-19), so the free figures are the only ones that apply. | The credits bind, not the row cap. 100 credits at the researched cost is 4 to 10 enriched rows in a month, and a month is how long it takes to get them back, so debugging on live credits costs weeks. Filling the 200-row table would take 20 to 50 months of free allowance. | Case 3 |
 | Cal.com | Free: unlimited event types and bookings for one user. | No trap. Free is sufficient for Case 8. | — |
 | Slack | Free: 90-day rolling message history, hidden rather than deleted. | A case built early and revisited late loses searchable history once it rolls past 90 days. | Case 10's digest |
 | Mailtrap | Free: 150 emails per day, 4,000 per month, 3-day log retention. | A live demo or a burst of testing silently exhausts the daily quota, and the logs are gone before anyone diagnoses it. | Case 5, and Phase 4's live demo |
