@@ -87,6 +87,17 @@ The build discipline that follows from it:
 5. Capture the evidence still the same day the final clean run completes (video retired per D-15,
    2026-08-25 -- see `docs/recording-sop.md`).
 
+**Measured so far (2026-09-11): nothing, and that is the honest state.** The waterfall is designed
+and budgeted, the Google Sheets source list and the internal reference list are built in the lab
+Google account, and the CRM side is verified (each target company matches exactly one record by
+domain, so the write-back updates rather than duplicates). The in-app table build did not happen,
+because the workspace was created with Google single sign-on and the automation browser holds no
+Google session: Clay asks for a password that does not exist, and a password reset produced no mail
+in 20 minutes, which is what an SSO-only account does. One human sign-in in that browser unblocks the
+rest. Until the dry-run runs, **the per-row credit cost is unmeasured and this file states no number
+for it** -- the sizing table above is the researched band, not a measurement, and the case page may
+not publish a figure derived from it.
+
 ### Make.com
 
 Unconditional lab account, not part of the D-12 decision — needed for Case 4 (CRM Hygiene
@@ -222,7 +233,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Slack | Created | 2026-07-24 |
 | Mailtrap | Created | 2026-07-24 |
 | Google (lab account) | Disabled by Google on creation day (appeal filed 2026-08-28) | 2026-08-05 |
-| Clay | Deferred (Phase 3 Batch B) | — |
+| Clay | Created (free plan); no Pro trial activated (D-19). Waterfall designed and the Sheets source built 2026-09-11; the in-app table build is waiting on one sign-in in the automation browser | 2026-09-09 |
 | Make.com | Created; login restored 2026-09-08 after the lab Google account was reinstated | 2026-08-05 |
 | Apollo.io | Created; login restored 2026-09-08. Prospecting API not available on Free, so sourcing runs on saved-search CSV exports | 2026-08-05 |
 | OpenAI API | Created; key and n8n credential verified 2026-09-09 | 2026-08-05 |
