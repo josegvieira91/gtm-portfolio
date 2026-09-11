@@ -6,11 +6,16 @@ category: "Outbound"
 # proven by the plan 03-11 lab run before this phrase ships as written.
 heroMetric: "Enrichment waterfall keeps the TAM list sales-ready"
 stack: ["Clay", "Apollo", "Google Sheets", "HubSpot"]
-# Values below are placeholders bounded by the real Apollo free-tier allowance
-# documented in docs/lab-accounts.md (75 email credits/month, ~50 accounts
-# enrichable per pass) -- the prior placeholder figures were research-stage
-# guesses this allowance cannot support (D-01). Plan 03-11 (Case 3: run,
-# record, publish) fills in the real measured values.
+# Values below are placeholders. Since D-19 this case runs entirely on Clay's
+# free plan, so the binding allowance is Clay's 100 credits a month and 200-row
+# table cap, not Apollo's 75 email credits: the Apollo leg runs as Clay's own
+# enrichment against Clay credits, because Apollo free blocks the prospecting
+# API. Plan 03-10 budgeted it (docs/lab-accounts.md, Clay section): the honest
+# ceiling is floor(100 / measured cost per row), which is 4 to 10 accounts
+# inside the researched 10-to-25 credits per row band, capped again at 40 by
+# the synthetic company set. Plan 03-11 (Case 3: run, record, publish) fills in
+# the real measured values and may not publish a figure the measurement does
+# not support (D-01).
 metrics:
   - label: "Accounts enriched"
     value: "TBD"
