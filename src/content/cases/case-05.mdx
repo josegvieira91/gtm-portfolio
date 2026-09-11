@@ -8,18 +8,19 @@ category: "Outbound"
 # the claim says now.
 heroMetric: "One researched email per prospect, gated before anything reaches the sender"
 stack: ["Apollo", "OpenAI", "Instantly", "n8n"]
-# Every value below is read off n8n execution #80, the clean run of 2026-09-09
-# 20:25 MDT: 17 prospects out of one Apollo saved-search export, 17 drafts,
-# 17 through the QA gate on the first pass, 18.057 s wall clock, US$0.001236
-# of model spend. The rejection drill is execution #81 and the sender-failure
-# drill is execution #82.
+# Every value below is read off n8n execution #83, the clean run of 2026-09-10
+# 18:42 MDT: 17 prospects out of one Apollo saved-search export, 17 drafts,
+# 17 through the QA gate on the first pass, 19.913 s wall clock, US$0.001227
+# of model spend. That run replaced the earlier #80 so the receipt still could
+# be taken on the tidied canvas. The rejection drill is execution #81 and the
+# sender-failure drill is execution #82; neither needed a rerun.
 metrics:
   - label: "Prospects drafted per run"
     value: "17"
   - label: "Cleared the QA gate first pass"
     value: "17 of 17"
   - label: "Seconds per prospect"
-    value: "1.1"
+    value: "1.2"
 export: "workflows/ai-personalized-outbound/ai-personalized-outbound.json"
 diagramId: "case-05"
 featured: false
@@ -50,7 +51,7 @@ goes back to the prompt with the rule it broke attached, twice at most, and
 then lands in a review queue instead of being sent anyway. The cost is that a
 rejected prospect burns three model calls, and a decent draft can still lose
 on a technicality. I took that over a run that quietly ships something
-generic. On the clean run all 17 drafts passed first time at 32 to 44 words.
+generic. On the clean run all 17 drafts passed first time at 35 to 43 words.
 On the rejection drill I told the writer to open with a stock line and skip
 the company name, and the gate refused all 51 attempts by rule number.
 
@@ -62,7 +63,7 @@ worth having by making the send call fail on all 17 items: every draft was
 still sitting there afterwards, with the reason.
 
 **Prospects move five at a time, with a two second pause between batches.**
-Whole run: 18 seconds for 17 prospects, 8 of which are that pause. The
+Whole run: 20 seconds for 17 prospects, 8 of which are that pause. The
 throttle is there because the model, the sender and my own patience for
 debugging all prefer a slow loop to a burst, and the batch boundary is where
 a retry can restart without redoing work.
