@@ -3,16 +3,21 @@
   "nodes": [
     { "id": "list", "label": "Target List", "stage": 0, "lane": 1, "kind": "trigger", "tool": "googlesheets" },
     { "id": "clay", "label": "Clay Table", "stage": 1, "lane": 1, "kind": "process", "tool": "clay" },
-    { "id": "apollo", "label": "Apollo Enrich", "stage": 2, "lane": 1, "kind": "process", "tool": "apollo" },
-    { "id": "fallback", "label": "Fallback Pass", "stage": 3, "lane": 2, "kind": "process", "tool": "clay" },
-    { "id": "crm", "label": "HubSpot Import", "stage": 4, "lane": 1, "kind": "store", "tool": "hubspot" }
+    { "id": "primary", "label": "Clay Enrich", "stage": 2, "lane": 1, "kind": "process", "tool": "clay" },
+    { "id": "fallback", "label": "LeadMagic Pass", "stage": 3, "lane": 2, "kind": "process", "tool": "clay" },
+    { "id": "registry", "label": "Internal Registry", "stage": 3, "lane": 0, "kind": "process", "tool": "googlesheets" },
+    { "id": "loader", "label": "CRM Loader", "stage": 4, "lane": 1, "kind": "process", "tool": "n8n" },
+    { "id": "crm", "label": "HubSpot", "stage": 5, "lane": 1, "kind": "store", "tool": "hubspot" }
   ],
   "edges": [
     { "id": "e1", "from": "list", "to": "clay" },
-    { "id": "e2", "from": "clay", "to": "apollo" },
-    { "id": "e3", "from": "apollo", "to": "crm" },
-    { "id": "e4", "from": "apollo", "to": "fallback" },
-    { "id": "e5", "from": "fallback", "to": "crm" }
+    { "id": "e2", "from": "clay", "to": "primary" },
+    { "id": "e3", "from": "primary", "to": "fallback" },
+    { "id": "e4", "from": "fallback", "to": "registry" },
+    { "id": "e5", "from": "primary", "to": "loader" },
+    { "id": "e6", "from": "fallback", "to": "loader" },
+    { "id": "e7", "from": "registry", "to": "loader" },
+    { "id": "e8", "from": "loader", "to": "crm" }
   ],
   "steps": [
     {
@@ -20,40 +25,62 @@
       "activateNodes": ["list", "clay"],
       "activateEdges": ["e1"],
       "callout": {
-        "text": "The account list syncs from Sheets into a Clay table on a schedule",
+        "text": "The account list lands in a Clay table, deduplicated on domain as it arrives",
         "anchor": "clay",
         "side": "top"
       }
     },
     {
       "id": "s2",
-      "activateNodes": ["apollo"],
+      "activateNodes": ["primary"],
       "activateEdges": ["e2"],
-      "packetPath": ["clay", "apollo"],
+      "packetPath": ["clay", "primary"],
       "callout": {
-        "text": "Apollo fills firmographics and contacts first, the cheapest reliable source",
-        "anchor": "apollo",
+        "text": "The first leg runs on every row, and only bills when it finds something",
+        "anchor": "primary",
         "side": "top"
       }
     },
     {
       "id": "s3",
       "activateNodes": ["fallback"],
-      "activateEdges": ["e4"],
-      "packetPath": ["apollo", "fallback"],
+      "activateEdges": ["e3"],
+      "packetPath": ["primary", "fallback"],
       "callout": {
-        "text": "Misses cascade to a fallback provider, one gap never blocks a record",
+        "text": "An empty answer opens the gate to the second provider. A filled one keeps it shut",
         "anchor": "fallback",
         "side": "bottom"
       }
     },
     {
       "id": "s4",
-      "activateNodes": ["crm"],
-      "activateEdges": ["e3", "e5"],
-      "packetPath": ["fallback", "crm"],
+      "activateNodes": ["registry"],
+      "activateEdges": ["e4"],
+      "packetPath": ["fallback", "registry"],
       "callout": {
-        "text": "Only enriched, deduped records land in HubSpot as sales-ready",
+        "text": "Both vendors empty, so what the business already knows about the account answers last",
+        "anchor": "registry",
+        "side": "top"
+      }
+    },
+    {
+      "id": "s5",
+      "activateNodes": ["loader"],
+      "activateEdges": ["e5", "e6", "e7"],
+      "packetPath": ["registry", "loader"],
+      "callout": {
+        "text": "The loader is the only door to the CRM, and it opens for enriched rows inside the ICP rule",
+        "anchor": "loader",
+        "side": "bottom"
+      }
+    },
+    {
+      "id": "s6",
+      "activateNodes": ["crm"],
+      "activateEdges": ["e8"],
+      "packetPath": ["loader", "crm"],
+      "callout": {
+        "text": "Matched on domain, so a repeat updates the company instead of creating a second one",
         "anchor": "crm",
         "side": "top"
       }

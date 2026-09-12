@@ -3,20 +3,21 @@
   "nodes": [
     { "id": "list", "label": "List", "stage": 0, "lane": 0, "kind": "trigger", "tool": "googlesheets" },
     { "id": "clay", "label": "Clay", "stage": 1, "lane": 0, "kind": "process", "tool": "clay" },
-    { "id": "apollo", "label": "Apollo", "stage": 2, "lane": 0, "kind": "process", "tool": "apollo" },
-    { "id": "backup", "label": "Backup", "stage": 2, "lane": 1, "kind": "process", "tool": "clay" },
+    { "id": "backup", "label": "Fallback", "stage": 1, "lane": 1, "kind": "process", "tool": "clay" },
+    { "id": "loader", "label": "Loader", "stage": 2, "lane": 0, "kind": "process", "tool": "n8n" },
     { "id": "crm", "label": "CRM", "stage": 3, "lane": 0, "kind": "store", "tool": "hubspot" }
   ],
   "edges": [
     { "id": "e1", "from": "list", "to": "clay" },
-    { "id": "e2", "from": "clay", "to": "apollo" },
-    { "id": "e3", "from": "apollo", "to": "crm" },
-    { "id": "e4", "from": "apollo", "to": "backup" },
-    { "id": "e5", "from": "backup", "to": "crm" }
+    { "id": "e2", "from": "clay", "to": "backup" },
+    { "id": "e3", "from": "clay", "to": "loader" },
+    { "id": "e4", "from": "backup", "to": "loader" },
+    { "id": "e5", "from": "loader", "to": "crm" }
   ],
   "steps": [
     { "id": "s1", "activateNodes": ["list", "clay"], "activateEdges": ["e1"] },
-    { "id": "s2", "activateNodes": ["apollo", "backup"], "activateEdges": ["e2", "e4"], "packetPath": ["clay", "apollo"] },
-    { "id": "s3", "activateNodes": ["crm"], "activateEdges": ["e3", "e5"], "packetPath": ["apollo", "crm"] }
+    { "id": "s2", "activateNodes": ["backup"], "activateEdges": ["e2"], "packetPath": ["clay", "backup"] },
+    { "id": "s3", "activateNodes": ["loader"], "activateEdges": ["e3", "e4"], "packetPath": ["backup", "loader"] },
+    { "id": "s4", "activateNodes": ["crm"], "activateEdges": ["e5"], "packetPath": ["loader", "crm"] }
   ]
 }

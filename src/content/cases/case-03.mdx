@@ -2,33 +2,66 @@
 title: "TAM List Building & Enrichment Waterfall"
 slug: "tam-list-building-enrichment-waterfall"
 category: "Outbound"
-# provisional (D-03): the "sales-ready" claim in heroMetric below must be
-# proven by the plan 03-11 lab run before this phrase ships as written.
-heroMetric: "Enrichment waterfall keeps the TAM list sales-ready"
-stack: ["Clay", "Apollo", "Google Sheets", "HubSpot"]
-# Values below are placeholders. Since D-19 this case runs entirely on Clay's
-# free plan, so the binding allowance is Clay's 100 credits a month and 200-row
-# table cap, not Apollo's 75 email credits: the Apollo leg runs as Clay's own
-# enrichment against Clay credits, because Apollo free blocks the prospecting
-# API. Plan 03-10 budgeted it (docs/lab-accounts.md, Clay section): the honest
-# ceiling is floor(100 / measured cost per row), which is 4 to 10 accounts
-# inside the researched 10-to-25 credits per row band, capped again at 40 by
-# the synthetic company set. Plan 03-11 (Case 3: run, record, publish) fills in
-# the real measured values and may not publish a figure the measurement does
-# not support (D-01).
+heroMetric: "Every account leaves the waterfall with a verdict"
+stack: ["Clay", "Google Sheets", "HubSpot", "n8n"]
+# Every value below was read off the 2026-09-11 lab run, not estimated.
+# 40 source rows, 20 enriched, 16 through the ICP rule, 0 of 100 Clay credits
+# spent. "Match rate" became "Coverage after the full waterfall" because the
+# source list is synthetic by policy, so both vendor legs miss by construction
+# and a single vendor match rate would be a number about the data rule rather
+# than about the flow. Full record: docs/lab-accounts.md, Clay section.
 metrics:
   - label: "Accounts enriched"
-    value: "TBD"
-  - label: "Match rate"
-    value: "TBD"
+    value: "20 of 40"
+  - label: "Coverage after the full waterfall"
+    value: "50%"
   - label: "Time per account, list row to enriched record"
-    value: "TBD"
+    value: "0.55s"
+export: "workflows/tam-list-building-enrichment-waterfall/clay-tam-enrichment-table.json"
 diagramId: "case-03"
 featured: false
 draft: true
 ---
 
-A target account list syncs from Google Sheets into a Clay table, where an
-enrichment waterfall tries Apollo first and cascades misses to a fallback
-provider. Only enriched, deduped records land in HubSpot as sales-ready.
-The full waterfall logic and provider chain ship with the Phase 3 build.
+A target account list is cheap to get and expensive to trust. The names are
+real, the firmographics are stale, and the first time a rep opens an account
+with the wrong headcount on it, the whole list loses its credibility.
+Enrichment fixes that, and it bills per answer, which is where the engineering
+starts.
+
+I built this on Clay's free plan: 100 data credits a month, 200 rows per table.
+That budget shaped the decisions below more than any technical preference did.
+
+## How it works
+
+**Ordering the providers.** The list arrives from Google Sheets into a Clay
+table, deduplicated on domain as it lands. Three legs then run in sequence.
+Clay's own company enrichment goes first at one credit a row, a second provider
+follows, and the company's own internal records answer last. In a paying account
+I would flip that, because internal data is free and fresher than anything a
+vendor sells. I kept the vendor-first order because the brief locked it, and the
+cheaper ordering is the one I would argue for.
+
+**What counts as a miss, and what a miss opens.** Clay's per-column run
+condition would not persist for me, so I built the cascade into the inputs
+instead. A formula column emits the domain only when the leg before it came back
+empty, and the next leg reads that column as its required key. A leg with no key
+never runs and cannot bill. The gate shows up in the table as a filled or blank
+cell, which reads better than a setting buried in a side panel.
+
+**Why a repeat costs nothing.** Auto-run stays on with "keep existing results"
+checked, so only errored, empty or new cells ever fire. I re-ran the whole
+waterfall over ten rows to check that claim: Clay's own confirmation dialog
+quoted about 20 credits, and the counter moved by zero. Over the full 40-row run
+the workbook spent 0 of its 100 credits. Clay charges for a successful
+enrichment, and every domain on this list is a reserved example.com address that
+no vendor can match.
+
+**What the run proves, and what it does not.** The data rule for this portfolio
+is synthetic companies only, so both vendor legs miss on every row by
+construction. Twenty of the forty accounts were filled by the internal registry,
+sixteen passed the ICP rule, and those sixteen reached HubSpot matched on domain,
+so each write updated a company instead of creating a second one. The other
+twenty-four kept a reason: not found, or found and out of profile. That is the
+part worth defending. A list that quietly drops the accounts nobody could enrich
+is worse than a short list, because you can no longer tell a gap from a decision.
