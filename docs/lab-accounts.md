@@ -58,21 +58,30 @@ the same day. **No Pro trial was ever activated (D-19).** Nothing was purchased 
 given. Clay applied an automatic no-card trial badge that lapses on 2026-09-23; Case 3 is designed
 to keep working after it lapses, so the extra credits until then are slack, never a dependency.
 
-Case 3 is built entirely inside the free plan's limits: 100 credits a month, a 200-row table cap,
-and no rollover. That arithmetic, not a clock, is what bounds the case.
+Case 3 is built entirely inside the free plan's limits. Read off Clay's own pricing page on
+2026-09-11, the free plan gives **100 data credits a month, 500 actions a month, 200 rows per table,
+multi-provider waterfalls and Claygent**, with no rollover. The 500-actions figure is new here: the
+earlier sizing only tracked credits. A three-leg waterfall plus six formula columns is nine column
+runs a row, so 40 rows is about 360 actions, inside the 500 but not by much.
 
 | Cost per enriched row | Rows the 100 monthly credits buy | Which limit binds |
 |---|---|---|
-| 25 credits (research worst case) | 4 | credits, by 50x |
-| 15 credits (research midpoint) | 6 | credits, by 33x |
-| 10 credits (research best case) | 10 | credits, by 20x |
-| under 0.5 credits | over 200 | the 200-row table cap |
+| 2 credits (Clay's own pre-run estimate for this waterfall) | 50 | credits, by 4x |
+| 1 credit (structural maximum, see below) | 100 | credits, by 2x |
+| 0 credits (measured on this list) | unlimited by credits | the 200-row table cap, then the seed set |
 
-The binding limit is the credits, not the row cap, anywhere inside the researched 10-to-25 band:
-filling a 200-row table at that cost would take 2,000 to 5,000 credits, which is 20 to 50 months of
-free allowance. The maximum honest "accounts enriched" figure the free plan allows is
-`floor(100 / measured cost per row)`, capped at 200 by the table and capped again at 40 by the size
-of the synthetic company set the lab list is built from.
+**Measured 2026-09-11: 0 credits per enriched row, 0 credits for the whole 40-row run.** Clay bills
+on a successful enrichment, not on an attempt, and every lookup against a reserved `example.com`
+domain misses, so both vendor legs cost nothing and the internal-registry leg is a Google Sheets
+lookup that costs nothing by construction. Clay's own confirmation dialog priced a 10-row re-run of
+the same waterfall at "~20 credits total"; the counter moved by zero.
+
+That gives two numbers, and the case page needs both. On this synthetic list the honest ceiling is
+bounded by the 200-row table cap and then by the 40-company seed set, so **40 rows**. On a list of
+real domains the structural maximum is **1 credit per enriched row**, because the cascade gate closes
+the second leg whenever the first one succeeds and a miss is free either way, so the 100 monthly
+credits buy about 100 enriched rows, still under the 200-row cap. Clay's estimator does not know the
+gate will close, so it quotes 2 credits a row, which would be 50.
 
 The build discipline that follows from it:
 
@@ -80,23 +89,57 @@ The build discipline that follows from it:
    costs weeks, not minutes.
 2. Dry-run three rows in two stages, reading the credit counter after the first row, so the per-row
    cost is a measured number before the rest of the budget is committed.
-3. Every enrichment column runs only when its own output is empty, and each cascade leg runs only
-   when the leg before it missed, so re-running already-enriched rows spends nothing.
+3. Auto-run stays on with "Keep existing results" checked, so only errored, empty or new cells run,
+   and each cascade leg only receives a key when the leg before it came back empty. Re-running
+   already-enriched rows spends nothing.
 4. Use no feature that is Pro-only. The test is what still works after the trial badge lapses, not
    what the account can do today.
 5. Capture the evidence still the same day the final clean run completes (video retired per D-15,
    2026-08-25 -- see `docs/recording-sop.md`).
 
-**Measured so far (2026-09-11): nothing, and that is the honest state.** The waterfall is designed
-and budgeted, the Google Sheets source list and the internal reference list are built in the lab
-Google account, and the CRM side is verified (each target company matches exactly one record by
-domain, so the write-back updates rather than duplicates). The in-app table build did not happen,
-because the workspace was created with Google single sign-on and the automation browser holds no
-Google session: Clay asks for a password that does not exist, and a password reset produced no mail
-in 20 minutes, which is what an SSO-only account does. One human sign-in in that browser unblocks the
-rest. Until the dry-run runs, **the per-row credit cost is unmeasured and this file states no number
-for it** -- the sizing table above is the researched band, not a measurement, and the case page may
-not publish a figure derived from it.
+### What the 2026-09-11 run measured
+
+The table was driven through the automation browser over its debugging port with Playwright. The
+free plan hands out no API key (workspace settings has no API-keys page at all), so there was no
+API route to take.
+
+| Question | Answer |
+|---|---|
+| Route that drove the table | Automation browser over CDP. No free-plan API key exists |
+| Credits spent, whole workbook | **0 of 100**, confirmed on the workbook usage page |
+| Measured cost per enriched row | **0** on this list; 1 is the structural maximum on real domains |
+| Honest row ceiling | **40**, set by the seed set, since credits do not bind at 0 |
+| Source rows / enriched / not found | 40 / 20 / 20 |
+| Coverage after all three legs | 50% |
+| Accounts that passed the ICP rule | 16 |
+| Every leg fired | Yes: leg 1 on 40 rows, leg 2 on 40, leg 3 on 40 |
+| Cascades | Two, on every row: leg 1 miss opens leg 2, leg 2 miss opens leg 3 |
+| Re-run cost | **0.** A forced re-run Clay priced at ~20 credits moved the counter by zero |
+| Pro-only features used | None. Pro items carry an explicit "Upgrade" badge; nothing used carries one |
+| Throughput | 10 rows through all three legs in 5.46s and 5.48s on two runs, so 0.55s an account |
+| CRM write-back | 16 companies updated, 0 created, in 13.8s, on English standard properties |
+
+Three findings changed the build, and all three are in the case rather than hidden:
+
+1. **Apollo could not run at all.** Clay's Apollo.io actions are bring-your-own-account, and Apollo's
+   free plan issues no prospecting API key (recorded here on 2026-09-08). So the first leg became
+   Clay's own "Enrich company" at 1 credit a row, and Apollo leaves Case 3's stack rather than
+   appearing on a page it never touched.
+2. **Clay's per-column run condition would not persist.** Set three times across two columns, the
+   checkbox and its formula reverted on reload. The cascade is therefore expressed as input gates:
+   a formula column emits the domain only when the previous leg came back empty, and the next leg
+   reads that column as its required input. Formula columns persist, and the gate is visible in the
+   table as a filled or blank cell.
+3. **Clay's HubSpot connector wanted a fresh OAuth sign-in** that resolved to a personal HubSpot
+   login rather than the lab portal, so it was abandoned rather than risk the wrong account. The
+   write-back ran the documented fallback instead: Clay writes the enriched rows to a sheet tab and a
+   lab n8n workflow reads that tab, applies the CRM gate and upserts HubSpot by domain. `n8n` joins
+   Case 3's stack for that reason.
+
+The four provenance properties (`enrichment_source`, `enrichment_status`, `enriched_at`, `icp_fit`)
+are still not created in HubSpot: the lab Service Key carries read on the company schema but not
+`crm.schemas.companies.write`, which returned 403. The write-back runs on standard properties only,
+and the provenance stays in the Clay table and the sheet tab.
 
 ### Make.com
 
@@ -233,7 +276,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 | Slack | Created | 2026-07-24 |
 | Mailtrap | Created | 2026-07-24 |
 | Google (lab account) | Disabled by Google on creation day (appeal filed 2026-08-28) | 2026-08-05 |
-| Clay | Created (free plan); no Pro trial activated (D-19). Waterfall designed and the Sheets source built 2026-09-11; the in-app table build is waiting on one sign-in in the automation browser | 2026-09-09 |
+| Clay | Created (free plan); no Pro trial activated (D-19). Waterfall built and run end to end 2026-09-11: 40 rows, 3 legs, 0 of 100 credits spent | 2026-09-09 |
 | Make.com | Created; login restored 2026-09-08 after the lab Google account was reinstated | 2026-08-05 |
 | Apollo.io | Created; login restored 2026-09-08. Prospecting API not available on Free, so sourcing runs on saved-search CSV exports | 2026-08-05 |
 | OpenAI API | Created; key and n8n credential verified 2026-09-09 | 2026-08-05 |
@@ -245,7 +288,7 @@ Observed outcome: the app flipped to "In production" immediately, with no app-ve
 |---|---|---|---|
 | HubSpot free | 1,000 contacts, 2 seats, no custom objects. **This tier has no native workflows** — single-step "simple automation" and sequences are Starter+ and up. Private-app API limit: 100 requests per 10 seconds. | HubSpot is an API-only data store on the free tier. n8n owns every trigger and every branch; there is no HubSpot-native automation to reach for mid-build. | Cases 1, 4, 7 |
 | Salesforce Developer Edition | Permanent org, roughly 5 MB data storage and 20 MB file storage (verify in Setup → Storage Usage before loading data — this figure is carried forward from older docs). Inactive-user freezing after 60 days without login, and the feature cannot be disabled. | The org quietly freezes right when Case 7 stops getting regular traffic, after its recording is done and published. | Case 7, and any post-launch re-recording |
-| Clay | Free plan: 100 credits per month, 200-row table cap, no rollover. A multi-provider waterfall costs roughly 10 to 25 credits per row. The Pro trial is never activated (D-19), so the free figures are the only ones that apply. | The credits bind, not the row cap. 100 credits at the researched cost is 4 to 10 enriched rows in a month, and a month is how long it takes to get them back, so debugging on live credits costs weeks. Filling the 200-row table would take 20 to 50 months of free allowance. | Case 3 |
+| Clay | Free plan: 100 data credits and 500 actions per month, 200-row table cap, no rollover. The Pro trial is never activated (D-19), so the free figures are the only ones that apply. | Clay bills on a successful enrichment, not on an attempt, so the measured cost of the whole 40-row run was 0 credits. On real domains the structural maximum is 1 credit per enriched row, or about 100 rows a month. The 500 actions are the tighter limit at nine column runs a row. | Case 3 |
 | Cal.com | Free: unlimited event types and bookings for one user. | No trap. Free is sufficient for Case 8. | — |
 | Slack | Free: 90-day rolling message history, hidden rather than deleted. | A case built early and revisited late loses searchable history once it rolls past 90 days. | Case 10's digest |
 | Mailtrap | Free: 150 emails per day, 4,000 per month, 3-day log retention. | A live demo or a burst of testing silently exhausts the daily quota, and the logs are gone before anyone diagnoses it. | Case 5, and Phase 4's live demo |
