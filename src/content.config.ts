@@ -131,18 +131,27 @@ const replays = defineCollection({
         window: z.string().optional(),
       })
     ),
-    contact: z.object({
-      name: z.string(),
-      company: z.string(),
-      email: z.string(),
-      created: z.string(),
-    }),
-    slack: z.object({
-      bot: z.string(),
-      time: z.string(),
-      headline: z.string(),
-      fields: z.array(z.object({ label: z.string(), value: z.string() })),
-    }),
+    // Both panes are optional because not every case has both. Case 3's
+    // waterfall never touches Slack, and a replay that renders an empty Slack
+    // window for it would be claiming a tool the run did not use. A replay
+    // supplies whichever panes its `windows` list declares, and
+    // ExecutionReplay.astro renders only those.
+    contact: z
+      .object({
+        name: z.string(),
+        company: z.string(),
+        email: z.string(),
+        created: z.string(),
+      })
+      .optional(),
+    slack: z
+      .object({
+        bot: z.string(),
+        time: z.string(),
+        headline: z.string(),
+        fields: z.array(z.object({ label: z.string(), value: z.string() })),
+      })
+      .optional(),
   }),
 });
 

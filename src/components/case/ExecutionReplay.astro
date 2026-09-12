@@ -110,6 +110,7 @@ const totalLabel = fmtCounter(replay.totalMs);
     </div>
 
     <div class="flex flex-col gap-4">
+      {contactWindow && replay.contact && (
       <div class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface" data-replay-window="contact">
         <div class="flex items-center gap-2 border-b border-blueprint-line/20 bg-blueprint-bg/40 px-3 py-2">
           <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
@@ -130,7 +131,9 @@ const totalLabel = fmtCounter(replay.totalMs);
           </div>
         </div>
       </div>
+      )}
 
+      {slackWindow && replay.slack && (
       <div class="overflow-hidden rounded-lg border border-blueprint-line/30 bg-blueprint-surface" data-replay-window="slack">
         <div class="flex items-center gap-2 border-b border-blueprint-line/20 bg-blueprint-bg/40 px-3 py-2">
           <span class="h-2.5 w-2.5 rounded-full bg-blueprint-dim/40"></span>
@@ -161,6 +164,7 @@ const totalLabel = fmtCounter(replay.totalMs);
           </div>
         </div>
       </div>
+      )}
     </div>
   </div>
 

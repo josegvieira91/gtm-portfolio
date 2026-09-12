@@ -1,0 +1,33 @@
+{
+  "caseSlug": "tam-list-building-enrichment-waterfall",
+  "source": "Lab run 2026-09-11. Offsets are the CRM loader execution's real per-node durations, 13.974s end to end. The lines labelled TAM Enrichment (Clay) are the waterfall's own verdicts, read out of the sheet the loader is loading.",
+  "totalMs": 13974,
+  "windows": [
+    { "id": "loader", "kind": "log", "title": "Case 3 CRM Loader / waterfall output to CRM" },
+    { "id": "crm", "kind": "contact", "title": "HubSpot / Companies" }
+  ],
+  "steps": [
+    { "at": 0, "node": "CRM Loader Webhook", "line": "loader triggered, TAM Enrichment is up to date at 40 of 40 rows" },
+    { "at": 8, "node": "Read Enriched Output", "line": "reading the waterfall's output sheet...", "tone": "wait" },
+    { "at": 200, "node": "TAM Enrichment (Clay)", "line": "leg 1, Clay enrich company: ran on 40 rows, matched 0" },
+    { "at": 420, "node": "TAM Enrichment (Clay)", "line": "leg 2, LeadMagic: gate opened on all 40 rows, ran on 40, matched 0", "tone": "warn" },
+    { "at": 640, "node": "TAM Enrichment (Clay)", "line": "leg 3, internal registry: gate opened on all 40 rows, matched 20", "tone": "ok" },
+    { "at": 860, "node": "TAM Enrichment (Clay)", "line": "graham-group.example.com: leg 1 missed, leg 2 missed, leg 3 filled it. Software, 276, Vancouver, enrichment_source=registry", "tone": "ok" },
+    { "at": 1020, "node": "TAM Enrichment (Clay)", "line": "tremblay-orn-kozey.example.com: all three legs missed, enrichment_status=not_found, held for review", "tone": "warn" },
+    { "at": 1138, "node": "Read Enriched Output", "line": "40 rows read: 20 enriched, 20 not_found, coverage after the full waterfall 50%" },
+    { "at": 1145, "node": "Gate On Enriched And ICP Fit", "line": "16 of 40 rows are enriched and inside the ICP rule, 24 stay out", "tone": "ok" },
+    { "at": 1155, "node": "Search Company By Domain", "line": "searching HubSpot by domain, one request at a time to stay under the rate limit...", "tone": "wait" },
+    { "at": 7539, "node": "Search Company By Domain", "line": "16 searches, 16 domains, exactly one match each" },
+    { "at": 7545, "node": "Company Already In CRM?", "line": "16 existing companies, 0 new, so every write is an update" },
+    { "at": 7550, "node": "Update Company", "line": "writing name, domain, industry, numberofemployees, city...", "tone": "wait" },
+    { "at": 13966, "node": "Update Company", "line": "16 companies updated, 0 created, no duplicates", "tone": "ok", "window": "crm" },
+    { "at": 13970, "node": "Summarize Run", "line": "companies_written=16 created=0 updated=16" },
+    { "at": 13974, "node": "Respond With Summary", "line": "200 OK returned. 16 accounts sales-ready in 13.974s, 0 Clay credits spent", "tone": "done" }
+  ],
+  "contact": {
+    "name": "Graham Group",
+    "company": "Software, 276 employees, Vancouver",
+    "email": "graham-group.example.com",
+    "created": "Updated 09/11/2026 6:27 PM MDT"
+  }
+}
