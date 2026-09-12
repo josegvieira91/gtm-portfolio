@@ -1,0 +1,382 @@
+{
+  "name": "Case 3 CRM Loader (TAM Enrichment Waterfall)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PLACEHOLDER",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "CRM Loader Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -360,
+        0
+      ],
+      "webhookId": "PLACEHOLDER",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_WEBHOOK_AUTH"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ \"https://sheets.googleapis.com/v4/spreadsheets/\" + $json.body.spreadsheet_id + \"/values/enriched_output\" }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Read Enriched Output",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -140,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "PLACEHOLDER_GOOGLE_SHEETS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn the enriched_output sheet range into one item per qualifying company.\n// The waterfall already decided which rows are sales-ready; this node enforces\n// that decision at the CRM boundary and maps the free-text industry label to\n// HubSpot's fixed picklist, the same translation scripts/seed-data/lib/industry-map.mjs does.\nconst INDUSTRY_MAP = {\n  \"Software\": \"COMPUTER_SOFTWARE\",\n  \"Professional Services\": \"MANAGEMENT_CONSULTING\",\n  \"E-commerce\": \"RETAIL\",\n  \"Financial Services\": \"FINANCIAL_SERVICES\",\n  \"Healthcare Technology\": \"HOSPITAL_HEALTH_CARE\",\n  \"Manufacturing\": \"INDUSTRIAL_AUTOMATION\",\n  \"Logistics\": \"LOGISTICS_AND_SUPPLY_CHAIN\",\n  \"Marketing Services\": \"MARKETING_AND_ADVERTISING\",\n  \"Education Technology\": \"E_LEARNING\",\n  \"Real Estate Technology\": \"REAL_ESTATE\"\n};\nconst rows = $input.first().json.values || [];\nif (rows.length < 2) return [];\nconst header = rows[0];\nconst out = [];\nfor (const row of rows.slice(1)) {\n  const rec = {};\n  header.forEach((h, i) => { rec[h] = row[i] ?? ''; });\n  if (rec.enrichment_status !== 'enriched') continue;\n  if (String(rec.icp_fit).toUpperCase() !== 'TRUE') continue;\n  const properties = {\n    name: rec.company_name,\n    domain: rec.company_domain,\n    numberofemployees: rec.employee_count,\n    city: rec.hq_city,\n  };\n  const mapped = INDUSTRY_MAP[rec.industry];\n  if (mapped) properties.industry = mapped;\n  if (rec.company_linkedin_url) properties.linkedin_company_page = rec.company_linkedin_url;\n  out.push({ json: { domain: rec.company_domain, enrichment_source: rec.enrichment_source, properties } });\n}\nreturn out;"
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Gate On Enriched And ICP Fit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/companies/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"filterGroups\": [ { \"filters\": [ { \"propertyName\": \"domain\", \"operator\": \"EQ\", \"value\": $json.domain } ] } ], \"properties\": [\"name\",\"domain\"], \"limit\": 1 } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 400
+            }
+          }
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Search Company By Domain",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        300,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Company Already In CRM?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ \"https://api.hubapi.com/crm/v3/objects/companies/\" + $json.results[0].id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"properties\": $('Gate On Enriched And ICP Fit').item.json.properties } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 400
+            }
+          }
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Update Company",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        740,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/companies",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"properties\": $('Gate On Enriched And ICP Fit').item.json.properties } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 400
+            }
+          }
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "Create Company",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        740,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { action: 'updated', domain: $('Gate On Enriched And ICP Fit').item.json.domain, hubspot_id: $json.id } };"
+      },
+      "id": "a1000000-0000-4000-8000-000000000008",
+      "name": "Mark Updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { action: 'created', domain: $('Gate On Enriched And ICP Fit').item.json.domain, hubspot_id: $json.id } };"
+      },
+      "id": "a1000000-0000-4000-8000-000000000009",
+      "name": "Mark Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// One line per company the loader touched, so the run is auditable without opening HubSpot.\nconst items = $input.all();\nconst created = items.filter(i => i.json.action === 'created').length;\nconst updated = items.filter(i => i.json.action === 'updated').length;\nreturn [{ json: { companies_written: items.length, created, updated, domains: items.map(i => i.json.domain) } }];"
+      },
+      "id": "a1000000-0000-4000-8000-00000000000a",
+      "name": "Summarize Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-00000000000b",
+      "name": "Respond With Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1400,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "CRM Loader Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Enriched Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Enriched Output": {
+      "main": [
+        [
+          {
+            "node": "Gate On Enriched And ICP Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate On Enriched And ICP Fit": {
+      "main": [
+        [
+          {
+            "node": "Search Company By Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Company By Domain": {
+      "main": [
+        [
+          {
+            "node": "Company Already In CRM?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Already In CRM?": {
+      "main": [
+        [
+          {
+            "node": "Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Company": {
+      "main": [
+        [
+          {
+            "node": "Mark Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Company": {
+      "main": [
+        [
+          {
+            "node": "Mark Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Updated": {
+      "main": [
+        [
+          {
+            "node": "Summarize Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Created": {
+      "main": [
+        [
+          {
+            "node": "Summarize Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Run": {
+      "main": [
+        [
+          {
+            "node": "Respond With Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -54,3 +54,5 @@ localhost
 # enrichment vendor for the graceful-degradation scenario). Internal-only
 # hostname, no external DNS record, no credential attached.
 enrichment-mock
+
+sheets.googleapis.com

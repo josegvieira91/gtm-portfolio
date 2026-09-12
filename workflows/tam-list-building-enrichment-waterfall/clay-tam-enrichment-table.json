@@ -1,0 +1,172 @@
+{
+  "$comment": "Clay free has no table-export endpoint and no API key, so this file is a hand-written configuration record of the table that actually ran on 2026-09-11, transcribed column by column from the workspace. Every column name, action, provider, price and formula below is the literal value in the built table. Identifiers (workspace id, workbook id, table id, spreadsheet id) are deliberately absent.",
+  "name": "TAM Enrichment",
+  "workbook": "Case 3 TAM Enrichment",
+  "plan": "Clay Free",
+  "planLimits": {
+    "dataCreditsPerMonth": 100,
+    "actionsPerMonth": 500,
+    "rowsPerTable": 200,
+    "multiProviderWaterfalls": true
+  },
+  "runSettings": {
+    "autoRun": true,
+    "keepExistingResults": true,
+    "keepExistingResultsMeaning": "Only errored, empty or new cells will run. This is the re-run guard: a filled cell never re-fires, so a repeat costs nothing."
+  },
+  "source": {
+    "type": "Google Sheets",
+    "action": "Import from Google Sheets",
+    "spreadsheet": "Case 3 TAM Source List",
+    "sheet": "tam_source",
+    "deduplicateBy": ["company_domain"],
+    "fieldsReturned": ["company_name", "company_domain", "country", "list_source", "added_date"],
+    "runMode": "Manually",
+    "updateExistingRows": false,
+    "rowsImported": 40,
+    "creditCost": 0
+  },
+  "columns": [
+    {
+      "name": "leg1_clay_enrich",
+      "order": 1,
+      "kind": "enrichment",
+      "provider": "Clay",
+      "action": "Enrich company",
+      "listPrice": "1 credit per row",
+      "billing": "charged only on a successful enrichment",
+      "input": { "Company Identifier": "company_domain" },
+      "outputColumns": ["clay_employee_count", "clay_industry", "clay_linkedin_url", "clay_hq_city"],
+      "measured": { "rowsRun": 40, "rowsMatched": 0, "creditsSpent": 0 },
+      "note": "The locked stack named Apollo for this leg. Clay's Apollo.io actions are bring-your-own-account and Apollo's free plan issues no prospecting API key, so Apollo could not run at all and Clay's own company enrichment took the first leg."
+    },
+    {
+      "name": "leg2_gate_domain",
+      "order": 2,
+      "kind": "formula",
+      "formula": "!{{clay_employee_count}} ? {{Google Sheets}}?.company_domain : \"\"",
+      "purpose": "Cascade gate 1. Emits the domain only when leg 1 came back empty. Leg 2 reads this column as its required input, so a row leg 1 already filled hands leg 2 nothing to work with and leg 2 does not run.",
+      "creditCost": 0
+    },
+    {
+      "name": "leg2_leadmagic_enrich",
+      "order": 3,
+      "kind": "enrichment",
+      "provider": "LeadMagic",
+      "account": "Clay-managed",
+      "action": "Enrich company",
+      "listPrice": "1 credit per row",
+      "billing": "charged only on a successful enrichment",
+      "input": { "Company Domain": "leg2_gate_domain" },
+      "outputColumns": ["fallback_industry", "fallback_employee_count", "fallback_hq_city"],
+      "measured": { "rowsRun": 40, "rowsMatched": 0, "creditsSpent": 0 }
+    },
+    {
+      "name": "leg3_gate_domain",
+      "order": 4,
+      "kind": "formula",
+      "formula": "(!{{clay_employee_count}} && !{{fallback_employee_count}}) ? {{Google Sheets}}?.company_domain : \"\"",
+      "purpose": "Cascade gate 2. Emits the domain only when both vendor legs came back empty.",
+      "creditCost": 0
+    },
+    {
+      "name": "leg3_registry_lookup",
+      "order": 5,
+      "kind": "enrichment",
+      "provider": "Google Sheets",
+      "action": "Look up row",
+      "listPrice": "0 credits",
+      "input": {
+        "sheet": "company_registry",
+        "lookupColumn": "company_domain",
+        "lookupValue": "leg3_gate_domain"
+      },
+      "fieldsReturned": ["registry_industry", "registry_employee_count", "registry_country", "registry_hq_city"],
+      "measured": { "rowsRun": 40, "rowsMatched": 20, "creditsSpent": 0 },
+      "note": "Designed as a Clay cross-table lookup against a second Clay table. That action exists on the free plan but its Target Column selector would not populate, so this leg took the design's own named fallback: the internal reference list read straight out of the same spreadsheet."
+    },
+    {
+      "name": "merged_industry",
+      "order": 6,
+      "kind": "formula",
+      "formula": "{{clay_industry}} || {{fallback_industry}} || {{leg3_registry_lookup}}?.rows?.[0]?.registry_industry || \"\"",
+      "creditCost": 0
+    },
+    {
+      "name": "merged_employee_count",
+      "order": 7,
+      "kind": "formula",
+      "formula": "{{clay_employee_count}} || {{fallback_employee_count}} || {{leg3_registry_lookup}}?.rows?.[0]?.registry_employee_count || \"\"",
+      "creditCost": 0
+    },
+    {
+      "name": "hq_city",
+      "order": 8,
+      "kind": "formula",
+      "formula": "{{clay_hq_city}} || {{fallback_hq_city}} || {{leg3_registry_lookup}}?.rows?.[0]?.registry_hq_city || \"\"",
+      "creditCost": 0
+    },
+    {
+      "name": "enrichment_source",
+      "order": 9,
+      "kind": "formula",
+      "formula": "{{clay_employee_count}} ? \"clay\" : ({{fallback_employee_count}} ? \"leadmagic\" : ({{leg3_registry_lookup}}?.rows?.[0]?.registry_employee_count ? \"registry\" : \"\"))",
+      "creditCost": 0
+    },
+    {
+      "name": "enrichment_status",
+      "order": 10,
+      "kind": "formula",
+      "formula": "({{clay_employee_count}} || {{fallback_employee_count}} || {{leg3_registry_lookup}}?.rows?.[0]?.registry_employee_count) ? \"enriched\" : \"not_found\"",
+      "creditCost": 0
+    },
+    {
+      "name": "icp_fit",
+      "order": 11,
+      "kind": "formula",
+      "formula": "(Number({{merged_employee_count}}) >= 25 && Number({{merged_employee_count}}) <= 500 && ({{Google Sheets}}?.country === \"Canada\" || {{Google Sheets}}?.country === \"United States\") && [\"Software\",\"Financial Services\",\"Healthcare Technology\",\"Education Technology\",\"Real Estate Technology\",\"E-commerce\",\"Marketing Services\"].indexOf({{merged_industry}}) >= 0) ? \"true\" : \"false\"",
+      "purpose": "The rule that turns an enriched row into a sales-ready account: headcount between 25 and 500, country in the served market, industry in the target vocabulary.",
+      "creditCost": 0
+    },
+    {
+      "name": "Add row",
+      "order": 12,
+      "kind": "export",
+      "provider": "Google Sheets",
+      "action": "Add row",
+      "target": { "spreadsheet": "Case 3 TAM Source List", "sheet": "enriched_output" },
+      "mapping": {
+        "company_domain": "company_domain",
+        "company_name": "company_name",
+        "industry": "merged_industry",
+        "employee_count": "merged_employee_count",
+        "company_linkedin_url": "clay_linkedin_url",
+        "hq_city": "hq_city",
+        "enrichment_source": "enrichment_source",
+        "enrichment_status": "enrichment_status",
+        "icp_fit": "icp_fit"
+      },
+      "creditCost": 0,
+      "note": "Writes every row, verdict included, not just the qualifying ones. The CRM gate lives in the n8n loader, so the sheet stays a complete record of what the waterfall decided and the loader stays the only place that can put a company in front of a salesperson."
+    }
+  ],
+  "companionTable": {
+    "name": "Company Registry",
+    "source": { "type": "Google Sheets", "sheet": "company_registry", "deduplicateBy": ["company_domain"], "rows": 20 },
+    "purpose": "The internal record of what the business already knows about its own accounts. Last leg of the waterfall, because the locked stack puts the vendors first; in a paying account this would run first, since internal data is free and fresher than a vendor's."
+  },
+  "measuredRun": {
+    "date": "2026-09-11",
+    "sourceRows": 40,
+    "enriched": 20,
+    "notFound": 20,
+    "coverageAfterFullWaterfall": "50%",
+    "passedIcpRule": 16,
+    "creditsSpent": 0,
+    "creditsRemaining": 100,
+    "throughput": "10 rows through all three legs in 5.46s and 5.48s on two runs",
+    "forcedRerunEstimate": "~20 credits",
+    "forcedRerunActual": "0 credits",
+    "dataRule": "Every domain is a reserved example.com address, so both vendor legs miss by construction. The run proves the cascade, the gates, the skip-on-re-run behaviour and the real credit cost. It does not prove any vendor's match quality."
+  }
+}
