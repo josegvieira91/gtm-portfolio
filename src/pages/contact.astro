@@ -1,32 +1,18 @@
 ---
-// SITE-07: /contact. Cal.com inline embed, lazy-loaded via IntersectionObserver
-// (RESEARCH.md Code Example #6 / Pitfall 8: third-party script must never load
-// eagerly). min-height reserves the embed's box so injection causes zero CLS.
+// /contact. Cal.com inline embed, lazy-loaded through an
+// IntersectionObserver so the third-party script never loads eagerly.
+// min-height reserves the embed's box, so injecting it causes zero CLS.
 //
-// calLink: docs/lab-accounts.md documents the Cal.com account (username
-// "josevieira" preferred) and a 30-minute "Intro call" event type. The real,
-// gitignored lab-accounts.local.md records the actual username that landed
-// (jose-vieira-snclfz, "josevieira" was taken) and flags the "Intro call"
-// event's exact slug as unconfirmed ("Verification debt" section). Direct
-// verification this session: https://cal.com/jose-vieira-snclfz/intro-call
-// 404s; https://cal.com/jose-vieira-snclfz/30min (Cal.com's stock "30 Min
-// Meeting" event) returns 200. calLink below points at that verified-live
-// event rather than the plan's generic 'josevieira/intro' fallback, since a
-// real reachable link beats an invented one — but it is still the STOCK event,
-// not the intended "Intro call" branded one, so CAL_LINK_PLACEHOLDER stays.
+// TODO at launch: the Cal.com event slug and the public e-mail address below
+// are both set on launch day. `calLink` currently points at a live 30-minute
+// event, and the address follows the site's own hello@ convention. Both are
+// constants so there is exactly one line to change for each.
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const calLink = 'jose-vieira-snclfz/30min';
-// CONTACT_EMAIL_PLACEHOLDER: no confirmed public inbox for josevieira.dev found
-// in PROJECT.md/design spec/lab docs. hello@josevieira.dev follows this
-// project's own hello@ convention (see docs/lab-accounts.md's lab Gmail
-// pattern) but is NOT a verified, routed mailbox. Confirm at 02-08 final gate.
 const contactEmail = 'hello@josevieira.dev';
 ---
 
-<!-- CAL_LINK_PLACEHOLDER: confirm the real "Intro call" event exists and get
-     its exact slug at 02-08 final gate; swap calLink above if it differs
-     from the stock jose-vieira-snclfz/30min event used here. -->
 <BaseLayout
   title="Contact - Jose Vieira"
   description="Book a call with Jose Vieira or reach out by email."
@@ -53,7 +39,6 @@ const contactEmail = 'hello@josevieira.dev';
         </div>
       </section>
 
-      <!-- CONTACT_EMAIL_PLACEHOLDER: unconfirmed mailbox, see note above -->
       <p class="text-sm text-blueprint-dim">
         Prefer email? Reach me directly at{' '}
         <a class="text-blueprint-line underline" href={`mailto:${contactEmail}`}>
@@ -65,15 +50,14 @@ const contactEmail = 'hello@josevieira.dev';
 </BaseLayout>
 
 <script define:vars={{ calLink }}>
-  // 02-08 fix (Rule 1/2 — the widget never actually rendered before this):
-  // Cal.com's real embed.js (verified directly against the shipped file)
-  // checks `window.Cal.q` at its own top level and THROWS "Cal is not
-  // defined. This shouldn't happen" if that stub isn't already present —
-  // it expects the official bootstrap snippet to run first, not a bare
-  // <script src> tag with an onload handler (the pattern this file had
-  // before, copied from RESEARCH.md's Code Example #6, which omitted the
-  // stub). This IIFE is that stub: defining it is synchronous, local, and
-  // costs zero network requests on its own — it only queues calls into
+  // Cal.com's real embed.js, read directly off the shipped file, checks
+  // `window.Cal.q` at its own top level and THROWS "Cal is not defined. This
+  // shouldn't happen" if that stub isn't already present. It expects the
+  // official bootstrap snippet to run first, not a bare <script src> tag
+  // with an onload handler, which is what this file used to do and why the
+  // widget never rendered. This IIFE is that stub: defining it is
+  // synchronous, local, and costs zero network requests on its own. It only
+  // queues calls into
   // `.q` until the real script (appended by the stub itself, on the FIRST
   // Cal(...) call) loads and "hydrates" it. That means the stub can be
   // defined unconditionally up front, while the actual Cal(...) invocations
@@ -116,13 +100,13 @@ const contactEmail = 'hello@josevieira.dev';
   if (target) {
     // A plain IntersectionObserver alone is not enough here. Its callback
     // reports the CURRENT intersection state the moment observe() runs,
-    // with no scroll required — and on this page the embed div (short
+    // with no scroll required, and on this page the embed div (short
     // header above it, 600px min-height) already clears the 10% threshold
     // inside a typical mobile viewport (412x823) with zero scrolling. That
-    // fired an eager `app.cal.com` request on page load, exactly the bug
-    // Pitfall 8 / the 02-08 Lighthouse no-scroll gate exists to catch. Gate
-    // loading on an actual scroll event having happened at least once, not
-    // merely on intersection.
+    // fired an eager `app.cal.com` request on page load, which is exactly
+    // what the lazy-load is there to prevent and what a Lighthouse run with
+    // no scrolling catches. Gate loading on an actual scroll event having
+    // happened at least once, not merely on intersection.
     let hasScrolled = false;
     let loaded = false;
 
@@ -148,7 +132,7 @@ const contactEmail = 'hello@josevieira.dev';
       if (hasScrolled) return;
       hasScrolled = true;
       // The observer's own callback won't refire just because this flag
-      // flipped (it only fires again on a threshold-crossing event) — so if
+      // flipped (it only fires again on a threshold-crossing event), so if
       // the target was ALREADY intersecting before this first scroll, check
       // directly here rather than waiting for a crossing that may never come.
       const rect = target.getBoundingClientRect();
@@ -160,14 +144,14 @@ const contactEmail = 'hello@josevieira.dev';
 
     // CR-01 fix: scroll alone is not a reliable trigger. The BaseLayout
     // footer sits after a min-h-screen main, so every page technically
-    // scrolls by ~90px — but on a tall display the embed is fully visible
+    // scrolls by ~90px. On a tall display the embed is fully visible
     // with no need to scroll, and a visitor can hover the empty box forever
     // without ever firing `scroll`. A `scrollHeight <= innerHeight` guard
     // therefore never arms (proven with a real-browser E2E at 1600x1401).
     // Arm the interaction fallback unconditionally instead: any deliberate
     // input is a "real visitor, not a Lighthouse/bot no-input run" signal.
     // Lighthouse dispatches no input events, so the no-interaction trace
-    // stays free of app.cal.com requests (SITE-08). loadEmbed() is
+    // stays free of app.cal.com requests. loadEmbed() is
     // idempotent, so the scroll path and this path can both fire safely.
     ['pointerdown', 'keydown', 'pointermove'].forEach((evt) =>
       window.addEventListener(evt, loadEmbed, { once: true, passive: true })
