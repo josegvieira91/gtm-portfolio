@@ -22,7 +22,6 @@
       "webhookId": "PLACEHOLDER",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "owFNJ0hyfsqLng0D",
           "name": "PLACEHOLDER_WEBHOOK_AUTH"
         }
       },
@@ -31,7 +30,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Checks required fields + basic email shape. Kept as its own node (not buried inside\n// normalization) so Phase 4 can reuse this webhook behind a public form without dragging\n// idempotency/auth logic along. On failure, 'Submission Valid?' routes to Respond Invalid\n// (400) before Normalize, Idempotency Gate or Persist Raw Submission ever run.\nconst body = ($json.body) || {};\nconst errors = [];\nconst required = ['email', 'first_name', 'last_name', 'company'];\nfor (const field of required) {\n  const val = body[field];\n  if (val === undefined || val === null || String(val).trim() === '') {\n    errors.push(`missing_${field}`);\n  }\n}\nconst emailRe = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (body.email && !emailRe.test(String(body.email).trim())) {\n  errors.push('invalid_email_shape');\n}\nreturn { json: { valid: errors.length === 0, errors, body } };"
+        "jsCode": "// Checks required fields + basic email shape. Kept as its own node (not buried inside\n// normalization) so a public-facing form can reuse this webhook later without dragging\n// idempotency/auth logic along. On failure, 'Submission Valid?' routes to Respond Invalid\n// (400) before Normalize, Idempotency Gate or Persist Raw Submission ever run.\nconst body = ($json.body) || {};\nconst errors = [];\nconst required = ['email', 'first_name', 'last_name', 'company'];\nfor (const field of required) {\n  const val = body[field];\n  if (val === undefined || val === null || String(val).trim() === '') {\n    errors.push(`missing_${field}`);\n  }\n}\nconst emailRe = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (body.email && !emailRe.test(String(body.email).trim())) {\n  errors.push('invalid_email_shape');\n}\nreturn { json: { valid: errors.length === 0, errors, body } };"
       },
       "id": "n02-validate",
       "name": "Validate Submission",
@@ -96,7 +95,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Idempotency key computed at the door -- before Idempotency Gate or Persist Raw\n// Submission run (build checkpoint 1). Auth no longer lives here: it moved to the\n// webhook's native Header Auth credential. UUID fallback is generated inline\n// (Math.random based); `crypto` is NOT a Code-node global here.\nconst body = $json.body || {};\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst domain = email.includes('@') ? email.split('@')[1] : '';\nlet companySize = null;\nif (body.company_size !== undefined && body.company_size !== null && body.company_size !== '') {\n  const n = Number(body.company_size);\n  companySize = Number.isFinite(n) ? n : null;\n}\nconst submission_uuid = (body.submission_id && String(body.submission_id).trim()) || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random()*16|0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));\nreturn { json: {\n  submission_uuid,\n  email,\n  domain,\n  first_name: body.first_name || null,\n  last_name: body.last_name || null,\n  company: body.company || null,\n  segment: body.segment || null,\n  company_size: companySize,\n  message: body.message || null,\n} };"
+        "jsCode": "// Idempotency key computed at the door -- before Idempotency Gate or Persist Raw\n// Submission run. Auth no longer lives here: it moved to the\n// webhook's native Header Auth credential. UUID fallback is generated inline\n// (Math.random based); `crypto` is NOT a Code-node global here.\nconst body = $json.body || {};\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst domain = email.includes('@') ? email.split('@')[1] : '';\nlet companySize = null;\nif (body.company_size !== undefined && body.company_size !== null && body.company_size !== '') {\n  const n = Number(body.company_size);\n  companySize = Number.isFinite(n) ? n : null;\n}\nconst submission_uuid = (body.submission_id && String(body.submission_id).trim()) || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random()*16|0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));\nreturn { json: {\n  submission_uuid,\n  email,\n  domain,\n  first_name: body.first_name || null,\n  last_name: body.last_name || null,\n  company: body.company || null,\n  segment: body.segment || null,\n  company_size: companySize,\n  message: body.message || null,\n} };"
       },
       "id": "n04-normalize",
       "name": "Normalize + Compute Idempotency Key",
@@ -125,7 +124,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -197,7 +195,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -223,7 +220,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// REQ5 graceful degradation: falls back to form-supplied firmographics and marks\n// enrichment_status = 'pending' when Enrichment Lookup failed or timed out -- the\n// lead still routes all the way through. Scoring itself lives in the separate\n// \"Score Lead\" node (split out of the source's single Merge+Score node).\nconst norm = $('Normalize + Compute Idempotency Key').item.json;\nconst enr = $json; // Enrichment Lookup output (or its degraded/error item)\n\nconst enrichedOk = enr && typeof enr.company_size === 'number' && !!enr.segment;\nconst enrichment_status = enrichedOk ? 'enriched' : 'pending';\n\nconst company_size = enrichedOk\n  ? Number(enr.company_size)\n  : (norm.company_size != null ? Number(norm.company_size) : null);\nconst segment = enrichedOk ? enr.segment : norm.segment;\nconst company_name = (enr && enr.company_name) ? enr.company_name : norm.company;\n\nreturn { json: {\n  email: norm.email, domain: norm.domain,\n  first_name: norm.first_name, last_name: norm.last_name,\n  company: norm.company, company_name, segment, company_size,\n  message: norm.message, enrichment_status,\n} };"
+        "jsCode": "// Graceful degradation: falls back to form-supplied firmographics and marks\n// enrichment_status = 'pending' when Enrichment Lookup failed or timed out -- the\n// lead still routes all the way through. Scoring itself lives in the separate\n// \"Score Lead\" node, kept separate from this merge so each stage reads on its own.\nconst norm = $('Normalize + Compute Idempotency Key').item.json;\nconst enr = $json; // Enrichment Lookup output (or its degraded/error item)\n\nconst enrichedOk = enr && typeof enr.company_size === 'number' && !!enr.segment;\nconst enrichment_status = enrichedOk ? 'enriched' : 'pending';\n\nconst company_size = enrichedOk\n  ? Number(enr.company_size)\n  : (norm.company_size != null ? Number(norm.company_size) : null);\nconst segment = enrichedOk ? enr.segment : norm.segment;\nconst company_name = (enr && enr.company_name) ? enr.company_name : norm.company;\n\nreturn { json: {\n  email: norm.email, domain: norm.domain,\n  first_name: norm.first_name, last_name: norm.last_name,\n  company: norm.company, company_name, segment, company_size,\n  message: norm.message, enrichment_status,\n} };"
       },
       "id": "n10-mergeenrich",
       "name": "Merge Enrichment Result",
@@ -237,7 +234,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// REQ6 config-driven scoring: thresholds/rules live in this node's own const block --\n// vanilla n8n Code nodes have no fs access, same tradeoff the source documents rather\n// than re-architected into a Postgres config table.\nconst cfg = {\n  threshold: 50,\n  rules: [\n    { id: 'size_enterprise', field: 'company_size', op: '>=', value: 200, points: 30 },\n    { id: 'size_midmarket', field: 'company_size', op: '>=', value: 50, points: 15 },\n    { id: 'segment_fit', field: 'segment', op: 'in', value: ['saas', 'fintech'], points: 25 },\n    { id: 'business_email', field: 'email', op: 'not_free_domain', points: 20 },\n    { id: 'has_message', field: 'message', op: 'non_empty', points: 10 },\n  ],\n  free_email_domains: ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'proton.me', 'aol.com'],\n};\nconst ctx = $json; // Merge Enrichment Result output\n\nconst freeDomains = cfg.free_email_domains || [];\nlet score = 0;\nfor (const rule of (cfg.rules || [])) {\n  const val = ctx[rule.field];\n  let match = false;\n  if (rule.op === '>=') match = (val != null) && Number(val) >= Number(rule.value);\n  else if (rule.op === 'in') match = Array.isArray(rule.value) && rule.value.includes(val);\n  else if (rule.op === 'not_free_domain') {\n    const d = (ctx.email || '').split('@')[1];\n    match = !!d && !freeDomains.includes(d);\n  } else if (rule.op === 'non_empty') {\n    match = val !== null && val !== undefined && String(val).trim() !== '';\n  }\n  if (match) score += Number(rule.points) || 0;\n}\nconst threshold = Number(cfg.threshold) || 0;\nconst qualified = score >= threshold;\n\nreturn { json: { ...ctx, score, qualified } };"
+        "jsCode": "// Config-driven scoring: thresholds and rules live in this node's own const block.\n// Vanilla n8n Code nodes have no fs access, so the config stays inline here rather\n// than moving into a Postgres config table.\nconst cfg = {\n  threshold: 50,\n  rules: [\n    { id: 'size_enterprise', field: 'company_size', op: '>=', value: 200, points: 30 },\n    { id: 'size_midmarket', field: 'company_size', op: '>=', value: 50, points: 15 },\n    { id: 'segment_fit', field: 'segment', op: 'in', value: ['saas', 'fintech'], points: 25 },\n    { id: 'business_email', field: 'email', op: 'not_free_domain', points: 20 },\n    { id: 'has_message', field: 'message', op: 'non_empty', points: 10 },\n  ],\n  free_email_domains: ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'proton.me', 'aol.com'],\n};\nconst ctx = $json; // Merge Enrichment Result output\n\nconst freeDomains = cfg.free_email_domains || [];\nlet score = 0;\nfor (const rule of (cfg.rules || [])) {\n  const val = ctx[rule.field];\n  let match = false;\n  if (rule.op === '>=') match = (val != null) && Number(val) >= Number(rule.value);\n  else if (rule.op === 'in') match = Array.isArray(rule.value) && rule.value.includes(val);\n  else if (rule.op === 'not_free_domain') {\n    const d = (ctx.email || '').split('@')[1];\n    match = !!d && !freeDomains.includes(d);\n  } else if (rule.op === 'non_empty') {\n    match = val !== null && val !== undefined && String(val).trim() !== '';\n  }\n  if (match) score += Number(rule.points) || 0;\n}\nconst threshold = Number(cfg.threshold) || 0;\nconst qualified = score >= threshold;\n\nreturn { json: { ...ctx, score, qualified } };"
       },
       "id": "n11-score",
       "name": "Score Lead",
@@ -300,7 +297,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -338,7 +334,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -394,7 +389,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// REQ6 config-driven routing: first matching rule (top to bottom) wins. Routing table\n// inlined in this node's own const block -- same tradeoff as Score Lead above.\nconst rt = {\n  pools: {\n    enterprise: [\n      { rep_id: 'rep_ana', name: 'Ana Costa', hubspot_owner_id: '' },\n      { rep_id: 'rep_bruno', name: 'Bruno Lima', hubspot_owner_id: '' },\n    ],\n    smb: [\n      { rep_id: 'rep_carla', name: 'Carla Nunes', hubspot_owner_id: '' },\n      { rep_id: 'rep_diego', name: 'Diego Souza', hubspot_owner_id: '' },\n    ],\n  },\n  routing: [\n    { match: { company_size_gte: 200 }, pool: 'enterprise' },\n    { match: { company_size_gte: 0 }, pool: 'smb' },\n  ],\n};\nconst size = Number($('Score Lead').item.json.company_size) || 0;\nlet pool_key = 'smb';\nfor (const r of (rt.routing || [])) {\n  const gte = (r.match && r.match.company_size_gte != null) ? r.match.company_size_gte : 0;\n  if (size >= gte) { pool_key = r.pool; break; }\n}\nreturn { json: { pool_key } };"
+        "jsCode": "// Config-driven routing: first matching rule (top to bottom) wins. The routing table\n// is inlined in this node's own const block, same tradeoff as Score Lead above.\nconst rt = {\n  pools: {\n    enterprise: [\n      { rep_id: 'rep_ana', name: 'Ana Costa', hubspot_owner_id: '' },\n      { rep_id: 'rep_bruno', name: 'Bruno Lima', hubspot_owner_id: '' },\n    ],\n    smb: [\n      { rep_id: 'rep_carla', name: 'Carla Nunes', hubspot_owner_id: '' },\n      { rep_id: 'rep_diego', name: 'Diego Souza', hubspot_owner_id: '' },\n    ],\n  },\n  routing: [\n    { match: { company_size_gte: 200 }, pool: 'enterprise' },\n    { match: { company_size_gte: 0 }, pool: 'smb' },\n  ],\n};\nconst size = Number($('Score Lead').item.json.company_size) || 0;\nlet pool_key = 'smb';\nfor (const r of (rt.routing || [])) {\n  const gte = (r.match && r.match.company_size_gte != null) ? r.match.company_size_gte : 0;\n  if (size >= gte) { pool_key = r.pool; break; }\n}\nreturn { json: { pool_key } };"
       },
       "id": "n18-resolvepool",
       "name": "Resolve Routing Pool",
@@ -423,7 +418,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -460,7 +454,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -497,7 +490,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -526,12 +518,11 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "httpHeaderAuth": {
-          "id": "2qJIxmnLJljL18I8",
           "name": "PLACEHOLDER_HUBSPOT"
         }
       },
       "onError": "continueRegularOutput",
-      "notes": "Build checkpoint 3 (account dedup inside HubSpot, not just Postgres): searches by domain before the write node below decides PATCH vs POST."
+      "notes": "Account dedup inside HubSpot, not just Postgres: searches by domain before the write node below decides PATCH vs POST."
     },
     {
       "parameters": {
@@ -603,17 +594,16 @@
       "retryOnFail": false,
       "credentials": {
         "httpHeaderAuth": {
-          "id": "2qJIxmnLJljL18I8",
           "name": "PLACEHOLDER_HUBSPOT"
         }
       },
       "onError": "continueErrorOutput",
-      "notes": "Build checkpoint 3: PATCH if Prepare Company Write found an existing id, POST if not. Build checkpoint 4: retryOnFail is off here on purpose -- the explicit Compute Company Backoff / Company Should Retry? / Company Backoff Wait loop below implements 500ms*2^n+jitter honoring Retry-After, which n8n's native fixed waitBetweenTries cannot express."
+      "notes": "PATCH if Prepare Company Write found an existing id, POST if not. retryOnFail is off here on purpose -- the explicit Compute Company Backoff / Company Should Retry? / Company Backoff Wait loop below implements 500ms*2^n+jitter honoring Retry-After, which n8n's native fixed waitBetweenTries cannot express."
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// REQ4 / build checkpoint 4: exponential backoff with jitter on HubSpot 429s\n// (500ms * 2^n + jitter, capped at 30s), honoring Retry-After when HubSpot sends it.\n// Matches the pattern the sibling outbound workflow documents for its Claude calls,\n// but implemented as a real reactive loop since native retryOnFail can't express\n// exponential growth or read a response header.\n// $runIndex is this node's own run count for the current item -- it increments once\n// per loop pass, which makes it a reliable attempt counter regardless of exactly how\n// n8n shapes the HTTP node's error-output item.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
+        "jsCode": "// Exponential backoff with jitter on HubSpot 429s\n// (500ms * 2^n + jitter, capped at 30s), honoring Retry-After when HubSpot sends it.\n// Matches the pattern the sibling outbound workflow uses for its model calls,\n// but implemented as a real reactive loop since native retryOnFail can't express\n// exponential growth or read a response header.\n// $runIndex is this node's own run count for the current item -- it increments once\n// per loop pass, which makes it a reliable attempt counter regardless of exactly how\n// n8n shapes the HTTP node's error-output item.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
       },
       "id": "n28-companybackoff",
       "name": "Compute Company Backoff",
@@ -670,7 +660,7 @@
         5344,
         112
       ],
-      "webhookId": "company-backoff-wait-resume"
+      "webhookId": "PLACEHOLDER"
     },
     {
       "parameters": {
@@ -722,7 +712,6 @@
       "retryOnFail": false,
       "credentials": {
         "httpHeaderAuth": {
-          "id": "2qJIxmnLJljL18I8",
           "name": "PLACEHOLDER_HUBSPOT"
         }
       },
@@ -789,7 +778,7 @@
         6448,
         112
       ],
-      "webhookId": "contact-backoff-wait-resume"
+      "webhookId": "PLACEHOLDER"
     },
     {
       "parameters": {
@@ -837,7 +826,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -861,7 +849,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       }
@@ -876,7 +863,7 @@
           "cachedResultName": "#gtm-lab-inbound-alerts"
         },
         "messageType": "block",
-        "blocksUi": "={{ JSON.stringify({ \"blocks\": [ { \"type\": \"header\", \"text\": { \"type\": \"plain_text\", \"text\": \"\ud83d\udd25 New qualified lead\" } }, { \"type\": \"section\", \"fields\": [ { \"type\": \"mrkdwn\", \"text\": \"*Company:*\\n\" + ($('Merge Contact Result').item.json.company || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Contact:*\\n\" + (($('Merge Contact Result').item.json.first_name || '') + ' ' + ($('Merge Contact Result').item.json.last_name || '')).trim() + ' <' + ($('Merge Contact Result').item.json.email || '') + '>' }, { \"type\": \"mrkdwn\", \"text\": \"*Score:*\\n\" + $('Merge Contact Result').item.json.score }, { \"type\": \"mrkdwn\", \"text\": \"*Owner:*\\n\" + ($('Merge Contact Result').item.json.owner_id || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Domain:*\\n\" + ($('Merge Contact Result').item.json.domain || '-') } ] }, { \"type\": \"context\", \"elements\": [ { \"type\": \"mrkdwn\", \"text\": \"HubSpot: https://app.hubspot.com/contacts/\" } ] } ] }) }}",
+        "blocksUi": "={{ JSON.stringify({ \"blocks\": [ { \"type\": \"header\", \"text\": { \"type\": \"plain_text\", \"text\": \"🔥 New qualified lead\" } }, { \"type\": \"section\", \"fields\": [ { \"type\": \"mrkdwn\", \"text\": \"*Company:*\\n\" + ($('Merge Contact Result').item.json.company || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Contact:*\\n\" + (($('Merge Contact Result').item.json.first_name || '') + ' ' + ($('Merge Contact Result').item.json.last_name || '')).trim() + ' <' + ($('Merge Contact Result').item.json.email || '') + '>' }, { \"type\": \"mrkdwn\", \"text\": \"*Score:*\\n\" + $('Merge Contact Result').item.json.score }, { \"type\": \"mrkdwn\", \"text\": \"*Owner:*\\n\" + ($('Merge Contact Result').item.json.owner_id || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Domain:*\\n\" + ($('Merge Contact Result').item.json.domain || '-') } ] }, { \"type\": \"context\", \"elements\": [ { \"type\": \"mrkdwn\", \"text\": \"HubSpot: https://app.hubspot.com/contacts/\" } ] } ] }) }}",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
@@ -889,10 +876,9 @@
         7328,
         80
       ],
-      "webhookId": "b2427276-e5f2-4847-bf51-63d11b0e3221",
+      "webhookId": "PLACEHOLDER",
       "credentials": {
         "slackApi": {
-          "id": "vAu3XqnEfjaH2RTK",
           "name": "PLACEHOLDER_SLACK"
         }
       },
@@ -916,7 +902,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -939,7 +924,7 @@
     },
     {
       "parameters": {
-        "content": "## Inbound Speed-to-Lead -- 5 stages, 43 working nodes\n\n**Stages:** Intake -> Enrichment -> Scoring -> Routing -> Persistence.\n\n**Flow:** Form Webhook -> Validate Submission -> Submission Valid? -> (no) Respond Invalid (400) /\n(yes) Normalize+Idempotency Key -> Idempotency Gate -> Is New? -> (dup) Respond Duplicate /\n(new) Persist Raw Submission -> Enrichment Lookup -> Merge Enrichment Result -> Score Lead\n-> Qualified? -> (no) Insert Disqualified + Respond / (yes) Upsert Account -> Account Has Owner?\n-> reuse OR round-robin -> Owner Resolved -> Upsert Lead -> HubSpot Search Company By Domain\n-> Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (+backoff loop)\n-> Merge Company Result -> HubSpot Upsert Contact (+backoff loop) -> Merge Contact Result\n-> Update Lead HubSpot IDs -> Enqueue Slack Outbox -> Post Slack Alert -> Mark Outbox Sent\n-> Respond Qualified.\n\n**Three required upgrades over the source:**\n1. HubSpot company is find-or-create, not create-only: HubSpot Search Company By Domain ->\n   Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (PATCH if found,\n   POST if not).\n2. Exponential backoff with jitter on both HubSpot write calls (500ms * 2^n + jitter, capped\n   30s, honors Retry-After): Compute Company/Contact Backoff -> Should Retry? -> Backoff Wait\n   loops back into the write node; Give Up nodes degrade gracefully after 5 attempts.\n3. Inbound webhook auth is n8n's native Header Auth credential on Form Webhook -- not a\n   hardcoded token compared inside a Code node.\n\n**Config-as-code (REQ6, ported as-is from source):** Score Lead's scoring rules and Resolve\nRouting Pool / Pick + Persist Owner / Owner Resolved's routing table are inlined in each\nnode's own const block -- vanilla n8n Code nodes have no fs access.\n\n**Setup on import:** assign PLACEHOLDER_POSTGRES (Postgres), PLACEHOLDER_HUBSPOT (HTTP Header\nAuth: header `Authorization` = `Bearer <private app token>`), PLACEHOLDER_SLACK (Slack API bot\ntoken), and PLACEHOLDER_WEBHOOK_AUTH (Header Auth on Form Webhook) to real credentials in the\nlab accounts. Confirm #gtm-lab-inbound-alerts exists in the Vieira GTM Lab Slack workspace.\nThe Form Webhook path ships as PLACEHOLDER in this export per\ndocs/sanitization-checklist.md item 2 -- set your own path value after import.",
+        "content": "## Inbound Speed-to-Lead -- 5 stages, 43 working nodes\n\n**Stages:** Intake -> Enrichment -> Scoring -> Routing -> Persistence.\n\n**Flow:** Form Webhook -> Validate Submission -> Submission Valid? -> (no) Respond Invalid (400) /\n(yes) Normalize+Idempotency Key -> Idempotency Gate -> Is New? -> (dup) Respond Duplicate /\n(new) Persist Raw Submission -> Enrichment Lookup -> Merge Enrichment Result -> Score Lead\n-> Qualified? -> (no) Insert Disqualified + Respond / (yes) Upsert Account -> Account Has Owner?\n-> reuse OR round-robin -> Owner Resolved -> Upsert Lead -> HubSpot Search Company By Domain\n-> Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (+backoff loop)\n-> Merge Company Result -> HubSpot Upsert Contact (+backoff loop) -> Merge Contact Result\n-> Update Lead HubSpot IDs -> Enqueue Slack Outbox -> Post Slack Alert -> Mark Outbox Sent\n-> Respond Qualified.\n\n**Three things this build does that a naive version would not:**\n1. HubSpot company is find-or-create, not create-only: HubSpot Search Company By Domain ->\n   Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (PATCH if found,\n   POST if not).\n2. Exponential backoff with jitter on both HubSpot write calls (500ms * 2^n + jitter, capped\n   30s, honors Retry-After): Compute Company/Contact Backoff -> Should Retry? -> Backoff Wait\n   loops back into the write node; Give Up nodes degrade gracefully after 5 attempts.\n3. Inbound webhook auth is n8n's native Header Auth credential on Form Webhook -- not a\n   hardcoded token compared inside a Code node.\n\n**Config as code:** Score Lead's scoring rules and Resolve\nRouting Pool / Pick + Persist Owner / Owner Resolved's routing table are inlined in each\nnode's own const block -- vanilla n8n Code nodes have no fs access.\n\n**Setup on import:** assign PLACEHOLDER_POSTGRES (Postgres), PLACEHOLDER_HUBSPOT (HTTP Header\nAuth: header `Authorization` = `Bearer <private app token>`), PLACEHOLDER_SLACK (Slack API bot\ntoken), and PLACEHOLDER_WEBHOOK_AUTH (Header Auth on Form Webhook) to real credentials in the\nlab accounts. Confirm #gtm-lab-inbound-alerts exists in the Vieira GTM Lab Slack workspace.\nWebhook path stays `gtm-inbound` (a working endpoint) until the last step before export, per\ndocs/sanitization-checklist.md item 2 -- do not rename to PLACEHOLDER before Task 2's recording\nrun is captured.",
         "height": 640,
         "width": 640,
         "color": 4
@@ -949,8 +934,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -768,
-        -288
+        3264,
+        512
       ]
     }
   ],

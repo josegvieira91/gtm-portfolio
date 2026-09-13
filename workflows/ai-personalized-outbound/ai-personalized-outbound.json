@@ -177,7 +177,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Takes a plain { company, contact } item. Nothing here reads batch state, so a\n// single-company call (Phase 4 DEMO-02) can feed this node directly.\nconst item = $json;\nconst company = String(item.company || item.company_name || '').trim();\nconst contact = String(item.contact || item.first_name || 'there').trim();\nconst title = String(item.contact_title || item.title || '').trim();\nconst research = String(\n  item.research_notes ||\n  [item.industry, item.employee_count ? item.employee_count + ' employees' : '', item.website]\n    .filter(Boolean).join(' | ')\n).trim();\n\nif (!company) {\n  throw new Error('Build Personalization Prompt needs a company name on the input item');\n}\n\nconst qaAttempts = Number(item.qa_attempts || 0);\nconst qaReason = String(item.qa_reason || '');\n\nconst rules = [\n  'Write one cold outbound opening email.',\n  'The body must be between 25 and 60 words. Count the words before answering.',\n  'The body must name the company exactly as \"' + company + '\".',\n  'Never write \"I hope this email finds you\", \"I hope you are doing well\", \"Dear Sir/Madam\" or \"To whom it may concern\".',\n  'Leave no template token unfilled. No {{ }}, no [Company], no [Name].',\n  'Never copy more than 15 words in a row from the research notes.',\n  'Plain sentences, no em dash, no exclamation marks.',\n  'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n];\n\nlet user = 'Prospect'\n  + '\\nContact: ' + contact + (title ? ' (' + title + ')' : '')\n  + '\\nCompany: ' + company\n  + (research ? '\\nResearch notes: ' + research : '')\n  + '\\n\\nRules\\n' + rules.map((r, i) => (i + 1) + '. ' + r).join('\\n');\n\nif (qaReason) {\n  user += '\\n\\nThe previous draft was rejected by the QA gate. Reason: ' + qaReason\n    + '\\nFix exactly that and keep every rule above. This is redraft attempt '\n    + qaAttempts + '.';\n}\n\nreturn { json: Object.assign({}, item, {\n  company: company,\n  contact: contact,\n  contact_title: title,\n  research_notes: research,\n  qa_attempts: qaAttempts,\n  qa_reason: qaReason,\n  system_prompt: 'You write short cold outbound emails for B2B sales. You answer with JSON only.',\n  user_prompt: user,\n}) };"
+        "jsCode": "// Takes a plain { company, contact } item. Nothing here reads batch state, so a\n// single-company call can feed this node directly.\nconst item = $json;\nconst company = String(item.company || item.company_name || '').trim();\nconst contact = String(item.contact || item.first_name || 'there').trim();\nconst title = String(item.contact_title || item.title || '').trim();\nconst research = String(\n  item.research_notes ||\n  [item.industry, item.employee_count ? item.employee_count + ' employees' : '', item.website]\n    .filter(Boolean).join(' | ')\n).trim();\n\nif (!company) {\n  throw new Error('Build Personalization Prompt needs a company name on the input item');\n}\n\nconst qaAttempts = Number(item.qa_attempts || 0);\nconst qaReason = String(item.qa_reason || '');\n\nconst rules = [\n  'Write one cold outbound opening email.',\n  'The body must be between 25 and 60 words. Count the words before answering.',\n  'The body must name the company exactly as \"' + company + '\".',\n  'Never write \"I hope this email finds you\", \"I hope you are doing well\", \"Dear Sir/Madam\" or \"To whom it may concern\".',\n  'Leave no template token unfilled. No {{ }}, no [Company], no [Name].',\n  'Never copy more than 15 words in a row from the research notes.',\n  'Plain sentences, no em dash, no exclamation marks.',\n  'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n];\n\nlet user = 'Prospect'\n  + '\\nContact: ' + contact + (title ? ' (' + title + ')' : '')\n  + '\\nCompany: ' + company\n  + (research ? '\\nResearch notes: ' + research : '')\n  + '\\n\\nRules\\n' + rules.map((r, i) => (i + 1) + '. ' + r).join('\\n');\n\nif (qaReason) {\n  user += '\\n\\nThe previous draft was rejected by the QA gate. Reason: ' + qaReason\n    + '\\nFix exactly that and keep every rule above. This is redraft attempt '\n    + qaAttempts + '.';\n}\n\nreturn { json: Object.assign({}, item, {\n  company: company,\n  contact: contact,\n  contact_title: title,\n  research_notes: research,\n  qa_attempts: qaAttempts,\n  qa_reason: qaReason,\n  system_prompt: 'You write short cold outbound emails for B2B sales. You answer with JSON only.',\n  user_prompt: user,\n}) };"
       },
       "id": "c5-06",
       "name": "Build Personalization Prompt",
@@ -212,7 +212,6 @@
       "notes": "Retry is handled by the explicit Compute Draft Backoff / Draft Should Retry? / Draft Backoff Wait loop, so retryOnFail stays OFF. n8n's built-in retry waits a flat interval with no jitter and ignores Retry-After.",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "h9v4wLkrNWJG6PkZ",
           "name": "PLACEHOLDER_OPENAI"
         }
       }
@@ -277,7 +276,7 @@
         2340,
         180
       ],
-      "webhookId": "c5b4c0ff-0000-4000-8000-000000000001"
+      "webhookId": "PLACEHOLDER"
     },
     {
       "parameters": {
@@ -311,12 +310,11 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
       "onError": "continueRegularOutput",
-      "notes": "Spend accounting is its own node so Phase 4 can read a running total from outbound_spend to enforce a daily cap, without opening the drafting node."
+      "notes": "Spend accounting is its own node so a daily-cap check can read a running total from outbound_spend without opening the drafting node."
     },
     {
       "parameters": {
@@ -446,7 +444,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -470,7 +467,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -514,7 +510,6 @@
       "notes": "Error output is wired on purpose: a failed send must land on Mark Outbox Failed, never drop the row.",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "NqYjzLWoPSWCBdJF",
           "name": "PLACEHOLDER_INSTANTLY"
         }
       }
@@ -537,7 +532,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -561,7 +555,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -579,7 +572,7 @@
         4160,
         0
       ],
-      "webhookId": "c5b4c0ff-0000-4000-8000-000000000002"
+      "webhookId": "PLACEHOLDER"
     },
     {
       "parameters": {
@@ -599,7 +592,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "3cOvvmri475DDNEv",
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
@@ -941,10 +933,13 @@
       ]
     }
   },
+  "pinData": {},
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
   "staticData": null,
   "meta": null,
-  "pinData": {}
+  "tags": [],
+  "active": false
 }

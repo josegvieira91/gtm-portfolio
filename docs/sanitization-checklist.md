@@ -30,20 +30,29 @@ Appears in node metadata, error-handling nodes, and any node that builds an "ope
 link back to the instance. Replace every occurrence with
 `https://your-n8n-instance.example.com`.
 
-### 2. Webhook paths
+### 2. Webhook paths and webhook ids
 
 A webhook node's `path` value, combined with a known base URL, reconstructs a live callable
 endpoint. Replace the path segment with `PLACEHOLDER` and keep the surrounding shape intact
 so the export still reads as documentation, not a redacted mess.
 
+The same goes for `webhookId`, and not only on webhook nodes. n8n writes that field onto Wait
+nodes, Slack nodes, and anything else resumable by callback. Every one of them becomes
+`PLACEHOLDER`. n8n regenerates the value on import, so nothing is lost.
+
 ### 3. Credential references
 
-n8n exports credential `id` and `name`, never the credential value itself. But a descriptive
-credential name is its own disclosure if it references real infrastructure or a project.
-Rename every credential to `PLACEHOLDER_<TYPE>`, for example `PLACEHOLDER_POSTGRES` or
-`PLACEHOLDER_HUBSPOT`. The preferred approach is renaming the credential inside n8n before
-export, so the sanitized name is what actually gets exported. Post-processing the exported
-JSON afterward is the fallback, not the default.
+n8n exports credential `id` and `name`, never the credential value itself. Both need handling.
+
+A descriptive credential name is its own disclosure if it references real infrastructure or a
+project. Rename every credential to `PLACEHOLDER_<TYPE>`, for example `PLACEHOLDER_POSTGRES`
+or `PLACEHOLDER_HUBSPOT`. Do the rename inside n8n before exporting, so the sanitized name is
+what the tool itself holds. `scripts/export-n8n-workflow.mjs` refuses to write a file when it
+finds a name that is not a `PLACEHOLDER_*`, rather than fixing it after the fact.
+
+The `id` carries no secret on its own, but it is the field that ties two published exports to
+one instance when the same id shows up in both. The exporter drops it, and
+`scripts/sanitize-check.sh` fails on any export that kept one.
 
 ### 4. Embedded auth headers
 
@@ -67,14 +76,17 @@ debugging.
 ## Run order
 
 1. Rename credentials in n8n (item 3 above) before exporting.
-2. Export the workflow from n8n.
-3. Move the export to `workflows/<case-slug>/<workflow-name>.json`.
+2. Export with `node --env-file=.env scripts/export-n8n-workflow.mjs <workflow-id>
+   workflows/<case-slug>/<workflow-name>.json`. It applies items 2 and 3 on the way out.
+3. Read the notes and sticky notes in the diff. Items 1, 4, 5 and 6 are judgment calls no
+   script makes for you, and a note written mid-build often says more than it should.
 4. Run `scripts/sanitize-check.sh` against the target directory.
 5. Review the diff against the previous commit of the same file. A re-export silently
    reintroduces everything that was cleaned the first time, and the diff is the only way to
    catch it.
 6. Commit only after the script exits 0. A nonzero exit means something on the leak surface
-   above is still present; fix it and rerun from step 4.
+   above is still present. Fix it in n8n, export again, and rerun from step 4. Never edit an
+   export by hand: the next re-export silently undoes the edit.
 
 ## Final sweep before publish
 

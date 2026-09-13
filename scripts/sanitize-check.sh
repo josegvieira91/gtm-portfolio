@@ -12,7 +12,7 @@
 #   1  dirty — one or more rules matched, findings printed to stdout
 #   2  usage error, or the local denylist / node runtime is missing
 #
-# Structural rules (R1-R4) are enforced via node's JSON.parse so the gate
+# Structural rules (R1-R4 and R7) are enforced via node's JSON.parse so the gate
 # understands actual JSON structure instead of guessing with regex across
 # raw text. node is already a hard build dependency of this project
 # (package.json engines.node), so this adds no new tooling requirement.
@@ -243,6 +243,13 @@ function scanFile(file) {
               report("R4-CREDENTIAL-NAME", credVal.name, "credential \"" + credKey + "\" name=\"" + credVal.name + "\"");
             }
           }
+          // R7: the credential `id` is the instance's own row id. It carries
+          // no secret on its own, but it is the field that correlates two
+          // published exports to one instance, and scripts/export-n8n-workflow.mjs
+          // drops it. Catch a hand-made export that kept it.
+          if (credVal && typeof credVal === "object" && credVal.id !== undefined) {
+            report("R7-CREDENTIAL-ID", String(credVal.id), "credential \"" + credKey + "\" kept its instance id");
+          }
         }
       }
 
@@ -257,15 +264,20 @@ function scanFile(file) {
         }
       }
 
-      // R2 (structural): a Webhook node's real leak surface is the bare
-      // `webhookId` field and `parameters.path` string — neither is embedded
-      // inside a "/webhook/..." URL, so the regex-based check in checkString
-      // never sees it. Flag both directly whenever the node's own `type`
-      // names it a webhook node.
+      // R2 (structural): a node's real leak surface is the bare `webhookId`
+      // field and the `parameters.path` string. Neither is embedded inside a
+      // "/webhook/..." URL, so the regex-based check in checkString never
+      // sees either one.
+      //
+      // `webhookId` is checked on EVERY node, not only on nodes whose type
+      // names them a webhook. n8n writes the field onto Wait nodes, Slack
+      // nodes and anything else that can be resumed by callback, and an
+      // earlier version of this check gated on the node type and let a real
+      // instance UUID through on a Slack node for weeks.
+      if (typeof node.webhookId === "string" && node.webhookId !== "" && node.webhookId !== "PLACEHOLDER") {
+        report("R2-WEBHOOK-ID", node.webhookId, "webhookId not PLACEHOLDER: " + node.webhookId);
+      }
       if (typeof node.type === "string" && /webhook/i.test(node.type)) {
-        if (typeof node.webhookId === "string" && node.webhookId !== "" && node.webhookId !== "PLACEHOLDER") {
-          report("R2-WEBHOOK-ID", node.webhookId, "webhookId not PLACEHOLDER: " + node.webhookId);
-        }
         const p = node.parameters && node.parameters.path;
         if (typeof p === "string" && p !== "" && p !== "PLACEHOLDER") {
           report("R2-WEBHOOK-PATH", p, "parameters.path not PLACEHOLDER: " + p);

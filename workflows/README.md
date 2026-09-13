@@ -63,8 +63,13 @@ account that built it.
 
 Every export in this directory passed `scripts/sanitize-check.sh` before being committed, per
 the run order in `docs/sanitization-checklist.md`: rename credentials in the tool before
-export, export, move the file into `workflows/<slug>/`, run the script, review the diff, commit
-only on exit 0. The script must exit 0 for a directory to be considered clean.
+export, export, run the script, review the diff, commit only on exit 0. The script must exit 0
+for a directory to be considered clean.
+
+The n8n exports are produced by `scripts/export-n8n-workflow.mjs` rather than by the download
+button, so the same rules apply every time: webhook paths and webhook ids become placeholders
+and credential ids are removed, while the credential names stay so an importer can see which
+slot to fill.
 
 You can re-run the same gate yourself:
 
@@ -72,9 +77,9 @@ You can re-run the same gate yourself:
 scripts/sanitize-check.sh workflows/
 ```
 
-An exit code of 0 means the structural JSON checks (instance URL, webhook path, credential
-names, embedded auth headers, third-party host allowlist, pinned node output) and the regex
-passes all came back clean.
+An exit code of 0 means the structural JSON checks (instance URL, webhook path, webhook id,
+credential name, credential id, embedded auth headers, third-party host allowlist, pinned node
+output) and the regex passes all came back clean.
 
 ## What's not here
 

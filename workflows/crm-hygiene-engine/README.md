@@ -65,6 +65,10 @@ so the intersection size is computed from `|A| + |B| - |A u B|`.
 ## Sanitization
 
 Passed `scripts/sanitize-check.sh workflows/crm-hygiene-engine/` at export time (0 findings). No
-account address, portal identifier, token or credential value is in the file. The numeric keychain
-and data-store ids are account-local references, the same shape as the credential ids kept in the
-n8n exports elsewhere in this directory.
+account address, portal identifier, token or credential value is in the file.
+
+The numeric keychain and data-store ids are account-local references with no credential value
+behind them, and they stay. The import flow above reattaches keychain items against them, and
+taking them out would mean editing an export by hand, which is the one thing the sanitization
+procedure rules out. The n8n exports in this directory carry no credential ids at all, because
+`scripts/export-n8n-workflow.mjs` removes them at export time.
