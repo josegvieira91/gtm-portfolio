@@ -15,10 +15,10 @@ login.salesforce.com
 test.salesforce.com
 # Org-specific REST/Bulk API hosts (e.g. na139.my.salesforce.com,
 # <org>.lightning.force.com) are allowed by a wildcard pattern in
-# scripts/sanitize-check.sh (hostAllowed), not listed here — the instance
-# subdomain isn't sensitive (free Dev Edition org), but adding one org's
-# literal hostname to this tracked file would leak real org identifiers
-# over time. See WR-02 in the phase 01 code review.
+# scripts/sanitize-check.sh (hostAllowed), not listed here. The instance
+# subdomain isn't sensitive on a free Dev Edition org, but adding one org's
+# literal hostname to this tracked file would accumulate real org
+# identifiers over time.
 
 # Anthropic (Claude API)
 api.anthropic.com

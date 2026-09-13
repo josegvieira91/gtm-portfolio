@@ -1,11 +1,11 @@
 ---
 // src/components/case/StackBadges.astro
 //
-// Part 4 of the locked 7-part case anatomy (SITE-02): one badge per tool
-// in the case's stack, resolved through the single tool->icon map
-// (src/lib/schematic/tool-icons.ts) — this component never redefines a
-// local slug/hex map of its own (Pitfall 4/5, 02-04 deviation). Badge
-// coloring follows the Gate 1 node treatment (SCHEMATIC_CONFIG.nodeStyle):
+// Part 4 of the 7-part case anatomy: one badge per tool in the case's
+// stack, resolved through the single tool-to-icon map
+// (src/lib/schematic/tool-icons.ts). This component never redefines a local
+// slug or hex map of its own. Badge coloring follows the node treatment
+// (SCHEMATIC_CONFIG.nodeStyle):
 // 'logo' shows each tool's real brand hex on a light chip, same "light
 // chip behind a brand-colored glyph" convention SchematicNode.astro
 // established for readability on the dark blueprint background; 'line-art'
@@ -38,7 +38,7 @@ function toolKey(name: string): string {
       : '';
     return (
       <li class="flex items-center gap-2 rounded-full border border-blueprint-line/30 bg-blueprint-surface px-4 py-2 text-sm text-blueprint-ink">
-        {/* IN-08 fix: this chip span used to render unconditionally, so an
+        {/* This chip span used to render unconditionally, so an
             unmapped tool showed a visible empty dark square -- contradicting
             this component's own header comment ("tools outside the mapped
             icon set render no badge"). Only render the chip when there's

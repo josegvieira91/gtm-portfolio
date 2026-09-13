@@ -262,7 +262,7 @@ function main() {
     `Importing ${companies.length} companies and ${contacts.length} contacts into the Salesforce Dev Edition lab org.`
   );
   console.log(
-    'Skipping usage-events.csv by design — it belongs to the Phase 3 reporting cases, not a CRM object.\n'
+    'Skipping usage-events.csv by design: it belongs to the reporting cases, not a CRM object.\n'
   );
 
   console.log('Storage before import:');

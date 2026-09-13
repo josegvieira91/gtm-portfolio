@@ -8,16 +8,14 @@ node_modules/
 dist/
 .astro/
 
-# Videos never enter git; deployed by a separate path (rsync/bind mount, plan 01-06)
+# Videos are deployed separately, never tracked
 videos/
 
-# Generated seed data (plan 01-05)
+# Generated seed data
 scripts/seed-data/output/
 
-# Local-only files owned by later plans in this phase:
-# lab-accounts.local.md (01-02), deploy-runbook.local.md (01-06)
+# Local-only notes, never committed
 *.local.md
 
-# Local-only files owned by later plans in this phase:
-# .sanitize-denylist.local (01-03)
+# Local-only config, never committed
 *.local

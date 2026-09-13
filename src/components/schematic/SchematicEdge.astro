@@ -5,8 +5,8 @@
 // no stroke-dasharray offset (Pattern 2: the client controller is the only
 // thing allowed to move this backward to an "undrawn" 0% state, via
 // GSAP's drawSVG property, and only after the reduced-motion check
-// passes). Only transform/opacity/drawSVG are ever animated (SITE-08:
-// the SVG's own viewBox/box never changes size at runtime, zero CLS).
+// passes). Only transform, opacity and drawSVG are ever animated: the
+// SVG's own viewBox never changes size at runtime, so zero CLS.
 import { edgePath } from '../../lib/schematic/layout';
 import type { DiagramEdge, NodePosition } from '../../lib/schematic/types';
 

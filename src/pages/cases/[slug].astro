@@ -1,14 +1,14 @@
 ---
 // src/pages/cases/[slug].astro
 //
-// SITE-02 / D-13: the ONE case page template. Every case in the Phase 3
-// catalog becomes a pure content addition (case-NN.mdx + diagram JSON) —
-// this file must stay clone-free, no per-case conditionals beyond data.
+// The ONE case page template. Every case in the catalog is a pure content
+// addition (case-NN.mdx plus its diagram JSON), so this file stays
+// clone-free with no per-case conditionals beyond data.
 // Assembles the LOCKED 7-part anatomy in order: (1) hero + the MDX body's
 // problem-framing intro, (2) the scroll-scrubbed diagram (DiagramSection,
 // shared with zero bespoke per-case diagram code), (3) the rest of the MDX
 // body ("How it works"), (4) stack badges, (5) the evidence pack (sanitized
-// execution screenshots, per D-15 -- no video, for any case) plus the
+// execution screenshots, no video for any case) plus the
 // export link, (6) metric counters, (7) a static CTA back to /contact and
 // the machine wall.
 //
@@ -35,7 +35,7 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 
-// Pairing rule (02-02): explicit `diagramId` wins, otherwise the diagram
+// Pairing rule: explicit `diagramId` wins, otherwise the diagram
 // with the same content-collection id as the case entry. Note: the glob
 // loader's default id for these entries resolves to the frontmatter
 // `slug` (legacy-compat id generation), not the filename — every case's

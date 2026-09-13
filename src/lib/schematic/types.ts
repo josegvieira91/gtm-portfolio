@@ -14,7 +14,7 @@ export interface DiagramNode {
   lane: number;
   kind: 'trigger' | 'process' | 'store' | 'output';
   tool: string;
-  /** D-12: manual grid-coordinate override. Wins over {stage, lane} when present. */
+  /** Manual grid-coordinate override. Wins over {stage, lane} when present. */
   grid?: { x: number; y: number };
 }
 

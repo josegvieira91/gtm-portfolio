@@ -1,13 +1,12 @@
 ---
 // src/components/home/MachineWall.astro
 //
-// D-10: the home machine wall ships all 10 catalog cards with REAL titles
-// and tool tags from day one, so the tool filter is genuinely testable
-// against real data, not stand-ins. Each card composes Schematic
-// (variant="mini") over that case's diagram — 02-06's 3-5 node placeholder
-// skeletons for cases 2-10, the real Speed-to-Lead diagram for case-01 —
-// the Gate 1 miniSchematic content variant (SCHEMATIC_CONFIG.miniSchematic
-// = 'skeleton') is already satisfied by that content shape, nothing here
+// The home machine wall ships all 10 catalog cards with real titles and
+// tool tags, so the tool filter is testable against real data rather than
+// stand-ins. Each card composes Schematic (variant="mini") over that case's
+// diagram: 3-5 node placeholder skeletons for the cases still in build, the
+// real diagram for the ones that are published. That content shape already
+// satisfies SCHEMATIC_CONFIG.miniSchematic = 'skeleton', so nothing here
 // switches on it directly.
 //
 // Mini-schematic draw trigger: mode="auto" on Schematic means the shared
@@ -22,8 +21,8 @@
 // (SchematicController.ts/timeline.ts), which is out of this task's
 // scope (see SUMMARY Decisions). The hover affordance layer here is a
 // real, CSS-only lift/glow micro-interaction on top of that scroll-drawn
-// state — touch behavior for hover-only affordances is explicitly
-// Claude's discretion per 02-CONTEXT.md.
+// state. Touch behavior for hover-only affordances is left to the
+// implementation.
 import { getCollection } from 'astro:content';
 import Schematic from '../schematic/Schematic.astro';
 import { Icon } from 'astro-icon/components';
@@ -33,8 +32,8 @@ import { LOCAL_ICONS } from '../schematic/local-icons';
 // Filter chips (content pass 2026-07-25): with the diversified catalog the
 // chip set covers the three orchestrators, the two data/enrichment tools,
 // the two CRMs, and the two AI providers by name — José's call: "AI" is
-// not a tool, so the chips name Claude and OpenAI concretely. Gate 1
-// discretion pick kept: single-select + All (SCHEMATIC_CONFIG.filterMode).
+// not a tool, so the chips name Claude and OpenAI concretely. The filter is
+// single-select plus All (SCHEMATIC_CONFIG.filterMode).
 const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
   { id: 'all', label: 'All', match: null },
   { id: 'n8n', label: 'n8n', match: 'n8n' },
@@ -50,8 +49,8 @@ const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
 
 // Normalizes a case's raw `stack` display name ("Google Sheets", "Cal.com")
 // to a tool-icons.ts key ("googlesheets", "calcom") — same rule as
-// StackBadges.astro. Tools outside the mapped icon set render no badge;
-// 02-06 established that rule for diagram node tools.
+// StackBadges.astro. Tools outside the mapped icon set render no badge,
+// the same rule the diagram node tools follow.
 function toolKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -95,19 +94,18 @@ const cases = caseEntries
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" data-wall-grid>
       {cases.map((caseEntry) => {
         const baseDiagramId = caseEntry.data.diagramId ?? caseEntry.id;
-        // 02-07 Gate 2 round-3 fix: case-01 is the one case with a REAL,
-        // rich 8-node diagram (D-13 guinea pig) — reusing it verbatim at
-        // mini-card scale crammed 8 labels into the same width the other
-        // 9 cards' generic 4-node placeholders use, causing label overlap
-        // (measured + screenshotted: "EB FORM N8N WEBHOOKENRICHMENT..."
-        // running together). D-10 already establishes that Phase 2's
-        // mini-schematics are generic placeholders across the whole wall,
-        // not per-case-accurate — a dedicated `${id}-mini` diagram (falls
+        // A case with a real, rich 8-node diagram cannot reuse it verbatim
+        // at mini-card scale: 8 labels crammed into the same width the
+        // generic 4-node placeholders use, and the labels overlapped
+        // (measured and screenshotted: "EB FORM N8N WEBHOOKENRICHMENT..."
+        // running together). The mini-schematics are generic placeholders
+        // across the whole wall anyway, not per-case-accurate, so a
+        // dedicated `${id}-mini` diagram (falls
         // back to the main diagram when none exists, i.e. for all 9
         // already-simple placeholder cases, unchanged) keeps every card's
-        // mini honestly simple, and generalizes to any future case whose
-        // real diagram is too dense for card scale (Phase 3 will add
-        // more), not just a one-off case-01 special case.
+        // mini honestly simple, and generalizes to any later case whose
+        // real diagram is too dense for card scale rather than being a
+        // one-off.
         const diagramEntry = diagramsById.get(`${baseDiagramId}-mini`) ?? diagramsById.get(baseDiagramId);
         if (!diagramEntry) {
           throw new Error(`MachineWall: no diagram found for case "${caseEntry.id}"`);
@@ -164,15 +162,15 @@ const cases = caseEntries
 </section>
 
 <style>
-  /* IN-09 fix: the filter chip's look used to have three sources of truth
+  /* The filter chip's look used to have three sources of truth
      -- an SSR class:list ternary, plus two class-name arrays the click
      handler toggled by hand -- that had to stay in sync manually. The
      unselected chip's SSR markup carried a hover-only Tailwind utility the
      click handler's arrays never removed, so an active chip's border
      reverted to the unselected look on hover; the "All" chip, SSR'd
      without that same utility, then behaved differently from its siblings
-     once deselected and reselected. `aria-pressed` (already required for
-     WR-07) is now the single source of truth: both looks are pure
+     once deselected and reselected. `aria-pressed`, which the chip needs
+     anyway, is now the single source of truth: both looks are pure
      attribute-selector CSS below, and the click handler only ever toggles
      the attribute. */
   [data-filter-chip][aria-pressed="true"] {
@@ -187,14 +185,14 @@ const cases = caseEntries
   }
 
   /* Scoped to aria-pressed="false" only -- an active chip must never revert
-     on hover (the exact bug IN-09 reports). */
+     on hover, which is the exact bug described above. */
   [data-filter-chip][aria-pressed="false"]:hover {
     border-color: color-mix(in oklab, var(--color-blueprint-line) 60%, transparent);
   }
 </style>
 
 <script>
-  // D-10 filter: single-select + All (Gate 1 discretion pick). A card
+  // Filter: single-select plus All. A card
   // matches when its raw `stack` (data-tools, pipe-separated) contains the
   // chip's exact match string. Non-matching cards get a transform/opacity
   // micro-transition rather than being removed from the grid outright.
@@ -209,7 +207,7 @@ const cases = caseEntries
       card.classList.toggle('scale-95', !visible);
       card.classList.toggle('pointer-events-none', !visible);
       card.toggleAttribute('data-filtered-out', !visible);
-      // WR-07 fix: none of the classes above remove the card from the
+      // None of the classes above remove the card from the
       // accessibility tree or the tab order (pointer-events-none blocks the
       // mouse only) -- a keyboard/screen-reader user still reached every
       // filtered-out card. `inert` removes both.

@@ -1,12 +1,12 @@
 // src/lib/schematic/tool-icons.ts
 //
 // Single job: the ONE source of truth mapping each catalog tool key to its
-// Simple Icons slug (or local hand-drawn fallback, Pitfall 4: Clay has no
-// Simple Icons entry) and the brand's real default color (Pitfall 5: use
-// the actual hex, not the cyanotype accent, so the "logo" node treatment
-// (GATE 1, D-05b) reads as genuinely brand-colored). SchematicNode.astro
-// (this plan) imports this map; StackBadges.astro (02-05) and MachineWall
-// (02-09) import it too — no local tool->icon maps anywhere else.
+// Simple Icons slug, or to a local hand-drawn fallback where Simple Icons
+// has no entry, and to the brand's real default color. The hex has to be the
+// actual brand color rather than the cyanotype accent, or the logo node
+// treatment stops reading as genuinely brand-colored. SchematicNode.astro,
+// StackBadges.astro and MachineWall all import this map. No local
+// tool-to-icon maps anywhere else.
 
 export interface ToolIcon {
   /** Simple Icons slug (e.g. "n8n"). Null when no Simple Icons entry exists. */
@@ -39,7 +39,7 @@ export const TOOL_ICONS: Record<string, ToolIcon> = {
   metabase: { slug: 'metabase', hex: '#509EE3' },
   posthog: { slug: 'posthog', hex: '#000000' },
   stripe: { slug: 'stripe', hex: '#635BFF' },
-  // Pitfall 4: no Simple Icons entry for these three. Hand glyphs live in
+  // No Simple Icons entry for these three. Hand glyphs live in
   // icons/ (resolved via local-icons.ts); Apollo and Instantly marks traced
   // from the brands' own site SVGs, Clay's hex sampled from clay.com ink.
   clay: { slug: null, hex: '#1D2026', local: 'icons/clay.svg' },

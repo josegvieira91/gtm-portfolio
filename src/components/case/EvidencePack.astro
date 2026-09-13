@@ -1,15 +1,15 @@
 ---
 // src/components/case/EvidencePack.astro
 //
-// D-15 (2026-08-25): one standard for all 10 cases, no video anywhere. Every
-// case ships an evidence pack of 1-3 sanitized execution screenshots plus a
-// download link to the sanitized workflow JSON. Replaces the earlier D-14
-// carve-out where Case 1 kept a recorded video via RecordingPlayer -- that
-// component and the video/poster frontmatter fields are gone. A case with
+// One standard for all 10 cases, with no video anywhere. Every case ships an
+// evidence pack of 1-3 sanitized execution screenshots plus a download link
+// to the sanitized workflow JSON. This replaces an earlier carve-out where
+// Case 1 kept a recorded video via RecordingPlayer; that component and the
+// video and poster frontmatter fields are gone. A case with
 // no evidence captured yet still renders the original "Evidence coming
 // soon." placeholder so nothing regresses before a case is captured.
 //
-// D-16 (2026-08-26): the pack now opens with the ExecutionReplay when a
+// The pack opens with the ExecutionReplay when a
 // case has one (src/content/replays/<caseSlug>.json) -- the HTML replay
 // explains the run, the still(s) below are the receipt, the JSON link
 // lets a reviewer open the thing. Cases with no replay entry yet just

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* 02-07 Gate 2: a global `overflow-x: hidden` on html/body was tried here
-   as a horizontal-bleed safety net and REVERTED — it broke
+/* A global `overflow-x: hidden` on html/body was tried here as a
+   horizontal-bleed safety net and REVERTED. It broke
    `position: sticky` on the case-page desktop diagram column (confirmed
    via headless measurement: the sticky wrapper's own top went from a
    correctly-pinned 0px to tracking scroll 1:1, exactly the un-stuck
@@ -26,10 +26,10 @@
    timeline.ts). */
 @import "@fontsource-variable/jetbrains-mono";
 
-/* D-01: single dark cyanotype theme. No light mode, no prefers-color-scheme variant.
-   D-03 quality bar: soft surfaces, data-forward, type that recedes, no decorative noise. */
+/* Single dark cyanotype theme. No light mode, no prefers-color-scheme variant.
+   Quality bar: soft surfaces, data-forward, type that recedes, no decorative noise. */
 @theme {
-  /* GATE 1 (D-02): JetBrains Mono Variable is the locked site typeface. */
+  /* JetBrains Mono Variable is the site's only typeface. */
   --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   --color-blueprint-bg: oklch(0.17 0.045 243); /* deep prussian blue, near-black */

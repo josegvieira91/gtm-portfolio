@@ -1,12 +1,12 @@
 ---
 // src/components/case/DiagramSection.astro
 //
-// D-06 scrollytelling section: desktop pins the diagram at ~60% width on
+// Scrollytelling section: desktop pins the diagram at ~60% width on
 // the left while engineering callouts scroll past it on the right, each
 // callout lighting its node as the corresponding step activates. Mobile
-// behavior is exactly ONE config value (SCHEMATIC_CONFIG.mobilePin) so the
-// 02-07 real-iPhone spike outcome is a config flip + rebuild, never a
-// template rework (D-07). Composes Schematic.astro — never re-implements
+// behavior is exactly ONE config value (SCHEMATIC_CONFIG.mobilePin), so
+// what real-device testing decides is a config flip and a rebuild, never a
+// template rework. Composes Schematic.astro and never re-implements
 // SVG rendering. The actual pinning/scrubbing is entirely GSAP's job at
 // runtime (timeline.ts, non-reduced-motion only); this component only
 // lays out the SSR final-state structure GSAP will animate.
@@ -17,7 +17,7 @@ import type { Diagram, DiagramStep } from '../../lib/schematic/types';
 interface Props {
   diagram: Diagram;
   id: string;
-  /** Case title, passed through to Schematic as its accessible name (WR-08). */
+  /** Case title, passed through to Schematic as its accessible name. */
   label?: string;
 }
 
@@ -26,7 +26,7 @@ const mobilePin = SCHEMATIC_CONFIG.mobilePin === 'pin';
 const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 ---
 
-{/* 02-07 Gate 2 fix: mobile-only. When GSAP pins this section (ScrollTrigger's
+{/* Mobile-only. When GSAP pins this section (ScrollTrigger's
     default `start: "top top"`), it locks to the viewport's literal y=0 —
     exactly where iOS's Dynamic Island / status bar sits. `env(safe-area-inset-top)`
     (needs `viewport-fit=cover` on the viewport meta, set in BaseLayout.astro)
@@ -34,7 +34,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
     resolves to 0 everywhere else, so this is a no-op on non-notched phones.
     `md:pt-0` keeps desktop pin behavior byte-identical — untouched per the
     gate instruction. */}
-{/* Cases whose diagrams define no callout steps yet (the Phase 3 catalog
+{/* Cases whose diagrams define no callout steps yet (the catalog
     placeholders) get a centered single-column stage: the 60/40
     scrollytelling grid with an EMPTY right rail reads as a broken,
     off-center page, not as a layout. The scrub-draw animation still runs —
@@ -53,7 +53,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
   data-pin-section
   class="grid gap-6 pt-[env(safe-area-inset-top)] md:grid-cols-[60%_1fr] md:gap-8 md:pt-0"
 >
-  {/* 02-07 Gate 2 fix (horizontal mobile clip): CSS Grid items default to
+  {/* Horizontal mobile clip: CSS Grid items default to
       `min-width: auto`, which refuses to shrink below the child SVG's own
       intrinsic content size — on a narrow viewport this held the diagram at
       its full ~880px-wide intrinsic size and clipped both edges instead of
@@ -62,7 +62,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
       track width; harmless on desktop since the 60% track is already wider
       than the SVG's natural size there (no visible change confirmed).
 
-      02-07 Gate 2 fix (desktop layout broken): the pinned section's own
+      Desktop layout: the pinned section's own
       grid row stretches to match its tallest sibling (the callout column's
       `gap-[60vh]` stack, several viewport-heights tall) — GSAP's `pin:true`
       with a fixed `end` distance decoupled from that real DOM height
@@ -90,7 +90,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
     <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
   </div>
 
-  {/* Desktop (md+): callouts scroll past the pinned diagram, one block per step (D-06) */}
+  {/* Desktop (md+): callouts scroll past the pinned diagram, one block per step */}
   <div class="hidden flex-col gap-[60vh] py-[30vh] md:flex">
     {steps.map((step) => (
       <div data-step-callout={step.id} class="rounded-lg border border-blueprint-line/30 bg-blueprint-surface p-6">
@@ -99,7 +99,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
     ))}
   </div>
 
-  {/* Mobile (below md): exactly one of the two D-07 locked layouts, picked at build time */}
+  {/* Mobile (below md): exactly one of the two layouts, picked at build time */}
   {mobilePin ? (
     <div class="flex flex-col gap-3 md:hidden" data-mobile-layout="pin">
       {steps.map((step) => (

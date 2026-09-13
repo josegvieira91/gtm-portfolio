@@ -1,6 +1,7 @@
 ---
-// Single source of truth for head boilerplate: noindex meta (D-11), viewport,
-// charset, global.css (fonts + cyanotype tokens). Every page wraps this layout.
+// Single source of truth for head boilerplate: the noindex meta, viewport,
+// charset and global.css (fonts and cyanotype tokens). Every page wraps this
+// layout.
 import '../styles/global.css';
 
 interface Props {
@@ -22,7 +23,7 @@ const { title, description } = Astro.props;
   </head>
   <body class="min-h-screen bg-blueprint-bg font-mono text-blueprint-ink">
     <slot />
-    {/* WR-11 fix: the home page (this site's entire entry point) had no way
+    {/* The home page, this site's entire entry point, had no way
         to reach /about or /contact without opening a case page first, and
         /about was unreachable from anywhere. A quiet footer, not a header,
         keeps every page one click from every other without competing with

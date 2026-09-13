@@ -1,7 +1,7 @@
 // src/lib/schematic/layout.ts
 //
-// Single job: turn a diagram's {stage, lane} grid (or a per-node manual
-// override, D-12) into SVG coordinates, and route the edges between them.
+// Single job: turn a diagram's {stage, lane} grid, or a per-node manual
+// override, into SVG coordinates, and route the edges between them.
 // Pure and DOM-free by design: no framework/DOM dependency, no import from
 // astro/gsap/document/window. Every function here is a plain data
 // transform, unit-testable against fixture JSON with no browser or build
@@ -10,8 +10,8 @@ import type { Diagram, LayoutOptions, NodePosition } from './types';
 
 /**
  * Convert every node's grid position into an SVG {x, y}. A node's manual
- * `grid` override wins when present (D-12: this override capability is
- * non-negotiable); otherwise position derives from `{stage, lane}` scaled
+ * `grid` override always wins when present; otherwise position derives
+ * from `{stage, lane}` scaled
  * by `opts.stageWidth`/`opts.laneHeight` and offset by `opts.padding`.
  */
 export function computeLayout(
@@ -60,7 +60,7 @@ const LABEL_DY = 14;
  * estimated text width and baseline drop — expanded by `opts.padding` on
  * every edge.
  *
- * Why extents and not centers (02-07 Gate 2 root cause): sizing the box
+ * Why extents and not centers: sizing the box
  * from node CENTERS ± padding let content poke outside the viewBox
  * whenever nodeWidth/2 > padding (full: 60 > 40, mini: 20 > 16) or a
  * label ran wider than its node (every mini label). Chrome clips painted

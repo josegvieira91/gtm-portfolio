@@ -2,8 +2,8 @@
 
 Deterministic synthetic dataset shared across all 10 portfolio cases. One dataset shared
 across every case is what makes them read as one connected system instead of ten disconnected
-demos, and generating it deterministically means a case rebuilt in Phase 5 still references the
-same companies it did in Phase 3.
+demos, and generating it deterministically means a case rebuilt a year later still references
+the same companies it did the first time.
 
 ## Regenerate
 
@@ -76,8 +76,8 @@ every email holds to this rule.
 
 ## Salesforce storage headroom
 
-Salesforce Developer Edition carries roughly 5 MB of data storage, and Phase 3 reloads this
-data during debugging passes. The dataset is sized deliberately small (40 companies, 80
+Salesforce Developer Edition carries roughly 5 MB of data storage, and building a case reloads
+this data during debugging passes. The dataset is sized deliberately small (40 companies, 80
 contacts, 600 events) to stay well under 1 MB combined — see the generator's own printed
 summary for the exact byte counts on the last run.
 
@@ -105,8 +105,8 @@ The following checks were run against the generated output and all passed on **2
 - Combined output size: 94,180 bytes (92.0 KB), well under the 1 MB gate and under 2% of
   Salesforce Developer Edition's roughly 5 MB storage ceiling.
 
-Re-run these checks any time the generator changes — see `scripts/seed-data/generate.mjs`'s
-companion gate, run as part of this plan's Task 2.
+Re-run these checks any time the generator changes. `scripts/seed-data/generate.mjs` carries
+the companion gate.
 
 ## Loading the dataset into the CRM lab accounts
 
@@ -117,9 +117,9 @@ lab accounts end up holding the dataset — different method. Both scripts are i
 safely re-runnable): re-running after a re-seed updates/skips existing records instead of
 creating duplicates.
 
-`usage-events.csv` is never imported into either CRM. It feeds the Phase 3 Postgres-backed
-reporting and health-score cases, not a CRM object — importing it here would be the wrong
-target for that data.
+`usage-events.csv` is never imported into either CRM. It feeds the Postgres-backed reporting
+and health-score cases, not a CRM object, so importing it here would put the data in the wrong
+place.
 
 ### One-time setup (per machine)
 
@@ -148,8 +148,8 @@ npm run verify:imports     # fetches counts + one sample contact from each CRM, 
 
 Each import script prints per-object created/updated/error counts as it runs. The Salesforce
 script additionally prints Setup → Storage Usage (`DataStorageMB`) before and after the import,
-and flags in its own output if usage exceeds 40% of the org's limit — a Phase 3 dataset-size
-constraint for Case 7 if it happens.
+and flags in its own output if usage exceeds 40% of the org's limit, which would become a
+dataset-size constraint for Case 7.
 
 ### How the scripts work
 

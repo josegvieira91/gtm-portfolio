@@ -38,7 +38,7 @@
       "input": { "Company Identifier": "company_domain" },
       "outputColumns": ["clay_employee_count", "clay_industry", "clay_linkedin_url", "clay_hq_city"],
       "measured": { "rowsRun": 40, "rowsMatched": 0, "creditsSpent": 0 },
-      "note": "The locked stack named Apollo for this leg. Clay's Apollo.io actions are bring-your-own-account and Apollo's free plan issues no prospecting API key, so Apollo could not run at all and Clay's own company enrichment took the first leg."
+      "note": "The stack for this case named Apollo for this leg. Clay's Apollo.io actions are bring-your-own-account and Apollo's free plan issues no prospecting API key, so Apollo could not run at all and Clay's own company enrichment took the first leg."
     },
     {
       "name": "leg2_gate_domain",
@@ -153,7 +153,7 @@
   "companionTable": {
     "name": "Company Registry",
     "source": { "type": "Google Sheets", "sheet": "company_registry", "deduplicateBy": ["company_domain"], "rows": 20 },
-    "purpose": "The internal record of what the business already knows about its own accounts. Last leg of the waterfall, because the locked stack puts the vendors first; in a paying account this would run first, since internal data is free and fresher than a vendor's."
+    "purpose": "The internal record of what the business already knows about its own accounts. Last leg of the waterfall, because the stack for this case puts the vendors first; in a paying account this would run first, since internal data is free and fresher than a vendor's."
   },
   "measuredRun": {
     "date": "2026-09-11",

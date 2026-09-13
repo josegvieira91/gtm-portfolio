@@ -1,10 +1,10 @@
 // src/lib/schematic/timeline.ts
 //
-// Single job: build the GSAP timeline that drives a schematic's motion —
-// scroll-scrubbed (D-06/D-08) or one-shot autoplay (D-09, the hero) — behind
-// a gsap.matchMedia() reduced-motion gate that is structurally incapable of
-// registering anything when the user prefers reduced motion. Pattern 2 /
-// Pitfall 2, non-negotiable: if neither matchMedia query below matches
+// Single job: build the GSAP timeline that drives a schematic's motion,
+// either scroll-scrubbed or as the hero's one-shot autoplay, behind a
+// gsap.matchMedia() reduced-motion gate that is structurally incapable of
+// registering anything when the user prefers reduced motion. This part is
+// not negotiable: if neither matchMedia query below matches
 // (i.e. the OS's reduced-motion preference is set), this module never
 // touches the DOM and never registers a ScrollTrigger. The SSR final-drawn
 // state (Schematic.astro) stands exactly as delivered in that case — this
@@ -22,7 +22,7 @@ gsap.registerPlugin(ScrollTrigger, DrawSVGPlugin);
  * (desktop column + mobile layout, toggled by CSS breakpoint) — both tween
  * together, only the CSS-visible one is ever seen.
  *
- * IN-03 fix: this used to also carry an `svg` ref (`querySelector('[data-
+ * This used to also carry an `svg` ref (`querySelector('[data-
  * schematic-svg]')`), collected by SchematicController.ts but read by
  * nothing here or anywhere else. Dropped from both this interface and the
  * collection site -- the `data-schematic-svg` DOM attribute itself stays in
@@ -59,7 +59,7 @@ function setUndrawnStart(diagram: Diagram, refs: SchematicRefs): void {
 /** Walk diagram.steps in order onto an existing gsap.timeline(): draw each
  * step's edges, activate its nodes, toggle its callout on (and the
  * previous step's callout back to dimmed), and settle the packet marker on
- * the step's final node — no ambiguous between-node resting state (D-08).
+ * the step's final node, so there is no ambiguous between-node resting state.
  * Shared by both the scroll-scrubbed mount and the one-shot hero autoplay
  * so the two motion modes never drift apart. */
 function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.Timeline): void {
@@ -68,9 +68,9 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
   diagram.steps.forEach((step) => {
     tl.addLabel(step.id);
 
-    // 02-07 Gate 2 fix: the FIRST tween added for a step must anchor to the
-    // step's own label (just added above), not '<'. '<' resolves to the
-    // start time of the previously-ADDED TWEEN — across a step boundary
+    // The FIRST tween added for a step must anchor to the step's own label
+    // (just added above), not '<'. '<' resolves to the start time of the
+    // previously-ADDED TWEEN, and across a step boundary
     // that's the PRIOR step's own first tween, not this step's label. Used
     // unconditionally (as this loop originally did for every tween,
     // including each step's first), every step's tweens collapse onto
@@ -90,8 +90,8 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
       return pos;
     };
 
-    // 02-07 Gate 2 fix (hero autoplay latency): this function is shared by
-    // both the scroll-scrubbed case-page mount AND the hero's real-time
+    // Hero autoplay latency: this function is shared by both the
+    // scroll-scrubbed case-page mount AND the hero's real-time
     // one-shot autoplay. For scroll-scrub, `scrub` maps 0-100% scroll
     // progress to 0-100% of the timeline's own duration proportionally —
     // shortening these per-tween durations changes nothing visually there,
@@ -155,8 +155,8 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // steps inline -- setUndrawnStart, build a gsap.timeline gated on
   // `options.mode`, run buildStepTimeline, return the ScrollTrigger cleanup
   // -- differing only in the ScrollTrigger options object. That duplication
-  // is exactly what let the desktop `end:` fix (WR-02's subject) land in
-  // one branch and not the other. Extracted once here, called from both
+  // is exactly what let an earlier desktop `end:` fix land in one branch
+  // and not the other. Extracted once here, called from both
   // `mm.add` callbacks below with only the branch-specific options object.
   const mount = (stOptions: ScrollTrigger.Vars): (() => void) => {
     setUndrawnStart(diagram, refs);
@@ -165,9 +165,9 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
     return () => tl.scrollTrigger?.kill();
   };
 
-  // Desktop (D-06): the diagram stays fixed while callouts scroll past it in
-  // the right column. 02-07 Gate 2 fix: this used to be a GSAP `pin:true`
-  // with `end: '+=' + diagram.steps.length * 400` — a magic-number scroll
+  // Desktop: the diagram stays fixed while callouts scroll past it in the
+  // right column. This used to be a GSAP `pin:true` with
+  // `end: '+=' + diagram.steps.length * 400`, a magic-number scroll
   // distance completely decoupled from the section's REAL DOM height (the
   // callout column's `gap-[60vh]` stack, several viewport-heights tall).
   // Whenever those two disagreed (they always did — 400px/step has no
@@ -187,25 +187,26 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
       start: 'top top', // matches md:sticky md:top-0 engaging
       scrub: 1,
       end: 'bottom bottom',
-      snap: 'labels', // D-08: soft snap to each step
+      snap: 'labels', // soft snap to each step
     })
   );
 
-  // Mobile (D-07): pin only if SCHEMATIC_CONFIG.mobilePin === 'pin' (spike-
-  // decided in 02-07); when unpinned, the diagram still draws progressively
-  // via the same scrub+snap, just without visually locking in place.
+  // Mobile: pin only if SCHEMATIC_CONFIG.mobilePin === 'pin', which is what
+  // real-device testing settled on. When unpinned, the diagram still draws
+  // progressively via the same scrub and snap, it just does not lock in
+  // place visually.
   //
   // pinType stays at GSAP's default ('fixed'). An explicit
-  // `pinType: 'transform'` was tried in a 02-07 Gate 2 round as an
-  // overflow fix and REVERTED: on real WebKit it repositions the section
+  // `pinType: 'transform'` was tried once as an overflow fix and
+  // REVERTED: on real WebKit it repositions the section
   // per scroll event, which lags visibly during iOS momentum scroll
   // ("insane jitter" in the real-device report) and left displaced/ghost
   // content after programmatic scrolls. The overflow it was chasing was
   // never a pin-measurement problem at all — root cause was viewBoxFor()
   // sizing the SVG viewBox from node centers instead of true extents
   // (layout.ts), which WebKit paints outside the viewport where Chrome
-  // clips. The 02-01 real-iPhone spike verdict ("smooth") was recorded
-  // against this default pinType.
+  // clips. The real-iPhone verdict ("smooth") was recorded against this
+  // default pinType.
   mm.add('(prefers-reduced-motion: no-preference) and (max-width: 767px)', () =>
     mount({
       trigger: refs.section,
@@ -221,8 +222,8 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // and no ScrollTrigger was ever registered — the SSR final-drawn state
   // stands exactly as delivered.
 
-  // 02-07 Gate 2 round-3 defense-in-depth: ScrollTrigger's pin/scrub
-  // measurements are taken at whatever moment matchMedia's callback runs,
+  // Defense in depth: ScrollTrigger's pin and scrub measurements are taken
+  // at whatever moment matchMedia's callback runs,
   // which can be before the self-hosted variable font
   // (@fontsource-variable/jetbrains-mono) has finished swapping in and
   // settling final text-driven layout metrics. GSAP's own documented fix
@@ -241,7 +242,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
 }
 
 /**
- * One-shot autoplay for the home hero (D-09): the same step loop as a plain
+ * One-shot autoplay for the home hero: the same step loop as a plain
  * `gsap.timeline()` played once on mount, no ScrollTrigger involved.
  * Reduced-motion gated the same way as `mountSchematic`.
  *

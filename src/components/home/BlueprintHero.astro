@@ -1,7 +1,7 @@
 ---
 // src/components/home/BlueprintHero.astro
 //
-// D-09: the home-exclusive self-drawing GTM machine. Composes Schematic
+// The home-exclusive self-drawing GTM machine. Composes Schematic
 // with hero.json in mode="auto" (one-shot DrawSVG autoplay, no scroll pin
 // or scrub) as a full-bleed backdrop; name/title/positioning line sit
 // above it. SSR ships both the diagram and the overlay text in their
@@ -30,7 +30,7 @@ if (!heroDiagram) {
   id="hero"
   class="blueprint-grid relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-24"
 >
-  {/* 02-07 Gate 2 fix: this wrapper's own header comment already calls the
+  {/* This wrapper's own header comment already calls the
       diagram a "full-bleed BACKDROP" the name/title sit "above" — but the
       implementation shipped it at 70-80% opacity, which is a fully
       competing readable layer (legible boxes/labels), not a backdrop. At
@@ -72,7 +72,7 @@ if (!heroDiagram) {
     heroSchematicRoot?.addEventListener('schematic:autoplay-complete', reveal, { once: true });
     // CR-02 fix: the schematic's own async chain (IntersectionObserver ->
     // JSON.parse -> dynamic import() -> gsap matchMedia) has multiple
-    // silent-failure points (see WR-13), any of which leaves this event
+    // silent-failure points, any of which leaves this event
     // never dispatched and the name/title hidden forever. The name must
     // never depend on all of them succeeding, so a fixed timer reveals the
     // overlay regardless — the event is an optimization, not a dependency.

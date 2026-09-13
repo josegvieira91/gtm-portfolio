@@ -21,10 +21,10 @@
 # keeps the fast path simple.
 #
 # R3's AUTH_KEYS list and R6's known-secret-shape prefixes are both
-# best-effort, not exhaustive (WR-04): R6 only recognizes Anthropic/Slack/
-# HubSpot token shapes, so Cal.com/Mailtrap/Salesforce/Clay credentials are
-# caught only via R1 (host allowlist), R2/R3 (structural checks), or R5
-# (local denylist) — not by R6's literal-prefix matching.
+# best-effort and not exhaustive. R6 only recognizes Anthropic, Slack and
+# HubSpot token shapes, so Cal.com, Mailtrap, Salesforce and Clay credentials
+# are caught by R1 (host allowlist), R2 and R3 (structural checks) or R5
+# (local denylist), never by R6's literal-prefix matching.
 set -euo pipefail
 
 usage() {
@@ -124,13 +124,12 @@ function loadAllowlist(p) {
 const allowlist = loadAllowlist(allowlistPath).map((h) => h.toLowerCase());
 
 // Salesforce's org-specific REST/Bulk API host (e.g. na139.my.salesforce.com,
-// vieira-gtm-lab.lightning.force.com) isn't covered by login/test.salesforce.com
-// or the example.com fallback. Allowlisting the *pattern* here (WR-02) — rather
-// than adding one org's literal instance hostname to the tracked
-// .sanitize-allowlist file — is deliberate: the instance subdomain itself
-// isn't sensitive (a free Dev Edition org), but a specific hostname pasted
-// into the tracked file over time would be a slow leak of real org
-// identifiers.
+// some-org.lightning.force.com) isn't covered by login/test.salesforce.com or
+// the example.com fallback. Allowlisting the *pattern* here, rather than
+// adding one org's literal instance hostname to the tracked
+// .sanitize-allowlist file, is deliberate. The instance subdomain itself
+// isn't sensitive on a free Dev Edition org, but specific hostnames pasted
+// into a tracked file accumulate into a slow leak of real org identifiers.
 const WILDCARD_ALLOWED_HOST_SUFFIXES = [".my.salesforce.com", ".lightning.force.com"];
 
 function hostAllowed(host) {
@@ -140,10 +139,10 @@ function hostAllowed(host) {
   return allowlist.includes(h);
 }
 
-// Best-effort list, not exhaustive (WR-04) — R6 below is similarly a narrow,
-// literal-prefix list (Anthropic/Slack/HubSpot only) and is not a safety net
-// for Cal.com/Mailtrap/Salesforce/Clay credentials specifically; those rely
-// on this list, R1 (host), and R2/R3 (structural checks) instead.
+// Best-effort list, not exhaustive. R6 below is similarly narrow: a
+// literal-prefix list covering Anthropic, Slack and HubSpot only. It is no
+// safety net for Cal.com, Mailtrap, Salesforce or Clay credentials, which
+// rely on this list, R1 (host) and R2/R3 (structural checks) instead.
 const AUTH_KEYS = [
   "authorization",
   "x-api-key",

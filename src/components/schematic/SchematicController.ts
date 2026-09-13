@@ -1,6 +1,6 @@
 // src/components/schematic/SchematicController.ts
 //
-// Deferred hydration entry point for every schematic on the page (SITE-04):
+// Deferred hydration entry point for every schematic on the page. It
 // finds each [data-schematic-root], attaches ONE IntersectionObserver per
 // element (rootMargin 200px, so the heavy gsap/ScrollTrigger/DrawSVG chunk
 // starts loading just before the schematic approaches the viewport, not on
@@ -11,7 +11,7 @@
 // `import()` below, inside the observer callback.
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
 import type { Diagram } from '../../lib/schematic/types';
-// IN-04 fix: this was a locally-declared `CollectedRefs` interface,
+// This was a locally-declared `CollectedRefs` interface,
 // structurally identical to `SchematicRefs` below except `packet`
 // optionality, that had to be kept in sync by hand. Type-only import is
 // required so the gsap-bearing module is not pulled into the initial
@@ -19,7 +19,7 @@ import type { Diagram } from '../../lib/schematic/types';
 // already used for `Diagram` from `../../lib/schematic/types`.
 import type { SchematicRefs } from '../../lib/schematic/timeline';
 
-// IN-01 fix: `positions` and `layout` were serialized into every embedded
+// `positions` and `layout` used to be serialized into every embedded
 // payload but nothing on the client ever read either -- coordinates come
 // from the node's own SSR `data-cx`/`data-cy` attributes instead
 // (timeline.ts, layout.ts stays the single source of truth). Reduced to
@@ -32,8 +32,8 @@ interface DiagramPayload {
  * Collect the DOM refs `mountSchematic`/`autoplaySchematic` animate. The
  * ScrollTrigger pin boundary (`section`) is the closest ancestor marked
  * `[data-pin-section]` — DiagramSection.astro puts this on its outer
- * wrapper so the pin spans both the diagram column and the callout column
- * (D-06). Standalone usage (hero/mini schematics with no such ancestor)
+ * wrapper so the pin spans both the diagram column and the callout
+ * column. Standalone usage (hero/mini schematics with no such ancestor)
  * falls back to the schematic root itself.
  */
 function collectRefs(schematicRoot: Element): SchematicRefs {
@@ -83,7 +83,7 @@ async function hydrate(schematicRoot: Element): Promise<void> {
   const refs = collectRefs(schematicRoot);
 
   // Dynamic import: the ONLY place gsap/ScrollTrigger/DrawSVG enter the
-  // bundle graph, kept out of the initial page load (SITE-04).
+  // bundle graph, kept out of the initial page load.
   const { mountSchematic, autoplaySchematic } = await import('../../lib/schematic/timeline');
 
   if (mode === 'auto') {
@@ -99,8 +99,8 @@ async function hydrate(schematicRoot: Element): Promise<void> {
 /**
  * Attach one IntersectionObserver per `[data-schematic-root]` found under
  * `root`. On first intersection the observer disconnects itself and
- * hydrates that schematic — gsap loads only when a schematic approaches
- * the viewport (SITE-04), never on initial page load. Astro dedupes
+ * hydrates that schematic. gsap loads only when a schematic approaches
+ * the viewport, never on initial page load. Astro dedupes
  * identical inline component `<script>`s, so this runs once per page
  * regardless of how many `<Schematic>` instances render.
  */

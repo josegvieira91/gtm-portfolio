@@ -1,7 +1,7 @@
 // src/components/schematic/local-icons.ts
 //
-// Single lookup for the hand-drawn tool glyphs (Pitfall 4: tools with no
-// Simple Icons entry — Clay, Apollo, Instantly). Keys match the `local`
+// Single lookup for the hand-drawn tool glyphs, for the tools with no
+// Simple Icons entry: Clay, Apollo and Instantly. Keys match the `local`
 // field in tool-icons.ts ("icons/clay.svg"). Consumers (SchematicNode,
 // StackBadges, MachineWall) resolve through this map instead of importing
 // any one glyph directly, so adding a tool = drop the SVG in icons/ + one

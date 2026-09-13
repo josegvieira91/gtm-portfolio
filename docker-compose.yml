@@ -1,6 +1,6 @@
-# Production shape. The shared VPS already runs 20+ containers on the
-# external `proxy` network with Nginx Proxy Manager owning ports 80/443 —
-# this service is reached only by Docker service name, never a host port.
+# Production shape. The container joins an existing external `proxy` network
+# and is reached only by Docker service name. It publishes no host port and
+# terminates no TLS; the reverse proxy in front of it does both.
 services:
   gtm-portfolio-web:
     container_name: gtm-portfolio-web
@@ -12,9 +12,9 @@ services:
     networks:
       - proxy
     # No `ports:` key here on purpose: this container is not published on any
-    # host port. Nginx Proxy Manager reaches it by Docker service name on the
-    # `proxy` network, matching every other service on the shared VPS. Do not
-    # add one — see docker-compose.local.yml for the local-only override.
+    # host port. The reverse proxy reaches it by Docker service name on the
+    # `proxy` network. Do not add one; docker-compose.local.yml carries the
+    # local-only override that does publish a port.
 
 networks:
   proxy:

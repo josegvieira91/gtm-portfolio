@@ -7,12 +7,12 @@
 // Shape geometry follows circuit-schematic convention by node `kind`:
 // trigger = rounded rect with an input notch, process = rounded rect,
 // store = cylinder-ish rect (elliptical cap), output = chevron rect.
-// Two visual treatments switch on SCHEMATIC_CONFIG.nodeStyle (GATE 1,
-// D-05b): 'line-art' = geometry + label only, no icon glyph; 'logo' =
-// same geometry plus the tool's real brand-colored Simple Icons glyph on
-// a light chip (the winning Gate 1 treatment; Pitfall 5: real brand hex,
-// not the cyan accent). Tools with no Simple Icons entry (Pitfall 4:
-// Clay, Apollo, Instantly) fall back to hand-drawn glyphs resolved
+// Two visual treatments switch on SCHEMATIC_CONFIG.nodeStyle:
+// 'line-art' = geometry and label only, no icon glyph; 'logo' = the same
+// geometry plus the tool's brand-colored Simple Icons glyph on a light
+// chip. The chip uses the real brand hex, not the cyan accent, or it stops
+// reading as a logo. Tools with no Simple Icons entry (Clay, Apollo,
+// Instantly) fall back to hand-drawn glyphs resolved
 // through LOCAL_ICONS (local-icons.ts), inlined via Vite ?raw imports so
 // they need no public/ asset path.
 import { Icon } from 'astro-icon/components';

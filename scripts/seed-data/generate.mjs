@@ -6,7 +6,7 @@
 // a source of truth):
 //   - companies.csv    40 rows, one per synthetic account
 //   - contacts.csv     80 rows, two per company
-//   - usage-events.csv ~600 rows, feeds the Phase 3 reporting/health-score cases
+//   - usage-events.csv ~600 rows, feeds the reporting and health-score cases
 //
 // Every company domain is a slug under the RFC 2606 reserved `example.com` domain, so a
 // generated record can never collide with a real business or reach a real mailbox — see
@@ -33,7 +33,7 @@ const OUTPUT_DIR = join(__dirname, 'output');
 // 90 days") are also deterministic regardless of which real-world day the script runs on.
 const REFERENCE_DATE = new Date('2026-07-24T00:00:00Z');
 
-const COMPANY_COUNT = 40; // tens, not hundreds — Salesforce Dev Edition storage headroom (PITFALLS.md Pitfall 4)
+const COMPANY_COUNT = 40; // tens, not hundreds: Salesforce Dev Edition has ~5 MB of storage
 const CONTACTS_PER_COMPANY = 2;
 const USAGE_EVENT_COUNT = 600;
 
