@@ -28,8 +28,8 @@ order:
 | 9 | `funnel-sla-reporting-pipeline` |
 | 10 | `product-usage-health-score-churn-signals` |
 
-A folder is empty (holding only a `.gitkeep`) until the corresponding case's automation is
-built and its export has passed the sanitize gate below.
+A folder appears here once the corresponding case's automation is built and its export has
+passed the sanitize gate below.
 
 ## Engines
 

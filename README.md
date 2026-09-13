@@ -11,10 +11,10 @@ Four of the ten planned cases are published:
 
 | Case | Engine |
 |------|--------|
-| Inbound Speed-to-Lead Engine | n8n |
-| TAM List Building & Enrichment Waterfall | Clay, n8n |
-| CRM Hygiene Engine | Make |
-| AI-Personalized Outbound | n8n, OpenAI |
+| [Inbound Speed-to-Lead Engine](https://josevieira.dev/cases/inbound-speed-to-lead/) | n8n |
+| [TAM List Building & Enrichment Waterfall](https://josevieira.dev/cases/tam-list-building-enrichment-waterfall/) | Clay, n8n |
+| [CRM Hygiene Engine](https://josevieira.dev/cases/crm-hygiene-engine/) | Make |
+| [AI-Personalized Outbound](https://josevieira.dev/cases/ai-personalized-outbound/) | n8n, OpenAI |
 
 The other six are in build. Their pages are not part of the build output yet, and
 they go live one at a time as each run finishes.
