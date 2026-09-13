@@ -7,7 +7,7 @@
 // not negotiable: if neither matchMedia query below matches
 // (i.e. the OS's reduced-motion preference is set), this module never
 // touches the DOM and never registers a ScrollTrigger. The SSR final-drawn
-// state (Schematic.astro) stands exactly as delivered in that case — this
+// state (Schematic.astro) stands exactly as delivered in that case. That
 // is the entire reduced-motion fallback, there is no third branch for it.
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -19,7 +19,7 @@ gsap.registerPlugin(ScrollTrigger, DrawSVGPlugin);
 
 /** DOM refs collected by SchematicController.ts before mounting. Callouts
  * map to an array because the same step id can render twice in the DOM
- * (desktop column + mobile layout, toggled by CSS breakpoint) — both tween
+ * (desktop column and mobile layout, toggled by CSS breakpoint). Both tween
  * together, only the CSS-visible one is ever seen.
  *
  * This used to also carry an `svg` ref (`querySelector('[data-
@@ -42,7 +42,7 @@ export interface MountOptions {
 
 /** Move every animated element BACKWARD to its pre-animation start state.
  * Only ever called from inside a matched `(prefers-reduced-motion:
- * no-preference)` matchMedia branch — never at SSR/CSS time (Pattern 2). */
+ * no-preference)` matchMedia branch, never at SSR or CSS time. */
 function setUndrawnStart(diagram: Diagram, refs: SchematicRefs): void {
   const edgeEls = diagram.edges.map((e) => refs.edges[e.id]).filter(Boolean);
   if (edgeEls.length) gsap.set(edgeEls, { drawSVG: '0%' });
@@ -79,7 +79,7 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
     // 5-step diagram came out as [0, 1, 1, 1, 1] instead of [0, 1, 2, 3, 4].
     // On a real device this reads as "only the last callout's activation
     // tween ever visibly wins the scrub, and everything converges once the
-    // scroll reaches the collapsed end point" — exactly the mobile Safari
+    // scroll reaches the collapsed end point", which is exactly the mobile Safari
     // report from the real-iPhone spike. Anchoring each step's first tween
     // to `step.id` fixes the absolute position; every other tween in the
     // same step still chains off it with '<' exactly as before.
@@ -93,13 +93,13 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
     // Hero autoplay latency: this function is shared by both the
     // scroll-scrubbed case-page mount AND the hero's real-time
     // one-shot autoplay. For scroll-scrub, `scrub` maps 0-100% scroll
-    // progress to 0-100% of the timeline's own duration proportionally —
+    // progress to 0-100% of the timeline's own duration proportionally, so
     // shortening these per-tween durations changes nothing visually there,
     // only the nominal total. For autoplay (no ScrollTrigger, played in
     // real wall-clock time), the total duration IS how long the user
     // waits. The original 1s/0.6s/0.4s/0.8s durations, combined with the
     // step-anchor fix above (which correctly stopped steps from collapsing
-    // onto each other), gave each step a real ~1s slot — 5 steps in
+    // onto each other), gave each step a real ~1s slot. 5 steps in
     // hero.json meant the hero's "schematic:autoplay-complete" event (and
     // therefore the name/title overlay fade-in, gated on it) didn't fire
     // for ~5 real seconds. Measured via a real headless run: dispatched at
@@ -132,7 +132,7 @@ function buildStepTimeline(diagram: Diagram, refs: SchematicRefs, tl: gsap.core.
       const lastNode = refs.nodes[lastNodeId];
       // The packet reads its target from the node's own SSR-computed
       // position (data-cx/data-cy, written by SchematicNode.astro) rather
-      // than re-deriving layout math here — layout.ts stays the single
+      // than re-deriving layout math here. layout.ts stays the single
       // source of truth for coordinates.
       const cx = lastNode?.getAttribute('data-cx');
       const cy = lastNode?.getAttribute('data-cy');
@@ -170,16 +170,16 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // `end: '+=' + diagram.steps.length * 400`, a magic-number scroll
   // distance completely decoupled from the section's REAL DOM height (the
   // callout column's `gap-[60vh]` stack, several viewport-heights tall).
-  // Whenever those two disagreed (they always did — 400px/step has no
+  // Whenever those two disagreed (they always did, since 400px/step has no
   // relationship to a vh-based gap), the pin released mid-scroll, before
   // the callouts finished passing by, producing a jarring clipped/jumping
   // layout. The fixed diagram is now `md:sticky md:top-0` in CSS
-  // (DiagramSection.astro) instead of a JS pin — sticky positioning is
+  // (DiagramSection.astro) instead of a JS pin. Sticky positioning is
   // inherently always in sync with the real DOM height, no distance to
   // keep in sync by hand. `end: 'bottom bottom'` makes the scrub span
   // exactly the section's natural scroll-through range (from its top
   // hitting the viewport top to its bottom hitting the viewport bottom),
-  // which is precisely how long the sticky diagram stays stuck — the two
+  // which is precisely how long the sticky diagram stays stuck. The two
   // mechanisms share the same underlying DOM height by construction.
   mm.add('(prefers-reduced-motion: no-preference) and (min-width: 768px)', () =>
     mount({
@@ -202,7 +202,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // per scroll event, which lags visibly during iOS momentum scroll
   // ("insane jitter" in the real-device report) and left displaced/ghost
   // content after programmatic scrolls. The overflow it was chasing was
-  // never a pin-measurement problem at all — root cause was viewBoxFor()
+  // never a pin-measurement problem at all. The root cause was viewBoxFor()
   // sizing the SVG viewBox from node centers instead of true extents
   // (layout.ts), which WebKit paints outside the viewport where Chrome
   // clips. The real-iPhone verdict ("smooth") was recorded against this
@@ -219,7 +219,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
 
   // No third branch exists. When the OS's reduced-motion preference is set,
   // neither query above matches, this function has done nothing to the DOM,
-  // and no ScrollTrigger was ever registered — the SSR final-drawn state
+  // and no ScrollTrigger was ever registered, so the SSR final-drawn state
   // stands exactly as delivered.
 
   // Defense in depth: ScrollTrigger's pin and scrub measurements are taken
@@ -229,7 +229,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // settling final text-driven layout metrics. GSAP's own documented fix
   // for exactly this class of "measured-too-early" pin bug is a
   // `ScrollTrigger.refresh()` once fonts are ready. Harmless to call from
-  // every schematic instance — `document.fonts.ready` is a single
+  // every schematic instance. `document.fonts.ready` is a single
   // page-wide promise, so this only ever adds a few cheap, idempotent
   // refresh() calls, never duplicate ScrollTrigger instances.
   if (typeof document !== 'undefined' && document.fonts?.ready) {
@@ -247,7 +247,7 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
  * Reduced-motion gated the same way as `mountSchematic`.
  *
  * On completion, dispatches a `schematic:autoplay-complete` CustomEvent on
- * `refs.section` — this module has no business knowing about page-specific
+ * `refs.section`. This module has no business knowing about page-specific
  * overlay text (e.g. BlueprintHero's name/title), so a DOM event is the
  * hand-off point rather than a page-specific callback param. The dispatch
  * lives INSIDE the matched `no-preference` branch only: reduced-motion

@@ -7,7 +7,7 @@
 // initial page load), and on first intersection dynamically imports the
 // timeline module and mounts it. This is the vanilla-island equivalent of
 // `client:visible`. No top-level static `import ... from 'gsap'` exists
-// anywhere in this file — gsap is only ever reachable through the
+// anywhere in this file. gsap is only ever reachable through the
 // `import()` below, inside the observer callback.
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
 import type { Diagram } from '../../lib/schematic/types';
@@ -31,7 +31,7 @@ interface DiagramPayload {
 /**
  * Collect the DOM refs `mountSchematic`/`autoplaySchematic` animate. The
  * ScrollTrigger pin boundary (`section`) is the closest ancestor marked
- * `[data-pin-section]` — DiagramSection.astro puts this on its outer
+ * `[data-pin-section]`, which DiagramSection.astro puts on its outer
  * wrapper so the pin spans both the diagram column and the callout
  * column. Standalone usage (hero/mini schematics with no such ancestor)
  * falls back to the schematic root itself.
@@ -52,7 +52,7 @@ function collectRefs(schematicRoot: Element): SchematicRefs {
   });
 
   // Callouts live in `section`, not necessarily inside `schematicRoot`
-  // itself (DiagramSection renders them as a sibling column) — and the
+  // itself (DiagramSection renders them as a sibling column), and the
   // same step id can appear twice (desktop + mobile layout, CSS-toggled),
   // so every match for a given id is collected, not just the first.
   const callouts: Record<string, Element[]> = {};

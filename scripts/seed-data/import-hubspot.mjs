@@ -11,14 +11,14 @@
 // Auth: reads HUBSPOT_PRIVATE_APP_TOKEN from the environment. Run via
 //   npm run import:hubspot
 // which wires `node --env-file-if-exists=.env` so the token comes from the project's
-// gitignored .env file — never from a shell rc file, never pasted into chat. Required scopes:
+// gitignored .env file. Never from a shell rc file, never pasted into chat. Required scopes:
 //   crm.objects.contacts.read, crm.objects.contacts.write,
 //   crm.objects.companies.read, crm.objects.companies.write
 // See README.md for exactly where to create the private app and grant these scopes.
 //
 // Idempotent: contacts use the batch/upsert endpoint with idProperty=email (email is unique by
-// default on every HubSpot portal, so this just works). Companies do NOT use batch/upsert — see
-// the live-run correction below — they use a search-then-create/update sequence instead, which
+// default on every HubSpot portal, so this just works). Companies do NOT use batch/upsert; see
+// the live-run correction below. They use a search-then-create/update sequence instead, which
 // is idempotent for the same reason (re-running after a re-seed finds the same domains and
 // updates them instead of creating duplicates).
 //
@@ -34,7 +34,7 @@
 // CORRECTED DURING THE LIVE RUN (2026-07-25): the plan's original design called for
 // batch/upsert with idProperty=domain on companies too, mirroring the contacts approach. That
 // failed against the real "Vieira GTM Lab" portal with HTTP 400 VALIDATION_ERROR: "Unable to
-// perform update/upsert by non-unique property domain" — HubSpot's batch/upsert requires the
+// perform update/upsert by non-unique property domain". HubSpot's batch/upsert requires the
 // idProperty to be a property explicitly flagged hasUniqueValue=true, and a portal's default
 // `domain` property on Companies is NOT flagged unique out of the box (confirmed via
 // GET /crm/v3/properties/companies/domain -> "hasUniqueValue": false). Flipping that flag would
@@ -42,7 +42,7 @@
 // granted (crm.objects.{contacts,companies}.{read,write} only) and is a schema change outside
 // this script's job. Fixed at the script level instead: search existing companies by domain
 // (crm.objects.companies.read, already granted), then route matches to batch/update and
-// non-matches to batch/create — same end state (idempotent upsert keyed by domain), no schema
+// non-matches to batch/create. Same end state (idempotent upsert keyed by domain), no schema
 // change, no new scope.
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -110,7 +110,7 @@ async function hubspotRequest(path, body) {
 }
 
 // HubSpot's batch endpoints return HTTP 207 Multi-Status on partial success
-// (some inputs succeeded, others failed) — fetch's Response.ok is true for
+// (some inputs succeeded, others failed), and fetch's Response.ok is true for
 // any 2xx-3xx status including 207, so `!res.ok` alone never catches this.
 // The per-record failures live in the response body (`errors`/`numErrors`)
 // even though the batch call itself "succeeded." Surface them explicitly.
@@ -147,7 +147,7 @@ async function upsertBatch(objectType, inputs) {
   return { results, errors };
 }
 
-// Companies can't use upsertBatch (see the CORRECTED note at the top of this file — the
+// Companies can't use upsertBatch (see the CORRECTED note at the top of this file: the
 // `domain` property isn't flagged unique in this portal). This does the same idempotent-upsert
 // job via search + create/update instead.
 async function searchIdsByProperty(objectType, propertyName, values) {
@@ -295,7 +295,7 @@ async function main() {
   // Build domain -> companyId and email -> contactId maps so the association step doesn't need
   // a second round-trip to look records up. Updated companies keep their pre-existing id
   // (already known from the search above); newly created companies get their id from the
-  // batch/create response, which — unlike batch/upsert — is fully documented to echo back id +
+  // batch/create response, which, unlike batch/upsert, is fully documented to echo back id +
   // properties per input.
   const companyIdByDomain = new Map(existingCompanyIds);
   for (const r of companyCreateResult.results) {
@@ -337,7 +337,7 @@ async function main() {
 
   const hadErrors = companyErrors.length || contactResult.errors.length || assocResult.errors.length;
   if (hadErrors) {
-    console.error('\nCompleted with errors — see per-batch output above.');
+    console.error('\nCompleted with errors. See per-batch output above.');
     process.exit(1);
   }
   console.log('\nHubSpot import complete. Run "npm run verify:imports" to confirm.');

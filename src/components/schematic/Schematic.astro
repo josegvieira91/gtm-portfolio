@@ -1,8 +1,8 @@
 ---
 // src/components/schematic/Schematic.astro
 //
-// The ONE component that SSRs any diagram — full case diagram or the
-// compact mini variant used by the home machine wall / card hover — in
+// The ONE component that SSRs any diagram, either the full case diagram or
+// the compact mini variant used by the home machine wall and card hover, in
 // its FINAL, fully-drawn state. Never an "undrawn" starting
 // state: full opacity, drawSVG untouched (Pattern 2, non-negotiable). The
 // client controller (SchematicController.ts) is the only thing allowed to
@@ -13,9 +13,9 @@
 // owner-authored and zod-validated at build time; the payload is
 // serialized with JSON.stringify and `</script` sequences are explicitly
 // escaped before being written via `set:html`. Astro's plain `{expr}`
-// child interpolation does NOT evaluate inside inline <script> tags —
+// child interpolation does NOT evaluate inside inline <script> tags,
 // verified directly against this component's own build output, where it
-// rendered as the literal text "{diagramPayload}" instead of the JSON —
+// rendered as the literal text "{diagramPayload}" instead of the JSON, so
 // so `set:html` (Astro's own directive, not a hand-rolled string-concat
 // workaround) is the correct mechanism here, with the explicit escape
 // above as the mitigation for the risk that directive normally carries.
@@ -88,7 +88,7 @@ const diagramPayload = JSON.stringify({ diagram })
 {/* Machine wall mini-schematics used to show cut nodes,
     orphaned edges, huge empty gaps below content): the 10 diagrams' own
     viewBox aspect ratios range from 1.19:1 to 6.25:1 (measured directly
-    from each case's JSON) — nowhere close to a single fixed ratio, so
+    from each case's JSON), nowhere close to a single fixed ratio, so
     `w-full h-auto` (deriving height purely from the SVG's OWN aspect,
     ignoring the card panel's actual box) either left the panel mostly
     empty below a too-short diagram or let a too-tall one overflow past
@@ -97,7 +97,7 @@ const diagramPayload = JSON.stringify({ diagram })
     the svg) and relies on the SVG spec's own default
     `preserveAspectRatio="xMidYMid meet"` (unset here = default) to scale
     the viewBox content to fit inside that box on both axes, centered,
-    with letterboxing rather than cropping or gapping — the standard,
+    with letterboxing rather than cropping or gapping. That is the standard,
     zero-JS way to make an SVG with an unknown/variable aspect ratio
     always fit a fixed container. `variant="full"` (case pages, hero) is
     untouched: it still wants `h-auto` so a single wide diagram scales by
@@ -107,7 +107,7 @@ const diagramPayload = JSON.stringify({ diagram })
   {/* overflow-hidden is load-bearing, not cosmetic: Chrome clips painted
       content at the svg viewport by default, WebKit paints content that
       leaks past the viewBox. The viewBox now covers true
-      extents, so nothing should leak — this pins both engines to the same
+      extents, so nothing should leak. This pins both engines to the same
       clipping behavior if an estimate is ever off. */}
   <svg
     viewBox={viewBox}
@@ -121,8 +121,8 @@ const diagramPayload = JSON.stringify({ diagram })
       <SchematicEdge edge={edge} fromPos={positions[edge.from]} toPos={positions[edge.to]} />
     ))}
     {/* Paint order is load-bearing: the packet sits ABOVE edges (it travels
-        along them) but BELOW nodes, so on arrival it docks INTO the unit —
-        the node's opaque body occludes it — instead of parking on top of
+        along them) but BELOW nodes, so on arrival it docks INTO the unit,
+        where the node's opaque body occludes it, instead of parking on top of
         the tool's logo chip (the packet's settle position
         is a node CENTER, exactly where SchematicNode paints the logo). */}
     {restPos && (

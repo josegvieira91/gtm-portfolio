@@ -27,18 +27,19 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 ---
 
 {/* Mobile-only. When GSAP pins this section (ScrollTrigger's
-    default `start: "top top"`), it locks to the viewport's literal y=0 —
-    exactly where iOS's Dynamic Island / status bar sits. `env(safe-area-inset-top)`
+    default `start: "top top"`), it locks to the viewport's literal y=0,
+    exactly where iOS's Dynamic Island and status bar sit. `env(safe-area-inset-top)`
     (needs `viewport-fit=cover` on the viewport meta, set in BaseLayout.astro)
     pushes the pinned content below that safe area on notched devices and
     resolves to 0 everywhere else, so this is a no-op on non-notched phones.
-    `md:pt-0` keeps desktop pin behavior byte-identical — untouched per the
-    gate instruction. */}
+    `md:pt-0` keeps desktop pin behavior byte-identical, so nothing above
+    the md breakpoint changes. */}
 {/* Cases whose diagrams define no callout steps yet (the catalog
     placeholders) get a centered single-column stage: the 60/40
     scrollytelling grid with an EMPTY right rail reads as a broken,
-    off-center page, not as a layout. The scrub-draw animation still runs —
-    same data-pin-section boundary, same Schematic mount — there is just no
+    off-center page, not as a layout. The scrub-draw animation still runs,
+    with the same data-pin-section boundary and the same Schematic mount.
+    There is just no
     callout column to scroll past. This branch disappears naturally as each
     case gains real callout content. */}
 {steps.length === 0 ? (
@@ -55,7 +56,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 >
   {/* Horizontal mobile clip: CSS Grid items default to
       `min-width: auto`, which refuses to shrink below the child SVG's own
-      intrinsic content size — on a narrow viewport this held the diagram at
+      intrinsic content size. On a narrow viewport this held the diagram at
       its full ~880px-wide intrinsic size and clipped both edges instead of
       letting `w-full` (on the SVG itself) actually scale it down. `min-w-0`
       removes that floor so the SVG's own width:100% can shrink to the real
@@ -64,13 +65,13 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 
       Desktop layout: the pinned section's own
       grid row stretches to match its tallest sibling (the callout column's
-      `gap-[60vh]` stack, several viewport-heights tall) — GSAP's `pin:true`
+      `gap-[60vh]` stack, several viewport-heights tall), and GSAP's `pin:true`
       with a fixed `end` distance decoupled from that real DOM height
       (see timeline.ts) released the pin early, mid-scroll, producing the
       clipped/jumping look. Native `md:sticky md:top-0` replaces the GSAP
       pin for desktop only: it sticks to the viewport top for exactly as
       long as its (already-correctly-sized) grid cell is scrolling through,
-      by construction — no separate distance to keep in sync. Mobile pin
+      by construction, with no separate distance to keep in sync. Mobile pin
       (already spike-verified smooth) is untouched: `sticky` only applies
       at md+.
 
@@ -78,11 +79,11 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
       default `align-items: stretch` was stretching THIS item's own box to
       match the taller callout-column sibling's row height (verified via
       real headless measurement: the wrapper's own rect was 3130px tall,
-      identical to the row) — sticky has nothing to visually "stick within"
+      identical to the row), sticky has nothing to visually "stick within"
       when the sticky element's own box already spans the entire
       scrollable distance. `self-start` keeps this item at its natural
       (short, SVG-sized) height while the grid ROW itself stays tall
-      (still governed by the callout column) — exactly the
+      (still governed by the callout column), which is exactly the
       short-child-inside-tall-area relationship sticky positioning needs.
       Re-verified after adding this: wrapper top stays pinned at 0px across
       the full scroll range instead of tracking scrollY 1:1. */}

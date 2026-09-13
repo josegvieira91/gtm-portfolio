@@ -6,9 +6,9 @@
 // Bulk API 2.0 commands (`sf data import bulk`). Prints Setup > Storage Usage (DataStorageMB)
 // before and after the import.
 //
-// Deliberately does NOT touch usage-events.csv — see README.md.
+// Deliberately does NOT touch usage-events.csv. See README.md.
 //
-// Prerequisite (one-time, human step — see the plan checkpoint):
+// Prerequisite (one-time, done by hand):
 //   npm install -g @salesforce/cli   (or: brew install sf)
 //   sf org login web --alias gtm-lab --set-default
 // After that, this script needs no credentials of its own; it drives the already-authenticated
@@ -20,7 +20,7 @@
 //
 // Idempotency note: the standard Account/Contact objects have no built-in "external ID" field
 // pointed at Website/Email (Salesforce's upsert commands require a custom field marked as an
-// External ID, which means a Setup/metadata change — out of scope for a portfolio lab seed
+// External ID, which means a Setup/metadata change, out of scope for a portfolio lab seed
 // script), so `sf data upsert bulk` isn't usable out of the box the way HubSpot's batch/upsert
 // is. Idempotency is instead handled at the script level: before importing, it queries existing
 // Accounts/Contacts scoped to *.example.com and skips any row whose domain/email already
@@ -28,16 +28,16 @@
 //
 // Verified live against developer.salesforce.com's Salesforce CLI Command Reference on
 // 2026-07-24: `sf data import bulk`, `sf data bulk results`, `sf data query`, and
-// `sf org list limits` (wraps the REST Limits resource — /services/data/vXX.X/limits —
+// `sf org list limits` (wraps the REST Limits resource at /services/data/vXX.X/limits,
 // DataStorageMB is one of the entries it returns) all exist in the current CLI and take the
 // flags used below.
 //
-// KNOWN RISK (cannot be verified without a live org — see the plan checkpoint): the exact JSON
+// KNOWN RISK (cannot be verified without a live org): the exact JSON
 // key names `sf data bulk results --json` uses for the success/failed result file paths were
 // not confirmed against live output. findCsvPath() below searches the result object for any
 // string value ending in .csv under a key containing "success"/"fail" rather than hard-coding
 // one key name, so a naming difference degrades gracefully into a clear console dump instead of
-// a silent wrong answer — but if it doesn't find them, check `--json` output by hand.
+// a silent wrong answer. If it doesn't find them, check `--json` output by hand.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -144,7 +144,7 @@ function queryExisting(soql, keyField) {
 }
 
 // Defensive lookup for the success/failed result CSV paths in `sf data bulk results --json`
-// output — see the KNOWN RISK note at the top of this file.
+// output. See the KNOWN RISK note at the top of this file.
 function findCsvPath(obj, patterns) {
   if (!obj || typeof obj !== 'object') return null;
   for (const [key, value] of Object.entries(obj)) {
@@ -201,7 +201,7 @@ function runBulkImport(sobject, rows, headers) {
 
   let resultsInfo;
   try {
-    // `sf data bulk results` has no --output-dir flag — it always writes its success/failed
+    // `sf data bulk results` has no --output-dir flag. It always writes its success/failed
     // record CSVs into the process's current working directory. Discovered during the live
     // import run on 2026-07-25: without this `cwd` override, that meant the project root, which
     // left untracked "<jobId>-success-records.csv" files sitting in the repo. Running it with
@@ -214,9 +214,9 @@ function runBulkImport(sobject, rows, headers) {
   }
 
   // `sf data bulk results --json` returns the result file paths as filenames RELATIVE to the
-  // subprocess's cwd (confirmed live 2026-07-25 — the field is `successFilePath` /
+  // subprocess's cwd (confirmed live 2026-07-25; the field is `successFilePath` /
   // `failedFilePath`, holding e.g. "<jobId>-success-records.csv", not an absolute path). Since
-  // that subprocess ran with cwd: dir (see above), resolve against `dir` here too — using the
+  // that subprocess ran with cwd: dir (see above), resolve against `dir` here too. Using the
   // raw string as-is would resolve against this parent process's own cwd instead and silently
   // fail the existsSync check.
   const resolveResultPath = (p) => (p && !isAbsolute(p) ? join(dir, p) : p);
@@ -233,7 +233,7 @@ function runBulkImport(sobject, rows, headers) {
       successCount += 1;
     }
   } else {
-    console.log(`  Could not locate a success result file in job ${jobId} output — raw result:`);
+    console.log(`  Could not locate a success result file in job ${jobId} output. Raw result:`);
     console.log(`  ${JSON.stringify(resultsInfo.result).slice(0, 500)}`);
   }
 
@@ -278,7 +278,7 @@ function main() {
     'Email'
   );
   console.log(
-    `  ${existingAccounts.size} accounts and ${existingContacts.size} contacts already present — will be skipped.`
+    `  ${existingAccounts.size} accounts and ${existingContacts.size} contacts already present, will be skipped.`
   );
 
   const newCompanies = companies.filter((c) => !existingAccounts.has(c.domain));
@@ -290,7 +290,7 @@ function main() {
     Website: c.domain,
     // Account.Industry is a standard Salesforce picklist. It's unrestricted (confirmed via
     // `sf sobject describe --sobject Account`), so arbitrary text would be silently accepted
-    // rather than rejected — but the generator's free-text vocabulary ("Healthcare Technology")
+    // rather than rejected. The generator's free-text vocabulary ("Healthcare Technology")
     // doesn't match any of the org's real picklist values, which would look wrong in the UI on
     // camera. Mapped to the closest real value the same way import-hubspot.mjs maps to its own
     // enum, since HubSpot's field IS restricted and caught this during the live import run.
@@ -332,7 +332,7 @@ function main() {
   }
   if (skippedNoAccount.length) {
     console.log(
-      `  ${skippedNoAccount.length} contacts skipped — their company's Account could not be resolved: ${skippedNoAccount
+      `  ${skippedNoAccount.length} contacts skipped, their company's Account could not be resolved: ${skippedNoAccount
         .slice(0, 5)
         .join(', ')}${skippedNoAccount.length > 5 ? ', ...' : ''}`
     );
@@ -355,7 +355,7 @@ function main() {
       console.log(`  Used: ${usedPct.toFixed(1)}% of ${maxMb} MB`);
       if (usedPct > 40) {
         console.log(
-          '  FLAG: storage usage exceeds 40% of the org limit — treat as a Case 7 dataset-size constraint per the plan.'
+          '  FLAG: storage usage exceeds 40% of the org limit, which becomes a Case 7 dataset-size constraint.'
         );
       }
     }
@@ -371,7 +371,7 @@ function main() {
 
   const hadErrors = accountImport.errors.length || contactImport.errors.length || skippedNoAccount.length;
   if (hadErrors) {
-    console.error('\nCompleted with errors — see output above.');
+    console.error('\nCompleted with errors. See output above.');
     process.exit(1);
   }
   console.log('\nSalesforce import complete. Run "npm run verify:imports" to confirm.');

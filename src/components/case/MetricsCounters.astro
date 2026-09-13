@@ -10,7 +10,7 @@
 // gsap.matchMedia('(prefers-reduced-motion: no-preference)'), tweens a
 // count-up over the top of the already-final SSR text once the section
 // scrolls into view. Values that aren't a clean "1,234" / "1,234+" number
-// (e.g. "<60s") are left exactly as SSR'd — count-up only ever touches the
+// (e.g. "<60s") are left exactly as SSR'd. Count-up only ever touches the
 // numeric portion of a value, never invented for non-numeric ones.
 interface Metric {
   label: string;
@@ -61,7 +61,7 @@ const NUMERIC_RE = /^([\d,]+)(\+?)$/;
         observer.disconnect();
 
         // Dynamic import: gsap only ever enters the bundle graph here, once
-        // this section approaches the viewport — never on initial page load.
+        // this section approaches the viewport, never on initial page load.
         import('gsap')
           .then(({ gsap }) => {
             const mm = gsap.matchMedia();

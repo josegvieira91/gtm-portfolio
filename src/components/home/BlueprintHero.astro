@@ -6,17 +6,17 @@
 // or scrub) as a full-bleed backdrop; name/title/positioning line sit
 // above it. SSR ships both the diagram and the overlay text in their
 // FINAL state (Pattern 2 + no-CLS: fixed layout from SSR, only opacity
-// ever animates — never a hidden/undrawn SSR starting state).
+// ever animates, never a hidden or undrawn SSR starting state).
 //
 // The overlay fade-in listens for the 'schematic:autoplay-complete'
 // CustomEvent that timeline.ts's autoplaySchematic dispatches on its
-// `refs.section` — and only from inside its own matchMedia
+// `refs.section`, and only from inside its own matchMedia
 // 'no-preference' branch (see timeline.ts). This component's own tiny
 // inline script below is the only place that knows about the overlay
 // text; the shared engine stays page-agnostic. Reduced-motion users never
 // get the event (autoplaySchematic's callback never runs for them), so
-// the overlay simply keeps its SSR-default full opacity — "fully visible
-// type, nothing animates".
+// the overlay simply keeps its SSR-default full opacity: fully visible
+// type, with nothing animating.
 import Schematic from '../schematic/Schematic.astro';
 import { getEntry } from 'astro:content';
 
@@ -31,7 +31,7 @@ if (!heroDiagram) {
   class="blueprint-grid relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-24"
 >
   {/* This wrapper's own header comment already calls the
-      diagram a "full-bleed BACKDROP" the name/title sit "above" — but the
+      diagram a "full-bleed BACKDROP" the name/title sit "above", but the
       implementation shipped it at 70-80% opacity, which is a fully
       competing readable layer (legible boxes/labels), not a backdrop. At
       that opacity the node row renders directly through the "Jose Vieira"
@@ -39,7 +39,7 @@ if (!heroDiagram) {
       land in the same centered flex position). Dropping to a genuinely
       faint backdrop opacity fixes the legibility collision without
       changing the diagram's position, size, or the "site draws itself
-      behind the name" concept — same layout, same content, just tuned to
+      behind the name" concept: same layout, same content, just tuned to
       the magnitude its own doc comment already described. */}
   <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.12] sm:opacity-15">
     <div class="w-full max-w-4xl">
@@ -58,7 +58,7 @@ if (!heroDiagram) {
 
 <script>
   // Reduced-motion-gated overlay reveal. Default (no JS, or reduced motion
-  // on) is the SSR final state: fully visible, opacity untouched — that IS
+  // on) is the SSR final state: fully visible, opacity untouched. That IS
   // the reduced-motion fallback, no extra branch needed here either. Only
   // when the OS allows motion do we hide the overlay and time its reveal
   // to the hero schematic's own draw completion.
@@ -75,7 +75,7 @@ if (!heroDiagram) {
     // silent-failure points, any of which leaves this event
     // never dispatched and the name/title hidden forever. The name must
     // never depend on all of them succeeding, so a fixed timer reveals the
-    // overlay regardless — the event is an optimization, not a dependency.
+    // overlay regardless. The event is an optimization, not a dependency.
     setTimeout(reveal, 2500);
   }
 </script>

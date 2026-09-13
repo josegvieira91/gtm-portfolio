@@ -1,7 +1,7 @@
 // scripts/seed-data/lib/csv.mjs
 //
 // Minimal RFC 4180 CSV parse/write helpers shared by the import scripts. No dependency beyond
-// node:fs (caller reads the file) — kept tiny and dependency-free on purpose, matching
+// node:fs (caller reads the file). Kept tiny and dependency-free on purpose, matching
 // generate.mjs's own "no dependency beyond faker and node:fs" rule for this directory.
 
 /**

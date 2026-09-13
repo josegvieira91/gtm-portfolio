@@ -55,9 +55,9 @@ const LABEL_ADVANCE = 0.63;
 const LABEL_DY = 14;
 
 /**
- * Compute an SVG `viewBox` string covering every node's TRUE extents —
+ * Compute an SVG `viewBox` string covering every node's TRUE extents: the
  * node box (nodeWidth/nodeHeight around the center) plus its label's
- * estimated text width and baseline drop — expanded by `opts.padding` on
+ * estimated text width and baseline drop, expanded by `opts.padding` on
  * every edge.
  *
  * Why extents and not centers: sizing the box

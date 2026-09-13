@@ -12,7 +12,7 @@
    calculation needs.
 
    The mobile horizontal-overflow bug this was meant to backstop was
-   NOT a pin-measurement or overflow-clipping problem at all — real-WebKit
+   NOT a pin-measurement or overflow-clipping problem at all. Real-WebKit
    (iOS Simulator) diagnosis found the actual root cause: `viewBoxFor()`
    in layout.ts sized the SVG viewBox from node CENTERS ± padding, so
    content routinely poked outside the viewBox whenever a node's own
@@ -21,7 +21,7 @@
    invisible in this project's Chrome-based headless checks; WebKit
    paints it, which is exactly the cut-both-edges / ghost-text look on the
    real iPhone. Fixed at the source in layout.ts (true node+label
-   extents) — no CSS overflow rule needed here, and none of the pinType
+   extents), so no CSS overflow rule is needed here, and none of the pinType
    changes tried along the way turned out to be load-bearing either (see
    timeline.ts). */
 @import "@fontsource-variable/jetbrains-mono";

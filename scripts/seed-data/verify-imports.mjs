@@ -8,7 +8,7 @@
 //
 //   npm run verify:imports
 //
-// HubSpot auth comes from HUBSPOT_PRIVATE_APP_TOKEN (via node --env-file-if-exists=.env — see
+// HubSpot auth comes from HUBSPOT_PRIVATE_APP_TOKEN (via node --env-file-if-exists=.env; see
 // import-hubspot.mjs). Salesforce auth comes from the already-authenticated `sf` CLI session
 // (see import-salesforce.mjs); override the org with `--org <alias>` or SF_TARGET_ORG.
 
@@ -30,10 +30,10 @@ function reportPass(label) {
 }
 function reportFail(label, detail) {
   failures += 1;
-  console.error(`  FAIL: ${label}${detail ? ` — ${detail}` : ''}`);
+  console.error(`  FAIL: ${label}${detail ? `: ${detail}` : ''}`);
 }
 
-// Scoped to *.example.com so counts/samples reflect only our seed data — every new HubSpot
+// Scoped to *.example.com so counts/samples reflect only our seed data. Every new HubSpot
 // portal ships with its own default demo company ("HubSpot", domain hubspot.com) and demo
 // contacts (e.g. a "Maria" sample contact), which an unscoped search picks up too, inflating
 // counts and letting a demo record win the "sample" slot. Discovered during the live import run
@@ -59,7 +59,7 @@ async function hubspotSearch(objectType, propertyName, properties) {
 async function verifyHubSpot() {
   console.log('\nHubSpot ("Vieira GTM Lab"):');
   if (!TOKEN) {
-    reportFail('HubSpot verification', 'HUBSPOT_PRIVATE_APP_TOKEN not set — run via npm run verify:imports');
+    reportFail('HubSpot verification', 'HUBSPOT_PRIVATE_APP_TOKEN not set, run via npm run verify:imports');
     return;
   }
   try {

@@ -36,10 +36,10 @@ const { Content } = await render(entry);
 // Pairing rule: explicit `diagramId` wins, otherwise the diagram
 // with the same content-collection id as the case entry. Note: the glob
 // loader's default id for these entries resolves to the frontmatter
-// `slug` (legacy-compat id generation), not the filename — every case's
+// `slug` (legacy-compat id generation), not the filename. Every case's
 // `diagramId` is set explicitly (case-01..10.mdx), so this fallback only
 // matters for a hypothetical future case that omits it. A missing diagram
-// is a build error, not a silent skip — the case slug is in the thrown
+// is a build error, not a silent skip. The case slug is in the thrown
 // message so a bad pairing fails loudly and points at the fix.
 const diagrams = await getCollection('diagrams');
 const diagramId = entry.data.diagramId ?? entry.id;

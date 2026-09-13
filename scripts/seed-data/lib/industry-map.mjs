@@ -3,7 +3,7 @@
 // The generator's `industry` column (scripts/seed-data/generate.mjs INDUSTRIES) is free-text,
 // chosen to read well as a GTM-relevant vertical label on camera ("Healthcare Technology",
 // "Education Technology", etc). Both CRMs' Industry fields are fixed enums/picklists that do
-// NOT accept arbitrary strings — HubSpot's `industry` property on Companies rejected "Healthcare
+// NOT accept arbitrary strings. HubSpot's `industry` property on Companies rejected "Healthcare
 // Technology" outright with INVALID_OPTION during the live import run on 2026-07-25 (confirmed
 // via the batch/update 400 response), and Salesforce's Account.Industry is a standard picklist
 // with its own fixed value set.
@@ -29,7 +29,7 @@ export const INDUSTRY_TO_HUBSPOT = {
 };
 
 // Salesforce's default Account.Industry picklist (standard, unrestricted in a fresh Dev Edition
-// org — see the live-run note in import-salesforce.mjs for whether that held true here).
+// org; see the live-run note in import-salesforce.mjs for whether that held true here).
 export const INDUSTRY_TO_SALESFORCE = {
   Software: 'Technology',
   'Professional Services': 'Consulting',
@@ -46,7 +46,7 @@ export const INDUSTRY_TO_SALESFORCE = {
 export function mapIndustry(map, sourceValue, label) {
   const mapped = map[sourceValue];
   if (!mapped) {
-    console.error(`  WARNING: no ${label} industry mapping for "${sourceValue}" — sending as-is.`);
+    console.error(`  WARNING: no ${label} industry mapping for "${sourceValue}", sending as-is.`);
     return sourceValue;
   }
   return mapped;

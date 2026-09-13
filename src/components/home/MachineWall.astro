@@ -12,7 +12,7 @@
 // Mini-schematic draw trigger: mode="auto" on Schematic means the shared
 // deferred controller (SchematicController.ts, unchanged by this plan)
 // draws each mini once it nears the viewport (IntersectionObserver,
-// 200px rootMargin) — this is the literal mechanism behind "the mini
+// 200px rootMargin). That is the literal mechanism behind "the mini
 // draws once the card scrolls into view" for touch devices. Because a
 // card cannot physically be hovered before it is on screen, this same
 // scroll-triggered draw already covers the hover-capable case too by the
@@ -31,7 +31,7 @@ import { LOCAL_ICONS } from '../schematic/local-icons';
 
 // Filter chips (content pass 2026-07-25): with the diversified catalog the
 // chip set covers the three orchestrators, the two data/enrichment tools,
-// the two CRMs, and the two AI providers by name — José's call: "AI" is
+// the two CRMs, and the two AI providers by name. "AI" is
 // not a tool, so the chips name Claude and OpenAI concretely. The filter is
 // single-select plus All (SCHEMATIC_CONFIG.filterMode).
 const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
@@ -48,7 +48,7 @@ const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
 ];
 
 // Normalizes a case's raw `stack` display name ("Google Sheets", "Cal.com")
-// to a tool-icons.ts key ("googlesheets", "calcom") — same rule as
+// to a tool-icons.ts key ("googlesheets", "calcom"), the same rule as
 // StackBadges.astro. Tools outside the mapped icon set render no badge,
 // the same rule the diagram node tools follow.
 function toolKey(name: string): string {

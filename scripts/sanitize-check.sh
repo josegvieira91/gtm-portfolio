@@ -8,8 +8,8 @@
 #   target-dir defaults to "workflows/"
 #
 # Exit codes:
-#   0  clean — no findings
-#   1  dirty — one or more rules matched, findings printed to stdout
+#   0  clean, no findings
+#   1  dirty, one or more rules matched, findings printed to stdout
 #   2  usage error, or the local denylist / node runtime is missing
 #
 # Structural rules (R1-R4 and R7) are enforced via node's JSON.parse so the gate
@@ -48,7 +48,7 @@ fi
 
 if [ ! -f "$DENYLIST" ]; then
   echo "ERROR: $DENYLIST not found." >&2
-  echo "Copy .sanitize-denylist.local.example to $DENYLIST and fill in the real values before running this gate. The gate is mandatory — a missing denylist is an error, not a skip." >&2
+  echo "Copy .sanitize-denylist.local.example to $DENYLIST and fill in the real values before running this gate. The gate is mandatory: a missing denylist is an error, not a skip." >&2
   exit 2
 fi
 
@@ -203,7 +203,7 @@ function scanFile(file) {
         report("R1-HOST", url, "non-allowlisted host in \"" + key + "\": " + url);
       }
       // R3 (query-string secrets): a common real-world leak shape is an API
-      // key/token passed as a URL query parameter rather than a header —
+      // key/token passed as a URL query parameter rather than a header,
       // that never matches the {"name","value"} auth-header shape below, and
       // an allowlisted host makes the URL "look fine" at a glance. Checked
       // regardless of whether the host itself was flagged above.
@@ -215,7 +215,7 @@ function scanFile(file) {
           }
         }
       } catch {
-        // Not a valid WHATWG URL (e.g. a truncated/templated string) — R1's
+        // Not a valid WHATWG URL (e.g. a truncated/templated string). R1's
         // own host check above already handles/ignores that case; nothing
         // further to check here.
       }
@@ -314,5 +314,5 @@ if [ "$TOTAL" -gt 0 ]; then
   exit 1
 fi
 
-echo "SUMMARY: 0 findings — clean"
+echo "SUMMARY: 0 findings, clean"
 exit 0

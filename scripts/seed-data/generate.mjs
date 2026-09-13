@@ -2,14 +2,14 @@
 //
 // Deterministic synthetic dataset generator for the GTM Engineering Portfolio lab accounts
 // (HubSpot "Vieira GTM Lab" portal, Salesforce Developer Edition org). Produces three CSVs
-// in scripts/seed-data/output/ (gitignored — regenerate with `npm run seed:generate`, never
+// in scripts/seed-data/output/ (gitignored; regenerate with `npm run seed:generate`, never
 // a source of truth):
 //   - companies.csv    40 rows, one per synthetic account
 //   - contacts.csv     80 rows, two per company
 //   - usage-events.csv ~600 rows, feeds the reporting and health-score cases
 //
 // Every company domain is a slug under the RFC 2606 reserved `example.com` domain, so a
-// generated record can never collide with a real business or reach a real mailbox — see
+// generated record can never collide with a real business or reach a real mailbox. See
 // scripts/seed-data/README.md for the full rationale.
 
 import { faker } from '@faker-js/faker';
@@ -17,7 +17,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-// Fixed seed — every run must produce byte-identical output, because every case built in
+// Fixed seed: every run must produce byte-identical output, because every case built in
 // every later phase references these exact records (company names in recordings, contact
 // emails in CRM screenshots, event IDs in reporting queries).
 //
@@ -62,7 +62,7 @@ const LIFECYCLE_STAGES = [
   'customer',
 ];
 
-// Fixed vocabulary, not random strings — Cases 9 and 10 compute a health score from these
+// Fixed vocabulary, not random strings, because Cases 9 and 10 compute a health score from these
 // types and need them stable and believable across every regeneration.
 const EVENT_TYPES = ['login', 'feature_used', 'report_exported', 'invite_sent', 'api_call'];
 
@@ -153,13 +153,13 @@ function generateContacts(companies) {
       const firstName = faker.person.firstName();
       let lastName = faker.person.lastName();
 
-      // Pass the company's own example.com domain explicitly as faker's provider — faker's
+      // Pass the company's own example.com domain explicitly as faker's provider, since faker's
       // default emits gmail.com and similar real mailbox domains, which is exactly the
       // collision this dataset must never produce.
       let email = faker.internet.email({ firstName, lastName, provider: company.domain }).toLowerCase();
       let attempt = 2;
       while (usedEmails.has(email)) {
-        // Duplicate email would break HubSpot's unique-identifier import rule — disambiguate
+        // Duplicate email would break HubSpot's unique-identifier import rule, so disambiguate
         // deterministically rather than re-rolling faker's RNG, which would shift every
         // subsequent value in the sequence.
         email = faker.internet
@@ -200,7 +200,7 @@ function generateUsageEvents(contacts) {
     });
   }
 
-  // Timestamps are drawn independently per row (not sorted at source) — sort ascending so the
+  // Timestamps are drawn independently per row (not sorted at source), so sort ascending so the
   // CSV reads as a believable event stream when opened directly.
   events.sort((a, b) => a.event_timestamp.localeCompare(b.event_timestamp));
 

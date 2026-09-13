@@ -28,7 +28,7 @@ export const TOOL_ICONS: Record<string, ToolIcon> = {
   calcom: { slug: 'caldotcom', hex: '#292929' },
   // Content-pass expansion (2026-07-25, José's tool-diversity call): every
   // tool below is recordable in a live account (free tier / dev org / test
-  // mode / trial) — the hard rule for anything shown on this site. Hexes
+  // mode or trial), which is the hard rule for anything shown on this site. Hexes
   // verified against simple-icons' own data JSON.
   gmail: { slug: 'gmail', hex: '#EA4335' },
   googlesheets: { slug: 'googlesheets', hex: '#34A853' },

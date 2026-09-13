@@ -43,12 +43,12 @@ Node 22.12 or newer.
 
 ## Repo layout
 
-- `src/` — pages, components, styles, and the case content collection
-- `public/` — static assets served as-is
-- `scripts/seed-data/` — generators for the synthetic CRM dataset
-- `scripts/export-n8n-workflow.mjs` — pulls a workflow out of n8n and sanitizes it
-- `workflows/` — sanitized exports of the automations behind each case
-- `docs/sanitization-checklist.md` — the procedure every export goes through
+- `src/`: pages, components, styles, and the case content collection
+- `public/`: static assets served as-is
+- `scripts/seed-data/`: generators for the synthetic CRM dataset
+- `scripts/export-n8n-workflow.mjs`: pulls a workflow out of n8n and sanitizes it
+- `workflows/`: sanitized exports of the automations behind each case
+- `docs/sanitization-checklist.md`: the procedure every export goes through
 
 ## About the data
 
