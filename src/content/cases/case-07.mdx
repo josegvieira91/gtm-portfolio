@@ -20,5 +20,7 @@ Change events from HubSpot and Salesforce land in one ordered n8n queue,
 translate through a single field map, and pass explicit conflict rules
 before writing back. Upserts use external IDs so replays never duplicate a
 record, and failures land in a dead-letter queue instead of silently
-dropping. The full mapping table and retry logic ship with the Phase 3
-build.
+dropping.
+
+Not built yet. The mapping table and the retry logic go up together with a
+replay of a real conflicting write.

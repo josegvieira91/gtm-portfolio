@@ -114,14 +114,30 @@ const cases = caseEntries
           .map((tool) => toolKey(tool))
           .filter((key) => Boolean(TOOL_ICONS[key]));
 
+        // A case still in build keeps its slot, its diagram and its tool
+        // tags, so the wall holds its shape and the filter still counts it.
+        // What it does not get is a link, because it has no page yet. The
+        // card wrapper switches from <a> to <div> and the hover affordances
+        // come off with it, so nothing invites a click that goes nowhere.
+        const inBuild = caseEntry.data.draft;
+        const CardWrapper = inBuild ? 'div' : 'a';
+
         return (
           <article
             data-wall-card
             data-tools={caseEntry.data.stack.join('|')}
-            class="group overflow-hidden rounded-lg border border-blueprint-line/25 bg-blueprint-surface transition-[translate,scale,opacity] duration-300 hover:-translate-y-1 hover:border-blueprint-line/60"
+            class:list={[
+              'group overflow-hidden rounded-lg border border-blueprint-line/25 bg-blueprint-surface transition-[translate,scale,opacity] duration-300',
+              !inBuild && 'hover:-translate-y-1 hover:border-blueprint-line/60',
+            ]}
           >
-            <a href={`/cases/${caseEntry.data.slug}/`} class="block p-5">
-              <div class="mb-4 aspect-[4/3] overflow-hidden rounded border border-blueprint-line/15 bg-blueprint-bg/40 p-3 transition-shadow duration-300 group-hover:shadow-[0_0_24px_-6px_var(--color-blueprint-line)]">
+            <CardWrapper href={inBuild ? undefined : `/cases/${caseEntry.data.slug}/`} class="block p-5">
+              <div
+                class:list={[
+                  'mb-4 aspect-[4/3] overflow-hidden rounded border border-blueprint-line/15 bg-blueprint-bg/40 p-3 transition-shadow duration-300',
+                  !inBuild && 'group-hover:shadow-[0_0_24px_-6px_var(--color-blueprint-line)]',
+                ]}
+              >
                 <Schematic
                   diagram={diagramEntry.data}
                   variant="mini"
@@ -129,8 +145,13 @@ const cases = caseEntries
                   id={`wall-${caseEntry.data.slug}`}
                 />
               </div>
-              <p class="text-[10px] uppercase tracking-[0.2em] text-blueprint-dim">
-                {caseEntry.data.category}
+              <p class="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.2em] text-blueprint-dim">
+                <span>{caseEntry.data.category}</span>
+                {inBuild && (
+                  <span class="shrink-0 rounded-full border border-blueprint-line/40 px-2 py-0.5 text-[9px] tracking-[0.15em] text-blueprint-line">
+                    In build
+                  </span>
+                )}
               </p>
               <h3 class="mt-1 text-base font-semibold text-blueprint-ink">{caseEntry.data.title}</h3>
               {caseEntry.data.heroMetric && (
@@ -153,7 +174,7 @@ const cases = caseEntries
                   );
                 })}
               </div>
-            </a>
+            </CardWrapper>
           </article>
         );
       })}
