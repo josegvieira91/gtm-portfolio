@@ -95,8 +95,8 @@ The following checks were run against the generated output and all passed on **2
 - Every email in `contacts.csv` ends in a `.example.com` domain, with no exceptions.
 - Zero emails on real mailbox providers (`gmail.com`, `hotmail.com`, `outlook.com`, `yahoo.com`,
   `icloud.com`, `proton.me`).
-- Zero occurrences of the operator's own identifiers or real project names (`josegvieira`,
-  `jose.vieira`, `vieira`, `axera`, `zaweep`, `nexus`, `cleuza`) across all three files.
+- Zero occurrences of the operator's own name or of any real company or project he has worked
+  with, checked against a private denylist that is not part of this repository.
 - Every `company_domain` in `contacts.csv` and `usage-events.csv` exists in `companies.csv`
   (`REFERENTIAL_OK`).
 - Every `contact_email` in `usage-events.csv` exists in `contacts.csv`, and no email repeats
