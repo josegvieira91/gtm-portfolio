@@ -13,12 +13,12 @@
 <p
   data-scroll-hint
   aria-hidden="true"
-  class="scroll-hint flex flex-col items-center gap-3 pt-10 pb-4 text-center text-sm uppercase tracking-[0.3em] text-blueprint-dim transition-opacity duration-500 ease-out md:pt-16 md:pb-6 md:text-base"
+  class="scroll-hint flex flex-col items-center gap-3 pt-10 pb-4 text-center text-sm uppercase tracking-[0.3em] text-blueprint-dim transition-opacity duration-500 ease-out md:gap-5 md:pt-20 md:pb-8 md:text-xl md:tracking-[0.35em] lg:text-2xl"
 >
   <span class="scroll-hint-chevrons flex flex-col items-center text-blueprint-line" aria-hidden="true">
-    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
-    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
-    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg class="h-[15px] w-[28px] md:h-[26px] md:w-[48px]" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg class="h-[15px] w-[28px] md:h-[26px] md:w-[48px]" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg class="h-[15px] w-[28px] md:h-[26px] md:w-[48px]" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
   </span>
   <span class="px-6">Scroll to trace the flow,<br class="md:hidden" /> step by step</span>
 </p>
@@ -33,6 +33,11 @@
      eye reads a downward direction without anything moving on the page. */
   .scroll-hint-chevrons svg {
     margin-top: -5px;
+  }
+  @media (min-width: 768px) {
+    .scroll-hint-chevrons svg {
+      margin-top: -9px;
+    }
     opacity: 0.25;
     animation: scroll-hint-breathe 1.8s ease-in-out infinite;
   }
