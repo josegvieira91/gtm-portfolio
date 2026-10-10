@@ -33,13 +33,13 @@
      eye reads a downward direction without anything moving on the page. */
   .scroll-hint-chevrons svg {
     margin-top: -5px;
+    opacity: 0.25;
+    animation: scroll-hint-breathe 1.8s ease-in-out infinite;
   }
   @media (min-width: 768px) {
     .scroll-hint-chevrons svg {
       margin-top: -9px;
     }
-    opacity: 0.25;
-    animation: scroll-hint-breathe 1.8s ease-in-out infinite;
   }
   .scroll-hint-chevrons svg:nth-child(2) {
     animation-delay: 0.2s;
