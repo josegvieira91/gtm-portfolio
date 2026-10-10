@@ -158,9 +158,20 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
   // is exactly what let an earlier desktop `end:` fix land in one branch
   // and not the other. Extracted once here, called from both
   // `mm.add` callbacks below with only the branch-specific options object.
+  // The scroll hint above the diagram (ScrollHint.astro) goes away on the
+  // first real scroll progress inside the section and never comes back.
+  // Hidden by attribute rather than removed, so the fade in its stylesheet
+  // runs and the layout above the diagram does not jump.
+  const hint = refs.section.querySelector('[data-scroll-hint]');
+  const hideHintOnce = (self: ScrollTrigger) => {
+    if (hint && self.progress > 0.01) hint.setAttribute('data-hidden', '');
+  };
+
   const mount = (stOptions: ScrollTrigger.Vars): (() => void) => {
     setUndrawnStart(diagram, refs);
-    const tl = gsap.timeline(options.mode === 'scroll' ? { scrollTrigger: stOptions } : {});
+    const tl = gsap.timeline(
+      options.mode === 'scroll' ? { scrollTrigger: { ...stOptions, onUpdate: hideHintOnce } } : {}
+    );
     buildStepTimeline(diagram, refs, tl);
     return () => tl.scrollTrigger?.kill();
   };

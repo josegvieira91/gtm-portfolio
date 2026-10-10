@@ -1,0 +1,61 @@
+---
+// A one-time nudge above the scroll-scrubbed diagram. The scrub is invisible
+// until the reader scrolls, so a reader who lands on a half-drawn diagram
+// could read it as a broken page and move on. Three stacked chevrons plus
+// one line say what to do. timeline.ts fades it out on the first scroll
+// progress inside the section and never brings it back.
+//
+// Under the OS reduced-motion preference the diagram ships fully drawn and
+// no ScrollTrigger is registered, so the hint would be a false promise: the
+// media query below removes it entirely in that case.
+---
+
+<p
+  data-scroll-hint
+  aria-hidden="true"
+  class="scroll-hint flex flex-col items-center gap-2 pb-6 text-center text-xs uppercase tracking-[0.25em] text-blueprint-dim transition-opacity duration-500 ease-out md:pb-8"
+>
+  <span class="scroll-hint-chevrons flex flex-col items-center" aria-hidden="true">
+    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+  </span>
+  <span class="px-6">Scroll to trace the flow,<br class="md:hidden" /> step by step</span>
+</p>
+
+<style>
+  .scroll-hint[data-hidden] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* The three chevrons breathe one after the other, top to bottom, so the
+     eye reads a downward direction without anything moving on the page. */
+  .scroll-hint-chevrons svg {
+    margin-top: -3px;
+    opacity: 0.25;
+    animation: scroll-hint-breathe 1.8s ease-in-out infinite;
+  }
+  .scroll-hint-chevrons svg:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .scroll-hint-chevrons svg:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes scroll-hint-breathe {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    40% {
+      opacity: 0.85;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-hint {
+      display: none;
+    }
+  }
+</style>

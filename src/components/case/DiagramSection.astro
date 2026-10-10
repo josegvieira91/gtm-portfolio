@@ -13,6 +13,7 @@
 import Schematic from '../schematic/Schematic.astro';
 import { SCHEMATIC_CONFIG } from '../../lib/schematic/config';
 import type { Diagram, DiagramStep } from '../../lib/schematic/types';
+import ScrollHint from './ScrollHint.astro';
 
 interface Props {
   diagram: Diagram;
@@ -45,6 +46,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
 {steps.length === 0 ? (
   <section id={id} data-pin-section class="px-6 py-16 pt-[env(safe-area-inset-top)] md:py-24">
     <div class="mx-auto max-w-4xl">
+      <ScrollHint />
       <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
     </div>
   </section>
@@ -88,6 +90,7 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
       Re-verified after adding this: wrapper top stays pinned at 0px across
       the full scroll range instead of tracking scrollY 1:1. */}
   <div class="min-w-0 md:sticky md:top-0 md:self-start md:py-16">
+    <ScrollHint />
     <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
   </div>
 
