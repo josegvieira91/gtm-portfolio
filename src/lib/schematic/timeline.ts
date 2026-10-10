@@ -187,13 +187,17 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
       start: 'top top', // matches md:sticky md:top-0 engaging
       scrub: 1,
       end: 'bottom bottom',
-      snap: 'labels', // soft snap to each step
     })
   );
 
+  // No snap on either branch: snapping to step labels pulled the page back
+  // to the nearest step (or past it) while the reader was still scrolling,
+  // which read as the page fighting the scroll. The diagram still draws
+  // progressively with the scrub; it just stops wherever the reader stops.
+  //
   // Mobile: pin only if SCHEMATIC_CONFIG.mobilePin === 'pin', which is what
   // real-device testing settled on. When unpinned, the diagram still draws
-  // progressively via the same scrub and snap, it just does not lock in
+  // progressively via the same scrub, it just does not lock in
   // place visually.
   //
   // pinType stays at GSAP's default ('fixed'). An explicit
@@ -213,7 +217,6 @@ export function mountSchematic(diagram: Diagram, refs: SchematicRefs, options: M
       pin: options.mode === 'scroll' && options.mobilePin === 'pin',
       scrub: 1,
       end: '+=' + diagram.steps.length * 320,
-      snap: 'labels',
     })
   );
 
