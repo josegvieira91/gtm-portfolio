@@ -13,12 +13,12 @@
 <p
   data-scroll-hint
   aria-hidden="true"
-  class="scroll-hint flex flex-col items-center gap-2 pb-6 text-center text-xs uppercase tracking-[0.25em] text-blueprint-dim transition-opacity duration-500 ease-out md:pb-8"
+  class="scroll-hint flex flex-col items-center gap-3 pt-10 pb-4 text-center text-sm uppercase tracking-[0.3em] text-blueprint-dim transition-opacity duration-500 ease-out md:pt-16 md:pb-6 md:text-base"
 >
-  <span class="scroll-hint-chevrons flex flex-col items-center" aria-hidden="true">
-    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
-    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
-    <svg width="18" height="10" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+  <span class="scroll-hint-chevrons flex flex-col items-center text-blueprint-line" aria-hidden="true">
+    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
+    <svg width="28" height="15" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l8 8 8-8" /></svg>
   </span>
   <span class="px-6">Scroll to trace the flow,<br class="md:hidden" /> step by step</span>
 </p>
@@ -32,7 +32,7 @@
   /* The three chevrons breathe one after the other, top to bottom, so the
      eye reads a downward direction without anything moving on the page. */
   .scroll-hint-chevrons svg {
-    margin-top: -3px;
+    margin-top: -5px;
     opacity: 0.25;
     animation: scroll-hint-breathe 1.8s ease-in-out infinite;
   }

@@ -89,8 +89,14 @@ const steps: DiagramStep[] = diagram.steps.filter((step) => step.callout);
       short-child-inside-tall-area relationship sticky positioning needs.
       Re-verified after adding this: wrapper top stays pinned at 0px across
       the full scroll range instead of tracking scrollY 1:1. */}
-  <div class="min-w-0 md:sticky md:top-0 md:self-start md:py-16">
+  {/* Full-width row above both columns, so the hint sits centered on the
+      page rather than inside the diagram's 60% column, where a wide
+      monitor pushed it off-center and made it easy to miss. */}
+  <div class="md:col-span-2">
     <ScrollHint />
+  </div>
+
+  <div class="min-w-0 md:sticky md:top-0 md:self-start md:py-16">
     <Schematic diagram={diagram} variant="full" mode="scroll" id={`${id}-schematic`} label={label} />
   </div>
 
