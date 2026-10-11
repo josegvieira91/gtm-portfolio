@@ -64,6 +64,38 @@ dataset and invalidates every case already recorded against the current one.
 | `event_timestamp` | ISO 8601, within the last 90 days, rows sorted ascending |
 | `event_value` | Integer, 1-50, a generic numeric weight per event |
 
+## Case 5 prospect list
+
+```bash
+npm run seed:prospects
+```
+
+Runs `scripts/seed-data/generate-prospects.mjs`, which writes `scripts/seed-data/output/prospects.csv`
+(same gitignored directory, same "artifact, never a source of truth" rule). It is a separate
+script with its own fixed seed (`faker.seed(20261010)`), so it never shifts the shared dataset
+above.
+
+The file stands in for an Apollo saved-search export. Case 5 first ran on a real export, which
+sent real names, titles and companies through OpenAI and a sequencer; this file replaced it so
+every case runs on synthetic data. It uses Apollo's own header strings, so the n8n flow reads it
+through the same column map it used for the real export:
+
+| Column | Description |
+|---|---|
+| `First Name`, `Last Name` | Faker-generated |
+| `Title` | One of eight revenue-side titles (VP of Sales, Head of Revenue Operations, and so on) |
+| `Company Name` | Faker-generated, unique |
+| `Email` | `<first>.<last>@<slug-of-company>.example.com` |
+| `Website` | `https://<slug-of-company>.example.com` |
+| `Industry` | Same 10-value vocabulary as `companies.csv` |
+| `# Employees` | Integer, 25-500 |
+| `City`, `State`, `Country` | One of ten Canada/US locations |
+| `Short Description` | One templated sentence per industry, filled with the company name |
+| `Apollo Contact Id` | `synthetic-001` through `synthetic-020` |
+
+20 rows, the flow's row limit. The script refuses to write the file if any email or website is
+off `*.example.com`.
+
 ## Why `.example.com`
 
 Company domains are `<slug>.example.com`, the RFC 2606 reserved domain, rather than faker's

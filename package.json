@@ -20,6 +20,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "seed:generate": "node scripts/seed-data/generate.mjs",
+    "seed:prospects": "node scripts/seed-data/generate-prospects.mjs",
     "import:hubspot": "node --env-file-if-exists=.env scripts/seed-data/import-hubspot.mjs",
     "import:salesforce": "node scripts/seed-data/import-salesforce.mjs",
     "seed:hygiene-defects": "node --env-file-if-exists=.env scripts/seed-data/seed-hygiene-defects.mjs",
