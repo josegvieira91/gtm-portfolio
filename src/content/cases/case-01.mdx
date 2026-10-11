@@ -14,8 +14,8 @@ metrics:
 export: "workflows/inbound-speed-to-lead/inbound-speed-to-lead.json"
 evidence:
   - src: "../../assets/cases/inbound-speed-to-lead/01-n8n-execution.png"
-    alt: "n8n execution view of the whole Inbound Speed-to-Lead workflow, 45 nodes, succeeded in 4.773 seconds, every node marked green"
-    caption: "The receipt: the whole run in n8n, 45 nodes, succeeded in 4.773 seconds. Click to open full size. The internal setup note is blurred."
+    alt: "n8n execution #67 of the earlier Inbound Speed-to-Lead graph, 45 nodes, succeeded in 4.773 seconds, every node marked green"
+    caption: "The receipt from the earlier run: n8n execution #67 of the graph before the fixes described above, 45 nodes, succeeded in 4.773s. The replay above is #128 of the fixed 56-node graph. Click to open full size. The internal setup note is blurred."
 diagramId: "case-01"
 featured: true
 draft: false
@@ -24,7 +24,9 @@ draft: false
 This flow puts a web form submission in front of a rep in Slack, scored,
 with an owner and a HubSpot record, and nobody opens an inbox. In the run
 replayed below, a synthetic lead reached its owner in 5.3s while
-the enrichment service refused every call.
+the enrichment service refused every call. The replay is execution #128;
+the still below it is from the earlier run #67, before the graph fixes
+described here.
 
 ## How it works
 

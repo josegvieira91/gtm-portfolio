@@ -20,8 +20,8 @@ metrics:
 export: "workflows/ai-personalized-outbound/ai-personalized-outbound.json"
 evidence:
   - src: "../../assets/cases/ai-personalized-outbound/01-n8n-execution.png"
-    alt: "n8n execution view of the AI-Personalized Outbound workflow, four stages from sourcing to sending, succeeded in 19.913 seconds, every node marked green."
-    caption: "The receipt: the whole outbound run in n8n, succeeded in 19.913 seconds over 17 prospects. Click to open full size."
+    alt: "n8n execution #83 of the earlier AI-Personalized Outbound graph, with an Apollo export as the source and Instantly as the sender, succeeded in 19.913 seconds over 17 prospects, every node marked green."
+    caption: "The receipt from the earlier run: n8n execution #83, the graph before this case moved to synthetic prospects and a Gmail sender, succeeded in 19.913s over 17 prospects. The replay above is #140. Click to open full size."
 diagramId: "case-05"
 featured: false
 draft: false
@@ -29,7 +29,9 @@ draft: false
 
 In the run replayed below, 20 synthetic prospects went from a CSV to my
 lab mailbox in 57.6s. For each one a model drafted an opening email, and
-nothing reached the sender until the draft cleared four rules.
+nothing reached the sender until the draft cleared four rules. The
+replay is execution #140; the still below it is from the earlier run #83,
+before the move to synthetic data and Gmail.
 
 A model will write a plausible cold email in a second, and it will just as
 happily produce filler with the right shape and nothing inside it. My gate
