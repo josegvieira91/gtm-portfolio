@@ -68,7 +68,7 @@ domains match exactly once the domain pass has stripped any `www.`
 prefix. The record with the lowest HubSpot id wins, which in practice is
 the oldest, and the other goes through HubSpot's own merge endpoint
 instead of field-by-field logic I would have to maintain. The survivor can
-therefore keep the duplicate's version of a field. I accepted that:
+therefore keep the duplicate's version of a field, and I let it:
 HubSpot's conflict resolution is documented and consistent, and
 rebuilding it inside Make would be a second source of truth for the same
 question.

@@ -40,9 +40,6 @@ api.clay.com
 # OpenAI
 api.openai.com
 
-# Instantly
-api.instantly.ai
-
 # Apollo is deliberately absent. Case 5 sources its prospect list from a
 # saved-search CSV export, not the API, so no workflow calls an Apollo host.
 # An allowlist entry for a host the project no longer calls would let one

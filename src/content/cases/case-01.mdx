@@ -2,7 +2,7 @@
 title: "Inbound Speed-to-Lead Engine"
 slug: "inbound-speed-to-lead"
 category: "Inbound"
-heroMetric: "Form submit to owner alert in 5.3 seconds, with enrichment rate-limited"
+heroMetric: "Form submit to owner alert in 5.3s, with enrichment rate-limited"
 stack: ["n8n", "HubSpot", "Slack", "Postgres"]
 metrics:
   - label: "Form to alert"
@@ -23,7 +23,7 @@ draft: false
 
 This flow puts a web form submission in front of a rep in Slack, scored,
 with an owner and a HubSpot record, and nobody opens an inbox. In the run
-replayed below, a synthetic lead reached its owner in 5.3 seconds while
+replayed below, a synthetic lead reached its owner in 5.3s while
 the enrichment service refused every call.
 
 ## How it works
@@ -42,8 +42,8 @@ replay by hand. A submission that fails validation gets a 400
 and is not stored.
 
 **Enrichment.** The enrichment service here is a local mock, set to
-answer 429 for this run. n8n tried three times, 1.5 seconds apart,
-gave up after 3.0 seconds, then the flow fell back to the form's
+answer 429 for this run. n8n tried three times, 1.5s apart,
+gave up after 3.0s, then the flow fell back to the form's
 firmographics and marked enrichment pending. A lead scored on
 form data alone is less precise. A lead waiting on a vendor is not being
 worked at all.

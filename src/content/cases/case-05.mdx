@@ -2,7 +2,7 @@
 title: "AI-Personalized Outbound"
 slug: "ai-personalized-outbound"
 category: "Outbound"
-heroMetric: "One email per prospect, drafted from the prospect's row and checked by four rules before the sender sees it"
+heroMetric: "20 prospect rows in, 20 drafts through four rules, 20 handed to the lab mailbox in 57.6s"
 stack: ["OpenAI", "Gmail", "n8n"]
 # Every value below is read off n8n execution #140, the clean run of
 # 2026-10-10 18:30 MDT: 20 synthetic prospects in Apollo's export shape,
@@ -15,7 +15,7 @@ metrics:
     value: "20"
   - label: "Cleared the QA gate first pass"
     value: "20 of 20"
-  - label: "Seconds per prospect"
+  - label: "Time per prospect"
     value: "2.9s"
 export: "workflows/ai-personalized-outbound/ai-personalized-outbound.json"
 evidence:
@@ -27,10 +27,9 @@ featured: false
 draft: false
 ---
 
-This flow takes a prospect list, has a model draft one opening email per
-person, and lets nothing reach the sender until the draft clears four
-rules. In the run replayed below, 20 synthetic prospects went from a CSV
-to my lab mailbox in 57.6 seconds.
+In the run replayed below, 20 synthetic prospects went from a CSV to my
+lab mailbox in 57.6s. For each one a model drafted an opening email, and
+nothing reached the sender until the draft cleared four rules.
 
 A model will write a plausible cold email in a second, and it will just as
 happily produce filler with the right shape and nothing inside it. My gate
@@ -71,7 +70,7 @@ run there is no prospect to reach.
 **One prospect per pass.** The loop took five at first. The mixed batch
 (#133) showed the problem: a redraft finishes later than a clean pass, so
 one batch re-entered the loop several times. Now each pass takes one
-prospect and pauses a second, 20 seconds of the run.
+prospect and pauses 1s, which is 20s of the run.
 
 **What this run does not prove.** The prospects are synthetic, so it says
 nothing about reply rates or how a real buyer reads the drafts. It is 20

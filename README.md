@@ -54,20 +54,23 @@ Node 22.12 or newer.
 
 The systems ran for real. The records they ran on did not.
 
-Every company, contact and prospect in these cases comes from the generators in
-`scripts/seed-data/`, and every email address and domain lands on `.example.com`.
+Every company, contact and prospect in the four published cases is synthetic. The
+CRM dataset and Case 5's prospect list (20 rows in Apollo's export shape) come from
+the generators in `scripts/seed-data/`; the test leads Case 1 posts to its form
+were written for each run. Every email address and domain lands on `.example.com`.
 Enrichment and lookup calls therefore run against domains that do not resolve to
-real businesses, which is why some of the coverage numbers on the case pages are
-lower than they would be on a live list. That tradeoff is stated on the pages
-where it matters. No client data, and no real third-party personal data, is
-anywhere in this repo.
+real businesses, which is why both vendor legs in Case 3 miss every row. Each page
+says what its run does and does not prove. No client data, and no real third-party
+personal data, is anywhere in this repo.
 
 ## Workflow exports
 
 `workflows/` holds the export of each automation, one folder per case, taken
-straight out of the tool that ran it and then sanitized. Instance URLs, webhook
-paths, credential references and auth headers are replaced with placeholders
-before anything is committed. `workflows/README.md` covers the folder naming, the
+straight out of the tool that ran it and then sanitized. The one exception is
+Case 3's Clay table: Clay's free plan has no export, so that file is a
+column-by-column transcription of the table that ran, and it says so in the
+file. Instance URLs, webhook paths, credential references and auth headers are
+replaced with placeholders before anything is committed. `workflows/README.md` covers the folder naming, the
 per-engine export formats, and how to import one into your own instance.
 
 The gate is a script, not a habit. You can run it yourself:
