@@ -2,71 +2,102 @@
 title: "CRM Hygiene Engine"
 slug: "crm-hygiene-engine"
 category: "Ops"
-heroMetric: "Deterministic CRM fixes land nightly on their own, judgment calls queue with a reason"
+heroMetric: "11 seeded defects fixed and 4 duplicates merged in 5.039s, then 31 scheduled nightly runs at 12 operations each"
 stack: ["HubSpot", "Make", "Slack"]
 # Every value below is read off Make execution dd61aa18, the seeded-defect run of
-# 2026-09-09 19:59 MDT: 30 operations, 5.039 s, 11 records repaired, 4 companies
-# merged. The clean follow-up run spent 12 operations and wrote nothing.
+# 2026-09-09 19:59 MDT, started by API: 30 operations, 5.039s, 11 records
+# repaired, 4 companies merged. The clean follow-up run (88e50870) spent 12
+# operations and wrote nothing. Make's scenario log, read 2026-10-10: 31
+# scheduled runs at 02:00 America/Edmonton from 2026-09-10 to 2026-10-10, all
+# succeeded, 12 operations each.
 metrics:
   - label: "Records repaired"
     value: "11"
   - label: "Duplicates merged"
     value: "4"
-  - label: "Operations per night"
+  - label: "Operations on a clean run"
     value: "12"
 export: "workflows/crm-hygiene-engine/crm-hygiene-engine.json"
 evidence:
   - src: "../../assets/cases/crm-hygiene-engine/01-make-execution.png"
-    alt: "Make execution view of the CRM Hygiene Engine scenario, 20 modules across five stages, succeeded in 5.039 seconds using 30 operations."
-    caption: "The receipt: the nightly sweep in Make, 20 modules, succeeded in 5.039 seconds on 30 operations. Click to open full size."
+    alt: "Make execution view of the CRM Hygiene Engine scenario, 20 modules across five stages, started by API, succeeded in 5.039 seconds using 30 operations."
+    caption: "The receipt: the seeded-defect sweep in Make, 20 modules, succeeded in 5.039s on 30 operations. Make prints the start as 9:59 PM in the account's display timezone (Eastern); that is 7:59 PM MDT. Click to open full size."
 diagramId: "case-04"
 featured: false
 draft: false
 ---
 
-A CRM rots quietly. Nobody schedules the decay, and nobody notices it until a rep
-works a duplicate or a territory rule misfires on a country spelled three
-different ways. On HubSpot's free tier there is no workflow engine to fix any of
-it, so every trigger, branch and schedule has to live somewhere else.
+HubSpot's free tier has no workflow engine. Every trigger, branch and
+schedule that keeps a free portal clean has to live somewhere else, and
+here it lives in Make. In the run replayed below, a sweep over a lab
+portal I seeded with defects repaired 11 records and merged 4 duplicate
+companies in 5.039s, on 30 operations.
 
-I built this sweep on Make rather than n8n, because the shape of the problem fits
-Make's cost model and that cost model forces a real design decision. Make bills
-one operation per module execution per bundle. Pushing 49 companies through a
-single module costs 49 operations, and the free plan allows 1,000 a month. A
-nightly job that walks the whole portal would be out of budget inside a week.
+I used Make rather than n8n because Make bills per module run, and I
+wanted a build where that pricing drives the design. One module running
+on one bundle is one operation. Pushing 49 companies through a single
+module costs 49 operations, and the free plan allows 1,000 a month, so a
+nightly job that walks the whole portal record by record would be out of
+budget inside a week.
 
 ## How it works
 
-**The scan is server-side, the decision is client-side.** Each defect class gets
-one HubSpot search that returns only candidate records, so the read cost is fixed
-at six calls a night whatever the portal size. The module that writes then carries
-its own filter, comparing the stored value against its canonical form. The search
-keeps the operation count down; the filter is what makes the sweep idempotent,
-because a record already in canonical form never reaches a write. The run right
-after the repair run spent 12 operations and touched nothing. Twelve a night is
-360 a month against the 1,000 allowance.
+**The scan is server-side, the decision is client-side.** Each defect
+class gets one HubSpot search that returns only candidate records. With a
+full company list before the sweep, a re-read for the merge pass and a
+list after it, that is eight read calls a run. Each call returns at most
+100 records and nothing pages yet, so on a portal with more than 100
+companies the merge pass would miss records. That is the first change
+before a real portal. The module that writes carries its own filter,
+comparing the stored value against its canonical form. The search keeps
+the operation count down; the filter is what makes the sweep idempotent,
+because a record already in canonical form never reaches a write. The run
+right after this one spent 12 operations and changed nothing, and so has
+every scheduled 02:00 run since: Make's log shows 31 of them between
+2026-09-10 and 2026-10-10, each at 12. That is 360 a month against the
+1,000 allowance.
 
-**The merge rule is boring on purpose.** Two companies are duplicates when their
-canonical domain matches exactly, lowercased and stripped of a `www.` prefix. The
-earlier record wins, and the loser goes through HubSpot's own merge endpoint
+The digest's repaired count adds up what the three scans found, not what
+was written. In this run the two agree. A company outside Canada and the
+United States would match the country scan every night and be counted as
+repaired with nothing written, which is a bug in the digest, not in the
+write.
+
+**The merge rule is plain.** Two companies are duplicates when their
+domains match exactly once the domain pass has stripped any `www.`
+prefix. The record with the lowest HubSpot id wins, which in practice is
+the oldest, and the other goes through HubSpot's own merge endpoint
 instead of field-by-field logic I would have to maintain. The survivor can
-therefore keep the duplicate's version of a field, which I accepted: HubSpot's
-conflict resolution is documented and consistent, and rebuilding it inside Make
-would be a second source of truth for the same question.
+therefore keep the duplicate's version of a field. I accepted that:
+HubSpot's conflict resolution is documented and consistent, and
+rebuilding it inside Make would be a second source of truth for the same
+question.
 
-Normalization runs before deduplication, and the merge pass re-reads the portal,
-so a duplicate hiding behind a `www.` prefix arrives as an exact match rather than
-a near one. One of the four merges in the published run only existed because the
-domain fix exposed it.
+Normalization runs before deduplication, and the merge pass re-reads the
+portal, so a duplicate hiding behind a `www.` prefix arrives as an exact
+match rather than a near one. One of the four merges in this run only
+existed because the domain fix exposed it.
 
-**What it will not decide, it queues.** HubSpot enforces email uniqueness on
-contacts, so an exact-duplicate contact cannot exist in this portal at all. The
-shape that does occur is a record with no email shadowing a real person, and there
-is no deterministic key to merge on. Those go to a review queue with the reason
-attached, next to contacts with no company and companies with no contact. Nothing
-in that queue gets guessed at.
+**Records with no deterministic fix get listed, not touched.** HubSpot
+enforces email uniqueness on contacts, so an exact-duplicate contact
+cannot exist in this portal at all. The shape that does occur is a record
+with no email shadowing a real person, and there is no key to merge on.
+Those are listed with the reason in the run's audit row and in the Slack
+digest, next to contacts with no company and companies with no contact.
+Nothing is written to HubSpot for them.
 
-**The audit row goes out before the digest does.** Every run writes one row,
-including runs that change nothing, so a missing row is never ambiguous between
-"there was nothing to do" and "it never ran". Only then does the Slack digest go
-out with what changed and what needs a human.
+**The audit row goes out before the digest does.** Every run that
+finishes writes one row to a Make data store, including runs that change
+nothing, and only then posts the digest. A run that errors stops where it
+fails and never reaches the audit step, so it writes no row, and the gap
+is the signal. Nothing alerts on a missing row yet; today someone has to
+look.
+
+**What this run does not prove.** It is one portal of 49 companies, under
+the 100-record read limit, and one run started by API for the
+seeded-defect test. The nightly runs since then found nothing to fix, so
+the schedule is proven and the repair path ran once. The Slack bot token
+in the Make account is still a placeholder, so Slack refused the post: the
+digest in the replay is the text the run composed and stored in its audit
+row, not a delivered message. I seeded the defects myself, so this says
+nothing about how often a real portal produces them.

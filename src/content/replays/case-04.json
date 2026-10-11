@@ -1,15 +1,15 @@
 {
   "caseSlug": "crm-hygiene-engine",
-  "source": "Make execution dd61aa1806e74446a32f3bc8a9a14261, 2026-09-09 19:59:47 MDT, 30 operations, seeded-defect sweep of the lab portal",
+  "source": "Make execution dd61aa1806e74446a32f3bc8a9a14261, 2026-09-09 19:59:47 MDT, started by API, 30 operations, seeded-defect sweep of the lab portal",
   "totalMs": 5039,
   "windows": [
-    { "id": "make", "kind": "log", "title": "Make / CRM Hygiene Engine / nightly sweep" },
+    { "id": "make", "kind": "log", "title": "Make / CRM Hygiene Engine / seeded-defect sweep" },
     { "id": "hubspot", "kind": "contact", "title": "HubSpot / Contacts / after the sweep" },
     { "id": "slack", "kind": "slack", "title": "Slack / #all-vieira-gtm-lab / digest as composed by the run" }
   ],
   "steps": [
-    { "at": 0, "node": "Nightly Sweep", "line": "scheduled run started, 02:00 America/Edmonton" },
-    { "at": 0, "node": "Dupe Scan", "line": "six reads: 3 non-canonical countries, 3 www. prefixed domains, 5 abbreviated job titles, 3 contacts with no company, 3 contacts with no email, 49 company records as the baseline" },
+    { "at": 0, "node": "Nightly Sweep", "line": "run started by API call for the seeded-defect test. The live schedule is 02:00 America/Edmonton" },
+    { "at": 0, "node": "Dupe Scan", "line": "six reads before the sweep: 3 non-canonical countries, 3 www. prefixed domains, 5 abbreviated job titles, 3 contacts with no company, 3 contacts with no email, and a list of 49 company records as the baseline. Each read returns at most 100 records" },
     { "at": 1740, "node": "Normalize Company Country", "line": "bosco-tillman-and-johns.example.com: CAN becomes Canada", "tone": "ok" },
     { "at": 1929, "node": "Normalize Company Country", "line": "abshire-group.example.com: USA becomes United States", "tone": "ok" },
     { "at": 2104, "node": "Normalize Company Country", "line": "armstrong-group.example.com: U.S.A. becomes United States", "tone": "ok" },
@@ -21,13 +21,13 @@
     { "at": 3170, "node": "Normalize Contact Job Title", "line": "\"VP  of Revenue Operations\" becomes \"Vice President of Revenue Operations\"", "tone": "ok" },
     { "at": 3341, "node": "Normalize Contact Job Title", "line": "\"Sales Ops Mgr.\" becomes \"Sales Ops Manager\"", "tone": "ok" },
     { "at": 3505, "node": "Normalize Contact Job Title", "line": "\"Dir. of Demand Generation\" becomes \"Director of Demand Generation\"", "tone": "ok" },
-    { "at": 3867, "node": "Merge Duplicate Company", "line": "portal re-read on canonical domains: two records share dickinson-emmerich.example.com, the earlier one wins", "tone": "ok" },
+    { "at": 3867, "node": "Merge Duplicate Company", "line": "portal re-read on canonical domains: two records share dickinson-emmerich.example.com, the lowest HubSpot id wins", "tone": "ok" },
     { "at": 4119, "node": "Merge Duplicate Company", "line": "casper-dickens-cummings.example.com, second record merged into the first", "tone": "ok" },
     { "at": 4375, "node": "Merge Duplicate Company", "line": "douglas-llc.example.com, the pair the domain fix exposed", "tone": "ok" },
     { "at": 4643, "node": "Merge Duplicate Company", "line": "collier-franecki-lakin-and-schuster.example.com, last of four", "tone": "ok" },
     { "at": 4934, "node": "Compose Digest Summary", "line": "11 records repaired, 4 companies merged, 49 company records became 45", "tone": "ok" },
     { "at": 4934, "node": "Write Audit Record", "line": "one row in the audit store, written before the digest goes anywhere" },
-    { "at": 5039, "node": "Post Slack Digest", "line": "chat.postMessage called for #all-vieira-gtm-lab. Done in 5.039 s on 30 operations", "tone": "done", "window": "slack" }
+    { "at": 5039, "node": "Post Slack Digest", "line": "chat.postMessage called for #all-vieira-gtm-lab. Done in 5.039s on 30 operations", "tone": "done", "window": "slack" }
   ],
   "contact": {
     "name": "Angie Walter",
@@ -45,8 +45,8 @@
       { "label": "Job title expanded", "value": "5 contacts" },
       { "label": "Duplicates merged", "value": "4 companies, into the earliest record" },
       { "label": "Flagged for a human", "value": "3 contacts with no company, 2 companies with no contact" },
-      { "label": "Queued for review", "value": "3 contacts with no email, no deterministic key to merge on" },
-      { "label": "Cost", "value": "30 operations, 5.039 s" }
+      { "label": "Flagged, no merge key", "value": "3 contacts with no email, nothing written to HubSpot" },
+      { "label": "Cost", "value": "30 operations, 5.039s" }
     ]
   }
 }
