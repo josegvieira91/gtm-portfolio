@@ -2,13 +2,13 @@
 title: "Inbound Speed-to-Lead Engine"
 slug: "inbound-speed-to-lead"
 category: "Inbound"
-heroMetric: "Under 60 seconds from form submit to owner alert"
+heroMetric: "Form submit to owner alert in 5.3 seconds, with enrichment rate-limited"
 stack: ["n8n", "HubSpot", "Slack", "Postgres"]
 metrics:
   - label: "Form to alert"
-    value: "2s"
-  - label: "Leads routed"
-    value: "2"
+    value: "5.3s"
+  - label: "Enrichment wait before fallback"
+    value: "3.0s"
   - label: "Manual touches"
     value: "0"
 export: "workflows/inbound-speed-to-lead/inbound-speed-to-lead.json"
@@ -21,58 +21,57 @@ featured: true
 draft: false
 ---
 
-A lead that fills out a form is ready to talk right now. By the time
-someone spots the submission in a shared inbox or a CRM view, that
-readiness is gone, and the deal dies quietly with no error to explain
-why. Most teams lose inbound leads to exactly this gap. The plumbing
-is slow, so the conversation never starts.
-
-I built this engine to close that gap end to end. In a clean lab run,
-a form submission became an owner's Slack alert in about two seconds,
-with no manual step in between. The replay below shows a harder run,
-with the enrichment provider rate-limiting the flow, and the lead still
-reached its owner in under five seconds.
+This flow puts a web form submission in front of a rep in Slack, scored,
+with an owner and a HubSpot record, and nobody opens an inbox. In the run
+replayed below, a synthetic lead reached its owner in 5.3 seconds while
+the enrichment service refused every call.
 
 ## How it works
 
-**Intake.** The form posts to an n8n webhook behind header auth.
-I chose to compute the idempotency key at the door, before enrichment
-or scoring ever run, because a duplicate should be caught while it is
-still cheap. Deduplicating later would burn an enrichment call and a
-scoring pass on a lead the system already has. The trade-off: the key
-comes from the raw submission, so a resubmit with edited fields counts
-as a new lead. I accepted that, because dropping a real lead is worse
-than an occasional near-twin.
+**Intake.** The form posts server-side with a header token, so no
+browser holds it. The idempotency key is a SHA-256 of
+the form's submission_id, or of the normalized payload when there is no
+id. A double click or a webhook retry gets the same key and stops before
+enrichment runs. An edited resubmit gets a new key and counts
+as a new lead. I accepted that: dropping a real lead costs more than an
+occasional near-twin.
 
-**Persist first.** The raw payload is written to Postgres before any
-processing starts. If a downstream step dies mid-run, the submission
-still exists and can be replayed instead of being lost. That costs one
-insert on the hot path and buys a hard guarantee: no lead that reached
-the webhook ever disappears.
+**Persist first.** The payload goes into Postgres before the gate runs,
+duplicates included. If a later step dies, the payload is there to
+replay by hand. A submission that fails validation gets a 400
+and is not stored.
 
-**Enrichment.** The enrichment call retries on failure, and when the
-provider stays down the run does not fail. The flow falls back to the
-firmographics the form supplied, marks the lead pending enrichment,
-and keeps moving. In the run replayed below the provider answered 429,
-the flow waited three seconds for it and then gave up, and the lead
-still reached its owner in 4.77 seconds. Degraded data costs some
-scoring precision. A stalled lead costs the deal.
+**Enrichment.** The enrichment service here is a local mock, set to
+answer 429 for this run. n8n tried three times, 1.5 seconds apart,
+gave up after 3.0 seconds, then the flow fell back to the form's
+firmographics and marked enrichment pending. A lead scored on
+form data alone is less precise. A lead waiting on a vendor is not being
+worked at all.
 
-**Scoring and routing.** Scoring is a config block of five explicit
-rules, so the same input produces the same score on every run, and any
-score can be explained by reading the rule list. Qualified leads then
-resolve an owner: an account that already has one reuses it, and a new
-account pulls the next rep from a round-robin pointer stored in
-Postgres. The pointer lives in the database on purpose, so parallel
-runs cannot grab the same slot and double-book a rep.
+**Scoring and routing.** Five explicit rules in a config block, so the
+same input always gets the same score. An account that already has an
+owner keeps it; a new account takes the next rep from a round-robin
+pointer in Postgres, so two runs cannot grab the same slot.
 
-**CRM and alert.** The lead lands in HubSpot as a company and a
-contact, found or created by domain so reruns never spawn duplicates.
-Both HubSpot writes retry with exponential backoff and honor
-Retry-After on 429s; after five attempts the flow records the failure
-and moves on rather than blocking the alert. I wired the Slack message
-through a Postgres outbox, so a failed post can be retried instead of
-vanishing. The owner gets the lead with its score and company context
-attached, and every lead, qualified or not, is recorded in Postgres
-with its score and status. Nothing that came through the form goes
-unworked.
+**CRM.** The company is looked up by domain and the contact by email,
+updated when found and created when not, so a rerun never makes a second
+of either. Both writes retry 429s, 5xx answers and network errors with
+exponential backoff and honor Retry-After: one call plus up to five
+retries. Any other 4xx gives up at once. Either way the reason is written
+to the lead row and the alert still goes out. Every
+lead that passes the gate ends up as a Postgres row with a status,
+qualified or not.
+
+**Alert.** The Slack message is written to an outbox row before it is
+posted. A failed post marks the row failed with the error; a retry branch
+posts it again every five minutes, up to three attempts.
+The alert reaches a shared channel with company, contact, score, domain
+and rep. The lab reps have no HubSpot user ids, so the HubSpot owner
+field stays empty.
+
+**What this run does not prove.** It is one lead for one new account.
+Two leads for the same new account arriving together would both find no
+owner, and the second would overwrite the first; that race is not
+handled. The 429 came from a mock I configured, not a real vendor. The
+duplicate, existing-contact and failed-Slack paths ran in separate lab
+executions.
