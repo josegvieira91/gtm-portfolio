@@ -95,7 +95,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Idempotency key computed at the door -- before Idempotency Gate or Persist Raw\n// Submission run. Auth no longer lives here: it moved to the\n// webhook's native Header Auth credential. UUID fallback is generated inline\n// (Math.random based); `crypto` is NOT a Code-node global here.\nconst body = $json.body || {};\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst domain = email.includes('@') ? email.split('@')[1] : '';\nlet companySize = null;\nif (body.company_size !== undefined && body.company_size !== null && body.company_size !== '') {\n  const n = Number(body.company_size);\n  companySize = Number.isFinite(n) ? n : null;\n}\nconst submission_uuid = (body.submission_id && String(body.submission_id).trim()) || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random()*16|0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));\nreturn { json: {\n  submission_uuid,\n  email,\n  domain,\n  first_name: body.first_name || null,\n  last_name: body.last_name || null,\n  company: body.company || null,\n  segment: body.segment || null,\n  company_size: companySize,\n  message: body.message || null,\n} };"
+        "jsCode": "// Builds the idempotency key material at the door, before anything is stored or\n// enriched. The key is a SHA-256 (next node, Hash Idempotency Key) of the form's own\n// submission_id when it sends one, otherwise of the normalized payload below, so an\n// identical resubmit is caught and an edited one is a new lead. Nothing random on this\n// path: the same input always gives the same key. The hash runs in the Crypto node\n// because Code nodes in this instance cannot require Node built-ins.\nconst body = $json.body || {};\nconst clean = (v) => (v === undefined || v === null) ? '' : String(v).trim();\nconst email = clean(body.email).toLowerCase();\nconst domain = email.includes('@') ? email.split('@')[1] : '';\nlet companySize = null;\nif (body.company_size !== undefined && body.company_size !== null && body.company_size !== '') {\n  const n = Number(body.company_size);\n  companySize = Number.isFinite(n) ? n : null;\n}\nconst first_name = clean(body.first_name) || null;\nconst last_name = clean(body.last_name) || null;\nconst company = clean(body.company) || null;\nconst segment = clean(body.segment) || null;\nconst message = clean(body.message) || null;\nconst submission_id = clean(body.submission_id) || null;\nconst key_source = submission_id ? 'submission_id' : 'payload_hash';\nconst key_material = submission_id\n  ? 'submission_id:' + submission_id\n  : 'payload:' + JSON.stringify([email, first_name, last_name, company, domain, segment, companySize, message]);\nreturn { json: {\n  key_source,\n  key_material,\n  submission_id,\n  email,\n  domain,\n  first_name,\n  last_name,\n  company,\n  segment,\n  company_size: companySize,\n  message,\n} };"
       },
       "id": "n04-normalize",
       "name": "Normalize + Compute Idempotency Key",
@@ -109,9 +109,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH ins AS (INSERT INTO idempotency_keys(key) VALUES ($1) ON CONFLICT (key) DO NOTHING RETURNING key)\nSELECT EXISTS(SELECT 1 FROM ins) AS is_new;",
+        "query": "-- The key insert is the dedup decision: a second submission with the same key\n-- conflicts, inserts nothing and comes out as is_new = false.\nWITH ins AS (\n  INSERT INTO idempotency_keys(key, raw_submission_id) VALUES ($1::uuid, $2::uuid)\n  ON CONFLICT (key) DO NOTHING RETURNING key\n)\nSELECT EXISTS(SELECT 1 FROM ins) AS is_new;",
         "options": {
-          "queryReplacement": "={{ [ $('Normalize + Compute Idempotency Key').item.json.submission_uuid ] }}"
+          "queryReplacement": "={{ [ $('Persist Raw Submission').item.json.idempotency_key, $('Persist Raw Submission').item.json.id ] }}"
         }
       },
       "id": "n05-idem",
@@ -119,7 +119,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        720,
+        1168,
         320
       ],
       "credentials": {
@@ -158,7 +158,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        944,
+        1392,
         320
       ]
     },
@@ -173,16 +173,16 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1168,
+        1616,
         480
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw_submissions(idempotency_key, source, payload)\nVALUES ($1, 'web_form', $2::jsonb) RETURNING id;",
+        "query": "-- Runs before Idempotency Gate, so every valid submission (duplicates included) is on\n-- disk before anything can fail. The key column is uuid: the first 128 bits of the\n-- SHA-256 from Hash Idempotency Key, written as 32 hex digits.\nINSERT INTO raw_submissions(idempotency_key, source, payload)\nVALUES (substr($1, 1, 32)::uuid, 'web_form', $2::jsonb) RETURNING id, idempotency_key;",
         "options": {
-          "queryReplacement": "={{ [ $('Normalize + Compute Idempotency Key').item.json.submission_uuid, JSON.stringify($('Normalize + Compute Idempotency Key').item.json) ] }}"
+          "queryReplacement": "={{ [ $('Hash Idempotency Key').item.json.idempotency_hash, JSON.stringify($('Normalize + Compute Idempotency Key').item.json) ] }}"
         }
       },
       "id": "n08-persistraw",
@@ -190,8 +190,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1168,
-        208
+        944,
+        320
       ],
       "credentials": {
         "postgres": {
@@ -209,7 +209,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1392,
+        1616,
         208
       ],
       "retryOnFail": true,
@@ -227,7 +227,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
+        1824,
         208
       ]
     },
@@ -241,7 +241,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1824,
+        2048,
         208
       ]
     },
@@ -275,7 +275,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2048,
+        2272,
         208
       ]
     },
@@ -292,7 +292,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2272,
+        2496,
         368
       ],
       "credentials": {
@@ -312,7 +312,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2480,
+        2704,
         368
       ]
     },
@@ -329,7 +329,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2272,
+        2496,
         80
       ],
       "credentials": {
@@ -368,7 +368,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2480,
+        2704,
         80
       ]
     },
@@ -382,7 +382,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2704,
+        2928,
         -64
       ]
     },
@@ -396,7 +396,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2704,
+        2928,
         224
       ]
     },
@@ -413,7 +413,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2928,
+        3152,
         224
       ],
       "credentials": {
@@ -432,7 +432,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3152,
+        3376,
         224
       ]
     },
@@ -449,7 +449,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3360,
+        3584,
         224
       ],
       "credentials": {
@@ -468,7 +468,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3584,
+        3808,
         80
       ]
     },
@@ -485,7 +485,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3808,
+        4032,
         80
       ],
       "credentials": {
@@ -510,7 +510,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4032,
+        4256,
         80
       ],
       "retryOnFail": true,
@@ -554,7 +554,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        4240,
+        4464,
         80
       ]
     },
@@ -568,7 +568,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4464,
+        4688,
         80
       ]
     },
@@ -588,7 +588,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4688,
+        4912,
         80
       ],
       "retryOnFail": false,
@@ -603,14 +603,14 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Exponential backoff with jitter on HubSpot 429s\n// (500ms * 2^n + jitter, capped at 30s), honoring Retry-After when HubSpot sends it.\n// Matches the pattern the sibling outbound workflow uses for its model calls,\n// but implemented as a real reactive loop since native retryOnFail can't express\n// exponential growth or read a response header.\n// $runIndex is this node's own run count for the current item -- it increments once\n// per loop pass, which makes it a reliable attempt counter regardless of exactly how\n// n8n shapes the HTTP node's error-output item.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
+        "jsCode": "// HubSpot company write: exponential backoff with jitter (500ms * 2^n + jitter, capped at 30s),\n// honoring Retry-After when HubSpot sends it. Retries 429, any 5xx and network errors\n// (no status). Any other 4xx will not fix itself, so it goes straight to Give Up.\n// $runIndex counts this node's own runs for the item: 0 on the first failure. With\n// attempt < 5 that is one call plus up to five retries.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst rawCode = errObj.httpCode || errObj.statusCode || errObj.status\n  || (errObj.cause && errObj.cause.statusCode)\n  || ((String(errObj.message || '').match(/^(\\d{3})\\b/) || [])[1]);\nconst statusCode = Number(rawCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxRetries = 5;\nconst isRetryable = statusCode === null || statusCode === 429 || (statusCode >= 500 && statusCode <= 599);\nconst shouldRetry = isRetryable && attempt < maxRetries;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\nconst errorMessage = String(errObj.message || errObj.description || '').slice(0, 300);\n\nreturn { json: { attempt, statusCode, errorMessage, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
       },
       "id": "n28-companybackoff",
       "name": "Compute Company Backoff",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4912,
+        5136,
         192
       ]
     },
@@ -644,7 +644,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        5120,
+        5344,
         192
       ]
     },
@@ -657,7 +657,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        5344,
+        5568,
         112
       ],
       "webhookId": "PLACEHOLDER"
@@ -665,48 +665,48 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Retries exhausted or a non-retryable error: degrade gracefully instead of blocking\n// the pipeline, matching onError: continueRegularOutput's tolerance policy downstream.\nreturn { json: { hubspot_company_id: null, hubspot_write_error: true } };"
+        "jsCode": "// Either the retries are spent (one call plus up to five retries) or HubSpot answered a\n// 4xx other than 429. Record why, drop the company id and let the lead continue, so the\n// alert still goes out. Update Lead HubSpot IDs writes the failure to the lead row.\nconst s = $json.statusCode;\nconst calls = ($json.attempt || 0) + 1;\nconst detail = (s ? 'HTTP ' + s : 'no response') + ' after ' + calls + ' call(s)'\n  + ($json.errorMessage ? ': ' + $json.errorMessage : '');\nreturn { json: { hubspot_company_id: null, hubspot_write_error: true, hubspot_write_error_detail: detail } };"
       },
       "id": "n31-companygiveup",
       "name": "Company Write Give Up",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5344,
+        5568,
         320
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Convergence: the success path carries the raw HubSpot company response ({id, ...});\n// the give-up path carries { hubspot_company_id: null }. Normalize both into one shape\n// for everything downstream.\nconst raw = $json;\nconst hubspot_company_id = raw.id || raw.hubspot_company_id || null;\nconst ctx = $('Score Lead').item.json;\nreturn { json: { ...ctx, hubspot_company_id } };"
+        "jsCode": "// Convergence for the company leg. The success path carries the HubSpot company\n// response ({id, ...}); the give-up path carries hubspot_write_error and its reason.\n// Both are kept, so the failure reaches the lead row instead of being dropped here.\nconst raw = $json;\nconst failed = raw.hubspot_write_error === true;\nconst hubspot_company_id = failed ? null : (raw.id || raw.hubspot_company_id || null);\nconst existing = $('Prepare Company Write').item.json.hubspot_company_id;\nconst ctx = $('Score Lead').item.json;\nreturn { json: {\n  ...ctx,\n  hubspot_company_id,\n  company_action: failed ? 'failed' : (existing ? 'updated' : 'created'),\n  hubspot_write_error: failed,\n  hubspot_write_error_detail: failed ? 'company: ' + raw.hubspot_write_error_detail : null,\n} };"
       },
       "id": "n32-mergecompany",
       "name": "Merge Company Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5600,
+        5824,
         -16
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.hubapi.com/crm/v3/objects/contacts",
+        "method": "={{ $('Prepare Contact Write').item.json.hubspot_contact_id ? 'PATCH' : 'POST' }}",
+        "url": "={{ $('Prepare Contact Write').item.json.hubspot_contact_id ? ('https://api.hubapi.com/crm/v3/objects/contacts/' + $('Prepare Contact Write').item.json.hubspot_contact_id) : 'https://api.hubapi.com/crm/v3/objects/contacts' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => { const ctx = $('Merge Company Result').item.json; const owner = $('Owner Resolved').item.json; const p = Object.assign({ \"email\": ctx.email, \"firstname\": ctx.first_name, \"lastname\": ctx.last_name, \"company\": ctx.company }, owner.hubspot_owner_id ? { \"hubspot_owner_id\": owner.hubspot_owner_id } : {}); const cid = ctx.hubspot_company_id; const b = { \"properties\": p }; if (cid) { b.associations = [{ \"to\": { \"id\": cid }, \"types\": [{ \"associationCategory\": \"HUBSPOT_DEFINED\", \"associationTypeId\": 279 }] }]; } return b; })() }}",
+        "jsonBody": "={{ (() => { const ctx = $('Merge Company Result').item.json; const owner = $('Owner Resolved').item.json; const existing = $('Prepare Contact Write').item.json.hubspot_contact_id; const p = Object.assign({ \"email\": ctx.email, \"firstname\": ctx.first_name, \"lastname\": ctx.last_name, \"company\": ctx.company }, owner.hubspot_owner_id ? { \"hubspot_owner_id\": owner.hubspot_owner_id } : {}); const cid = ctx.hubspot_company_id; const b = { \"properties\": p }; if (!existing && cid) { b.associations = [{ \"to\": { \"id\": cid }, \"types\": [{ \"associationCategory\": \"HUBSPOT_DEFINED\", \"associationTypeId\": 279 }] }]; } return b; })() }}",
         "options": {}
       },
       "id": "n33-hscontact",
-      "name": "HubSpot Upsert Contact (with backoff)",
+      "name": "HubSpot Find-or-Create Contact (with backoff)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        5792,
+        6688,
         80
       ],
       "retryOnFail": false,
@@ -721,14 +721,14 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Same exponential-backoff-with-jitter logic as Compute Company Backoff.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst statusCode = errObj.statusCode || errObj.status || errObj.httpCode\n  || (errObj.cause && errObj.cause.statusCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxAttempts = 5;\nconst isRetryable = statusCode === 429 || statusCode === null;\nconst shouldRetry = isRetryable && attempt < maxAttempts;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\n\nreturn { json: { attempt, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
+        "jsCode": "// HubSpot contact write: exponential backoff with jitter (500ms * 2^n + jitter, capped at 30s),\n// honoring Retry-After when HubSpot sends it. Retries 429, any 5xx and network errors\n// (no status). Any other 4xx will not fix itself, so it goes straight to Give Up.\n// $runIndex counts this node's own runs for the item: 0 on the first failure. With\n// attempt < 5 that is one call plus up to five retries.\nconst attempt = $runIndex;\nconst errItem = $json;\nconst errObj = errItem.error || errItem;\nconst rawCode = errObj.httpCode || errObj.statusCode || errObj.status\n  || (errObj.cause && errObj.cause.statusCode)\n  || ((String(errObj.message || '').match(/^(\\d{3})\\b/) || [])[1]);\nconst statusCode = Number(rawCode) || null;\nconst headers = errObj.headers || (errObj.response && errObj.response.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\n\nconst maxRetries = 5;\nconst isRetryable = statusCode === null || statusCode === 429 || (statusCode >= 500 && statusCode <= 599);\nconst shouldRetry = isRetryable && attempt < maxRetries;\n\nlet delayMs;\nif (retryAfterHeader) {\n  delayMs = Number(retryAfterHeader) * 1000;\n} else {\n  const base = 500 * Math.pow(2, attempt);\n  const jitter = Math.floor(Math.random() * 250);\n  delayMs = Math.min(30000, base + jitter);\n}\nconst errorMessage = String(errObj.message || errObj.description || '').slice(0, 300);\n\nreturn { json: { attempt, statusCode, errorMessage, shouldRetry, delayMsSeconds: Math.max(Math.ceil(delayMs / 1000), 1) } };"
       },
       "id": "n34-contactbackoff",
       "name": "Compute Contact Backoff",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6000,
+        6896,
         192
       ]
     },
@@ -762,7 +762,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        6224,
+        7120,
         192
       ]
     },
@@ -775,7 +775,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        6448,
+        7344,
         112
       ],
       "webhookId": "PLACEHOLDER"
@@ -783,37 +783,37 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Retries exhausted or a non-retryable error: degrade gracefully instead of blocking\n// the pipeline, matching onError: continueRegularOutput's tolerance policy downstream.\nreturn { json: { hubspot_contact_id: null, hubspot_write_error: true } };"
+        "jsCode": "// Either the retries are spent (one call plus up to five retries) or HubSpot answered a\n// 4xx other than 429. Record why, drop the contact id and let the lead continue, so the\n// alert still goes out. Update Lead HubSpot IDs writes the failure to the lead row.\nconst s = $json.statusCode;\nconst calls = ($json.attempt || 0) + 1;\nconst detail = (s ? 'HTTP ' + s : 'no response') + ' after ' + calls + ' call(s)'\n  + ($json.errorMessage ? ': ' + $json.errorMessage : '');\nreturn { json: { hubspot_contact_id: null, hubspot_write_error: true, hubspot_write_error_detail: detail } };"
       },
       "id": "n37-contactgiveup",
       "name": "Contact Write Give Up",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6448,
+        7344,
         320
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Convergence: success path carries the raw HubSpot contact response ({id, ...});\n// give-up path carries { hubspot_contact_id: null }. Normalize both, carrying forward\n// everything Update Lead HubSpot IDs / Enqueue Slack Outbox / Post Slack Alert need.\nconst raw = $json;\nconst hubspot_contact_id = raw.id || raw.hubspot_contact_id || null;\nconst ctx = $('Merge Company Result').item.json;\nconst owner = $('Owner Resolved').item.json;\nreturn { json: { ...ctx, hubspot_contact_id, owner_id: owner.owner_id, account_id: owner.account_id } };"
+        "jsCode": "// Convergence for the contact leg. The success path carries the HubSpot contact\n// response ({id, ...}); the give-up path carries hubspot_write_error and its reason.\n// Failures from the company leg ride along, so Update Lead HubSpot IDs records both.\nconst raw = $json;\nconst ctx = $('Merge Company Result').item.json;\nconst existing = $('Prepare Contact Write').item.json.hubspot_contact_id;\nconst owner = $('Owner Resolved').item.json;\nconst contactFailed = raw.hubspot_write_error === true;\nconst hubspot_contact_id = contactFailed ? null : (raw.id || null);\nconst details = [ctx.hubspot_write_error_detail, contactFailed ? 'contact: ' + raw.hubspot_write_error_detail : null].filter(Boolean);\nreturn { json: {\n  ...ctx,\n  hubspot_contact_id,\n  contact_action: contactFailed ? 'failed' : (existing ? 'updated' : 'created'),\n  hubspot_write_error: ctx.hubspot_write_error === true || contactFailed,\n  hubspot_write_error_detail: details.length ? details.join('; ') : null,\n  owner_id: owner.owner_id,\n  account_id: owner.account_id,\n} };"
       },
       "id": "n38-mergecontact",
       "name": "Merge Contact Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6688,
+        7584,
         -32
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH l AS (\n  UPDATE leads SET hubspot_contact_id = COALESCE($1, leads.hubspot_contact_id), updated_at = now()\n  WHERE id = $2 RETURNING 1\n)\nUPDATE accounts SET hubspot_company_id = COALESCE($3, accounts.hubspot_company_id)\nWHERE id = $4;",
+        "query": "-- Writes the HubSpot ids back, and the outcome of the HubSpot writes: a give-up on\n-- either leg (or a failed company link) sets hubspot_write_error and its reason.\nWITH l AS (\n  UPDATE leads SET hubspot_contact_id = COALESCE($1, leads.hubspot_contact_id),\n    hubspot_write_error = $5::boolean,\n    hubspot_write_error_detail = NULLIF($6, ''),\n    updated_at = now()\n  WHERE id = $2 RETURNING 1\n)\nUPDATE accounts SET hubspot_company_id = COALESCE($3, accounts.hubspot_company_id)\nWHERE id = $4;",
         "options": {
-          "queryReplacement": "={{ [ ($('Merge Contact Result').item.json.hubspot_contact_id || null), $('Upsert Lead').item.json.id, ($('Merge Contact Result').item.json.hubspot_company_id || null), $('Merge Contact Result').item.json.account_id ] }}"
+          "queryReplacement": "={{ (() => { const m = $('Merge Contact Result').item.json; const a = $('HubSpot Associate Contact To Company').isExecuted ? $('HubSpot Associate Contact To Company').item.json : null; const aErr = !!(a && a.error); const detail = [m.hubspot_write_error_detail, aErr ? ('company link: ' + String(a.error.message || 'failed').slice(0, 200)) : null].filter(Boolean).join('; '); return [ (m.hubspot_contact_id || null), $('Upsert Lead').item.json.id, (m.hubspot_company_id || null), m.account_id, String(m.hubspot_write_error === true || aErr), detail ]; })() }}"
         }
       },
       "id": "n39-updateleadids",
@@ -821,7 +821,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        6880,
+        8224,
         80
       ],
       "credentials": {
@@ -844,7 +844,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        7104,
+        8448,
         80
       ],
       "credentials": {
@@ -873,7 +873,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        7328,
+        8672,
         80
       ],
       "webhookId": "PLACEHOLDER",
@@ -882,12 +882,12 @@
           "name": "PLACEHOLDER_SLACK"
         }
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbox SET status = 'sent', sent_at = now() WHERE id = $1;",
+        "query": "UPDATE outbox SET status = 'sent', sent_at = now(), attempts = attempts + 1 WHERE id = $1;",
         "options": {
           "queryReplacement": "={{ [ $('Enqueue Slack Outbox').item.json.id ] }}"
         }
@@ -897,8 +897,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        7552,
-        80
+        8896,
+        0
       ],
       "credentials": {
         "postgres": {
@@ -918,15 +918,15 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        7760,
+        9104,
         80
       ]
     },
     {
       "parameters": {
-        "content": "## Inbound Speed-to-Lead -- 5 stages, 44 working nodes\n\n**Stages:** Intake -> Enrichment -> Scoring -> Routing -> Persistence.\n\n**Flow:** Form Webhook -> Validate Submission -> Submission Valid? -> (no) Respond Invalid (400) /\n(yes) Normalize+Idempotency Key -> Idempotency Gate -> Is New? -> (dup) Respond Duplicate /\n(new) Persist Raw Submission -> Enrichment Lookup -> Merge Enrichment Result -> Score Lead\n-> Qualified? -> (no) Insert Disqualified + Respond / (yes) Upsert Account -> Account Has Owner?\n-> reuse OR round-robin -> Owner Resolved -> Upsert Lead -> HubSpot Search Company By Domain\n-> Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (+backoff loop)\n-> Merge Company Result -> HubSpot Upsert Contact (+backoff loop) -> Merge Contact Result\n-> Update Lead HubSpot IDs -> Enqueue Slack Outbox -> Post Slack Alert -> Mark Outbox Sent\n-> Respond Qualified.\n\n**Three things this build does that a naive version would not:**\n1. HubSpot company is find-or-create, not create-only: HubSpot Search Company By Domain ->\n   Company Found? -> Prepare Company Write -> HubSpot Find-or-Create Company (PATCH if found,\n   POST if not).\n2. Exponential backoff with jitter on both HubSpot write calls (500ms * 2^n + jitter, capped\n   30s, honors Retry-After): Compute Company/Contact Backoff -> Should Retry? -> Backoff Wait\n   loops back into the write node; Give Up nodes degrade gracefully after 5 attempts.\n3. Inbound webhook auth is n8n's native Header Auth credential on Form Webhook -- not a\n   hardcoded token compared inside a Code node.\n\n**Config as code:** Score Lead's scoring rules and Resolve\nRouting Pool / Pick + Persist Owner / Owner Resolved's routing table are inlined in each\nnode's own const block -- vanilla n8n Code nodes have no fs access.\n\n**Setup on import:** assign PLACEHOLDER_POSTGRES (Postgres), PLACEHOLDER_HUBSPOT (HTTP Header\nAuth: header `Authorization` = `Bearer <private app token>`), PLACEHOLDER_SLACK (Slack API bot\ntoken), and PLACEHOLDER_WEBHOOK_AUTH (Header Auth on Form Webhook) to credentials in your own\naccounts. Create the Slack channel that Post Slack Alert points at, and give Form Webhook a\npath of your own: the export ships PLACEHOLDER there on purpose.",
-        "height": 640,
-        "width": 640,
+        "content": "## Inbound Speed-to-Lead: 5 stages, 55 working nodes\n\n**Stages:** Intake -> Enrichment -> Scoring -> Routing -> Persistence.\n\n**Flow:** Form Webhook -> Validate Submission -> Submission Valid? -> (no) Respond Invalid (400) /\n(yes) Normalize + Compute Idempotency Key -> Hash Idempotency Key -> Persist Raw Submission\n-> Idempotency Gate -> Is New? -> (dup) Respond Duplicate / (new) Enrichment Lookup\n-> Merge Enrichment Result -> Score Lead -> Qualified? -> (no) Insert Disqualified + Respond /\n(yes) Upsert Account -> Account Has Owner? -> reuse OR round-robin -> Owner Resolved -> Upsert Lead\n-> company find-or-create (+backoff loop) -> Merge Company Result -> contact find-or-create\n(+backoff loop) -> Merge Contact Result -> (existing contact) HubSpot Associate Contact To Company\n-> Update Lead HubSpot IDs -> Enqueue Slack Outbox -> Post Slack Alert -> Mark Outbox Sent or\nMark Outbox Failed -> Respond Qualified.\nSeparate branch: Retry Pending Outbox (every 5 min) -> Load Retryable Outbox -> Post Slack Alert\n(retry) -> Mark Outbox Retried.\n\n**What this build does that a naive version would not:**\n1. Idempotency key = SHA-256 of the form's submission_id, or of the normalized payload when the\n   form sends none. Persist Raw Submission runs before Idempotency Gate, so every valid\n   submission is stored even if a later step fails.\n2. HubSpot company and contact are both find-or-create: search by domain / by email, PATCH if\n   found, POST if not. An existing contact gets its company link through the v4 association call.\n3. Exponential backoff with jitter on both HubSpot writes (500ms * 2^n + jitter, capped 30s,\n   honors Retry-After). Retries 429, 5xx and network errors: one call plus up to five retries.\n   Any other 4xx gives up at once. A give-up writes hubspot_write_error and the reason to the\n   lead row (Update Lead HubSpot IDs).\n4. The Slack alert goes through a Postgres outbox. A failed post is marked failed with\n   last_error; the retry branch posts pending or failed rows again, up to 3 attempts.\n5. Inbound webhook auth is n8n's native Header Auth credential on Form Webhook, not a token\n   compared inside a Code node.\n\n**Lab note:** Enrichment Lookup calls a local mock service (enrichment-mock) that can be set to\nanswer 429, to exercise the fallback to form data.\n\n**Config as code:** Score Lead's scoring rules and Resolve Routing Pool / Pick + Persist Owner /\nOwner Resolved's routing table are inlined in each node's own const block.\n\n**Setup on import:** assign PLACEHOLDER_POSTGRES (Postgres), PLACEHOLDER_HUBSPOT (HTTP Header\nAuth: header `Authorization` = `Bearer <private app token>`), PLACEHOLDER_SLACK (Slack API bot\ntoken), and PLACEHOLDER_WEBHOOK_AUTH (Header Auth on Form Webhook) to credentials in your own\naccounts. Create the Slack channel that Post Slack Alert points at, and give Form Webhook a\npath of your own: the export ships PLACEHOLDER there on purpose.",
+        "height": 880,
+        "width": 720,
         "color": 4
       },
       "id": "n00-sticky",
@@ -934,9 +934,279 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3264,
+        3488,
         512
       ]
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "value": "={{ $json.key_material }}",
+        "dataPropertyName": "idempotency_hash",
+        "encoding": "hex"
+      },
+      "id": "c1fix-01",
+      "name": "Hash Idempotency Key",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"filterGroups\": [ { \"filters\": [ { \"propertyName\": \"email\", \"operator\": \"EQ\", \"value\": $('Merge Company Result').item.json.email } ] } ], \"properties\": [\"email\",\"firstname\",\"lastname\"], \"limit\": 1 } }}",
+        "options": {}
+      },
+      "id": "c1fix-02",
+      "name": "HubSpot Search Contact By Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        6016,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1fix-cf1",
+              "leftValue": "={{ Array.isArray($json.results) && $json.results.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1fix-03",
+      "name": "Contact Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6240,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Contact Found? is a visible branch; both branches land here so the write node below\n// keeps one set of expressions. A contact found by email is PATCHed by id; a missing\n// one is POSTed with its company association inline.\nconst search = $json; // HubSpot Search Contact By Email output (post-IF passthrough)\nconst found = (Array.isArray(search.results) && search.results.length > 0) ? search.results[0] : null;\nreturn { json: { hubspot_contact_id: found ? found.id : null } };"
+      },
+      "id": "c1fix-04",
+      "name": "Prepare Contact Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6464,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1fix-ai1",
+              "leftValue": "={{ $json.contact_action === 'updated' && !!$json.hubspot_company_id && !!$json.hubspot_contact_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c1fix-05",
+      "name": "Existing Contact Needs Company Link?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7808,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.hubapi.com/crm/v4/objects/contact/' + $json.hubspot_contact_id + '/associations/default/company/' + $json.hubspot_company_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "c1fix-06",
+      "name": "HubSpot Associate Contact To Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8016,
+        -96
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_HUBSPOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- The post failed: keep the row, mark it failed with the reason, and let the\n-- Retry Pending Outbox branch pick it up again.\nUPDATE outbox SET status = 'failed', last_error = $2, attempts = attempts + 1,\n  next_attempt_at = now() + interval '5 minutes'\nWHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Enqueue Slack Outbox').item.json.id, String(typeof $json.error === 'string' ? $json.error : (($json.error && ($json.error.message || $json.error.description)) || JSON.stringify($json))).slice(0, 500) ] }}"
+        }
+      },
+      "id": "c1fix-07",
+      "name": "Mark Outbox Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8896,
+        224
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "c1fix-08",
+      "name": "Retry Pending Outbox",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        8224,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, payload, attempts FROM outbox\nWHERE channel = 'slack' AND status IN ('pending', 'failed') AND attempts < 3\n  AND next_attempt_at <= now() AND created_at < now() - interval '2 minutes'\nORDER BY created_at\nLIMIT 20;",
+        "options": {}
+      },
+      "id": "c1fix-09",
+      "name": "Load Retryable Outbox",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8448,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#gtm-lab-inbound-alerts",
+          "mode": "name",
+          "cachedResultName": "#gtm-lab-inbound-alerts"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ JSON.stringify({ \"blocks\": [ { \"type\": \"header\", \"text\": { \"type\": \"plain_text\", \"text\": \"New qualified lead (retried)\" } }, { \"type\": \"section\", \"fields\": [ { \"type\": \"mrkdwn\", \"text\": \"*Company:*\\n\" + ($json.payload.company || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Contact:*\\n\" + ($json.payload.email || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Score:*\\n\" + $json.payload.score }, { \"type\": \"mrkdwn\", \"text\": \"*Owner:*\\n\" + ($json.payload.owner_id || '-') }, { \"type\": \"mrkdwn\", \"text\": \"*Domain:*\\n\" + ($json.payload.domain || '-') } ] } ] }) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "c1fix-10",
+      "name": "Post Slack Alert (retry)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        8672,
+        640
+      ],
+      "webhookId": "PLACEHOLDER",
+      "credentials": {
+        "slackApi": {
+          "name": "PLACEHOLDER_SLACK"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbox SET\n  status = CASE WHEN $2::boolean THEN 'sent' ELSE 'failed' END,\n  sent_at = CASE WHEN $2::boolean THEN now() ELSE sent_at END,\n  last_error = CASE WHEN $2::boolean THEN last_error ELSE $3 END,\n  attempts = attempts + 1,\n  next_attempt_at = now() + interval '5 minutes'\nWHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Load Retryable Outbox').item.json.id, String(!$json.error), $json.error ? String(typeof $json.error === 'string' ? $json.error : ($json.error.message || JSON.stringify($json.error))).slice(0, 500) : '' ] }}"
+        }
+      },
+      "id": "c1fix-11",
+      "name": "Mark Outbox Retried",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8896,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "PLACEHOLDER_POSTGRES"
+        }
+      }
     }
   ],
   "connections": {
@@ -984,7 +1254,7 @@
       "main": [
         [
           {
-            "node": "Idempotency Gate",
+            "node": "Hash Idempotency Key",
             "type": "main",
             "index": 0
           }
@@ -1006,7 +1276,7 @@
       "main": [
         [
           {
-            "node": "Persist Raw Submission",
+            "node": "Enrichment Lookup",
             "type": "main",
             "index": 0
           }
@@ -1024,7 +1294,7 @@
       "main": [
         [
           {
-            "node": "Enrichment Lookup",
+            "node": "Idempotency Gate",
             "type": "main",
             "index": 0
           }
@@ -1312,25 +1582,7 @@
       "main": [
         [
           {
-            "node": "HubSpot Upsert Contact (with backoff)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HubSpot Upsert Contact (with backoff)": {
-      "main": [
-        [
-          {
-            "node": "Merge Contact Result",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Compute Contact Backoff",
+            "node": "HubSpot Search Contact By Email",
             "type": "main",
             "index": 0
           }
@@ -1370,7 +1622,7 @@
       "main": [
         [
           {
-            "node": "HubSpot Upsert Contact (with backoff)",
+            "node": "HubSpot Find-or-Create Contact (with backoff)",
             "type": "main",
             "index": 0
           }
@@ -1392,7 +1644,7 @@
       "main": [
         [
           {
-            "node": "Update Lead HubSpot IDs",
+            "node": "Existing Contact Needs Company Link?",
             "type": "main",
             "index": 0
           }
@@ -1429,6 +1681,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Mark Outbox Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1442,6 +1701,148 @@
           }
         ]
       ]
+    },
+    "HubSpot Find-or-Create Contact (with backoff)": {
+      "main": [
+        [
+          {
+            "node": "Merge Contact Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compute Contact Backoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Idempotency Key": {
+      "main": [
+        [
+          {
+            "node": "Persist Raw Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Search Contact By Email": {
+      "main": [
+        [
+          {
+            "node": "Contact Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Found?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Contact Write",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Contact Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Contact Write": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Find-or-Create Contact (with backoff)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existing Contact Needs Company Link?": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Associate Contact To Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Lead HubSpot IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Associate Contact To Company": {
+      "main": [
+        [
+          {
+            "node": "Update Lead HubSpot IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Outbox Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond Qualified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Pending Outbox": {
+      "main": [
+        [
+          {
+            "node": "Load Retryable Outbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Retryable Outbox": {
+      "main": [
+        [
+          {
+            "node": "Post Slack Alert (retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Slack Alert (retry)": {
+      "main": [
+        [
+          {
+            "node": "Mark Outbox Retried",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -1449,7 +1850,11 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "staticData": null,
+  "staticData": {
+    "node:Retry Pending Outbox": {
+      "recurrenceRules": []
+    }
+  },
   "meta": null,
   "tags": [],
   "active": false
