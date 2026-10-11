@@ -2,25 +2,21 @@
 title: "AI-Personalized Outbound"
 slug: "ai-personalized-outbound"
 category: "Outbound"
-# Checked against the lab run: the old phrase said "drafted and gated at
-# scale", and 17 prospects do not prove scale. What the run does prove is that
-# nothing reaches the sender without clearing the gate first, so that is what
-# the claim says now.
-heroMetric: "One researched email per prospect, gated before anything reaches the sender"
-stack: ["Apollo", "OpenAI", "Instantly", "n8n"]
-# Every value below is read off n8n execution #83, the clean run of 2026-09-10
-# 18:42 MDT: 17 prospects out of one Apollo saved-search export, 17 drafts,
-# 17 through the QA gate on the first pass, 19.913 s wall clock, US$0.001227
-# of model spend. That run replaced the earlier #80 so the receipt still could
-# be taken on the tidied canvas. The rejection drill is execution #81 and the
-# sender-failure drill is execution #82; neither needed a rerun.
+heroMetric: "One email per prospect, drafted from the prospect's row and checked by four rules before the sender sees it"
+stack: ["OpenAI", "Gmail", "n8n"]
+# Every value below is read off n8n execution #140, the clean run of
+# 2026-10-10 18:30 MDT: 20 synthetic prospects in Apollo's export shape,
+# 20 drafts, 20 through the QA gate on the first pass, 20 handed to the lab
+# mailbox, 57.619s wall clock, 6,414 tokens, US$0.001601 from outbound_spend.
+# Drills on the same graph: #135 rejection, #136 sender failure, #134 mixed
+# batch (#133 is the mixed batch that exposed the five-per-pass loop bug).
 metrics:
-  - label: "Prospects drafted per run"
-    value: "17"
+  - label: "Prospects drafted"
+    value: "20"
   - label: "Cleared the QA gate first pass"
-    value: "17 of 17"
+    value: "20 of 20"
   - label: "Seconds per prospect"
-    value: "1.2"
+    value: "2.9s"
 export: "workflows/ai-personalized-outbound/ai-personalized-outbound.json"
 evidence:
   - src: "../../assets/cases/ai-personalized-outbound/01-n8n-execution.png"
@@ -31,48 +27,53 @@ featured: false
 draft: false
 ---
 
-Cold outbound fails on quality long before it fails on volume. Writing an
-opener that reads like a person wrote it means reading something about the
-company first, and that research is the part nobody has time for. A model
-will do it in a second, and it will just as happily produce filler with the
-right shape and nothing inside it. So the interesting engineering question
-is not how to generate the email. It is what stands between the model and
-the sender.
+This flow takes a prospect list, has a model draft one opening email per
+person, and lets nothing reach the sender until the draft clears four
+rules. In the run replayed below, 20 synthetic prospects went from a CSV
+to my lab mailbox in 57.6 seconds.
 
-I built this flow around that check. Apollo's free plan has no prospecting
-API, so the list arrives as a saved-search export the flow reads off disk,
-and the column mapping lives in config rather than in code, because Apollo
-writes a different header set for every export preset. On the published run,
-12 of the 13 mapped fields resolved and the flow said which one did not.
+A model will write a plausible cold email in a second, and it will just as
+happily produce filler with the right shape and nothing inside it. My gate
+cannot judge whether an email is good. It catches the failures that are
+cheap to detect: wrong length, a stock opener, an unfilled token, a
+missing company name, a pasted chunk of the prospect's row. That check,
+and what happens when a draft fails it, is what I built.
 
 ## How it works
 
-**The gate is deterministic and it loops instead of sending.** Four rules: the
-body has to be 25 to 60 words, it cannot contain a denylisted opener or an
-unfilled template token, it has to name the prospect's company, and it cannot
-copy a run of more than 15 words out of the research notes. A rejected draft
-goes back to the prompt with the rule it broke attached, twice at most, and
-then lands in a review queue instead of being sent anyway. The cost is that a
-rejected prospect burns three model calls, and a decent draft can still lose
-on a technicality. I took that over a run that quietly ships something
-generic. On the clean run all 17 drafts passed first time at 35 to 43 words.
-On the rejection drill I told the writer to open with a stock line and skip
-the company name, and the gate refused all 51 attempts by rule number.
+**Sourcing and drafting.** Apollo's free plan has no prospecting API, so
+the flow reads a saved-search export off disk. This run used a synthetic
+stand-in: 20 generated prospects on example.com, with Apollo's own column
+headers. Addresses are masked on the way in. The model sees the prospect's
+name, title, company, industry, headcount, location, website and a
+one-line description, all from the row. Nothing is scraped.
 
-**The draft is written down before the sender is called.** Each approved draft
-becomes an outbox row marked pending, and only then does the send happen.
-Success flips the row to sent, failure flips it to failed with the error text.
-That is two extra writes per prospect and a table to keep. I proved it was
-worth having by making the send call fail on all 17 items: every draft was
-still sitting there afterwards, with the reason.
+**The gate.** The rules: 25 to 60 words, no stock opener or template
+token, the company named, no more than 15 words copied in a row. A
+rejected draft goes back with the broken rule attached, twice at most,
+then lands in a review queue. The prompt carries the same rules, so a
+first-pass clear is expected: all 20 cleared, at 31 to 44 words. The
+drills are what show the gate refusing. In execution #135 I told the
+writer to open with a stock line, skip the company and stay under 20
+words. The gate refused all 60 attempts and nothing reached the sender. In
+#134 every second prospect got those rules: 10 handed over, 10 in review.
 
-**Prospects move five at a time, with a two second pause between batches.**
-Whole run: 20 seconds for 17 prospects, 8 of which are that pause. The
-throttle is there because the model, the sender and my own patience for
-debugging all prefer a slow loop to a burst, and the batch boundary is where
-a retry can restart without redoing work.
+**Outbox first.** Each approved draft is stored as pending before the send
+runs. A message id from Gmail flips it to sent, an error to send_failed
+with the text. In #136 I gave the send step an address with no domain. It
+refused all 20, and every draft was still in the table.
 
-One more thing this build refuses to do. The prospects are real, so every
-send is forced to a single lab address before the sender runs, and that node
-throws if the address is still a placeholder. The personalization is real.
-The delivery target never was.
+**What sent means.** Handed to a mailbox I own. A node before the sender
+replaces every destination with the lab inbox and throws if that address
+is missing or off an allowlist. Nothing reaches a prospect, and in this
+run there is no prospect to reach.
+
+**One prospect per pass.** The loop took five at first. The mixed batch
+(#133) showed the problem: a redraft finishes later than a clean pass, so
+one batch re-entered the loop several times. Now each pass takes one
+prospect and pauses a second, 20 seconds of the run.
+
+**What this run does not prove.** The prospects are synthetic, so it says
+nothing about reply rates or how a real buyer reads the drafts. It is 20
+rows and one sender, a lab Gmail account rather than a warmed sending
+domain.

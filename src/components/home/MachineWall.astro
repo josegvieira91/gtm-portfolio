@@ -30,17 +30,17 @@ import { TOOL_ICONS } from '../../lib/schematic/tool-icons';
 import { LOCAL_ICONS } from '../schematic/local-icons';
 
 // Filter chips (content pass 2026-07-25): with the diversified catalog the
-// chip set covers the three orchestrators, the two data/enrichment tools,
-// the two CRMs, and the two AI providers by name. "AI" is
-// not a tool, so the chips name Claude and OpenAI concretely. The filter is
-// single-select plus All (SCHEMATIC_CONFIG.filterMode).
+// chip set covers the three orchestrators, the enrichment tool, the two
+// CRMs, and the two AI providers by name. "AI" is not a tool, so the chips
+// name Claude and OpenAI concretely. The filter is single-select plus All
+// (SCHEMATIC_CONFIG.filterMode). Apollo had a chip until Case 5 moved to a
+// synthetic list (2026-10-10) and no case listed it any more.
 const FILTER_CHIPS: { id: string; label: string; match: string | null }[] = [
   { id: 'all', label: 'All', match: null },
   { id: 'n8n', label: 'n8n', match: 'n8n' },
   { id: 'make', label: 'Make', match: 'Make' },
   { id: 'zapier', label: 'Zapier', match: 'Zapier' },
   { id: 'clay', label: 'Clay', match: 'Clay' },
-  { id: 'apollo', label: 'Apollo', match: 'Apollo' },
   { id: 'hubspot', label: 'HubSpot', match: 'HubSpot' },
   { id: 'salesforce', label: 'Salesforce', match: 'Salesforce' },
   { id: 'claude', label: 'Claude', match: 'Claude' },

@@ -1,21 +1,21 @@
 {
   "id": "case-05-mini",
   "nodes": [
-    { "id": "apollo", "label": "Apollo", "stage": 0, "lane": 0, "kind": "trigger", "tool": "apollo" },
+    { "id": "csv", "label": "CSV", "stage": 0, "lane": 0, "kind": "trigger", "tool": "n8n" },
     { "id": "draft", "label": "Draft", "stage": 1, "lane": 0, "kind": "process", "tool": "openai" },
     { "id": "gate", "label": "Gate", "stage": 2, "lane": 0, "kind": "process", "tool": "n8n" },
     { "id": "redraft", "label": "Redraft", "stage": 2, "lane": 1, "kind": "store", "tool": "n8n" },
-    { "id": "send", "label": "Send", "stage": 3, "lane": 0, "kind": "output", "tool": "instantly" }
+    { "id": "send", "label": "Send", "stage": 3, "lane": 0, "kind": "output", "tool": "gmail" }
   ],
   "edges": [
-    { "id": "e1", "from": "apollo", "to": "draft" },
+    { "id": "e1", "from": "csv", "to": "draft" },
     { "id": "e2", "from": "draft", "to": "gate" },
     { "id": "e3", "from": "gate", "to": "redraft" },
     { "id": "e4", "from": "redraft", "to": "draft" },
     { "id": "e5", "from": "gate", "to": "send" }
   ],
   "steps": [
-    { "id": "s1", "activateNodes": ["apollo", "draft"], "activateEdges": ["e1"] },
+    { "id": "s1", "activateNodes": ["csv", "draft"], "activateEdges": ["e1"] },
     { "id": "s2", "activateNodes": ["gate"], "activateEdges": ["e2"], "packetPath": ["draft", "gate"] },
     { "id": "s3", "activateNodes": ["redraft"], "activateEdges": ["e3", "e4"], "packetPath": ["gate", "redraft"] },
     { "id": "s4", "activateNodes": ["send"], "activateEdges": ["e5"], "packetPath": ["gate", "send"] }
