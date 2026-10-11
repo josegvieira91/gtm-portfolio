@@ -2,15 +2,27 @@
   "name": "AI-Personalized Outbound",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PLACEHOLDER",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
       "id": "c5-01",
       "name": "Run Outbound Batch",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
       "position": [
         0,
         0
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PLACEHOLDER_WEBHOOK_AUTH"
+        }
+      },
+      "webhookId": "PLACEHOLDER"
     },
     {
       "parameters": {
@@ -25,7 +37,7 @@
             {
               "id": "cfg-01",
               "name": "prospect_csv_path",
-              "value": "/home/node/.n8n-files/apollo-prospects.csv",
+              "value": "/home/node/.n8n-files/prospects.csv",
               "type": "string"
             },
             {
@@ -43,7 +55,7 @@
             {
               "id": "cfg-04",
               "name": "loop_batch_size",
-              "value": 5,
+              "value": 1,
               "type": "number"
             },
             {
@@ -83,12 +95,6 @@
               "type": "number"
             },
             {
-              "id": "cfg-11",
-              "name": "instantly_campaign_id",
-              "value": "SET_ME_INSTANTLY_CAMPAIGN_ID",
-              "type": "string"
-            },
-            {
               "id": "cfg-12",
               "name": "lab_recipient_email",
               "value": "SET_ME_LAB_RECIPIENT@example.com",
@@ -98,6 +104,12 @@
               "id": "cfg-13",
               "name": "lab_recipient_allowlist",
               "value": "SET_ME_LAB_RECIPIENT@example.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-drill_mode",
+              "name": "drill_mode",
+              "value": "off",
               "type": "string"
             }
           ]
@@ -109,7 +121,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        260,
+        220,
         0
       ]
     },
@@ -124,7 +136,7 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        520,
+        440,
         0
       ],
       "retryOnFail": false
@@ -143,20 +155,20 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        780,
+        660,
         0
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Sourcing reads an Apollo saved-search CSV export, not the Apollo API: the Free\n// plan blocks every prospecting endpoint even with a master key (checked\n// 2026-09-08). Apollo writes a different header set per column preset, so the\n// column mapping lives in `apollo_column_map` on Load Run Config and this node\n// only resolves it. Nothing about the column set is hardcoded here.\nconst cfg = $('Load Run Config').first().json;\n\nlet map = cfg.apollo_column_map;\nif (typeof map === 'string') { map = JSON.parse(map); }\nif (!map || typeof map !== 'object') {\n  throw new Error('Normalize Prospect List: apollo_column_map is missing or unparseable on Load Run Config');\n}\n\nconst limit = Number(cfg.prospect_row_limit) || 20;\nconst rows = $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nif (rows.length === 0) {\n  throw new Error('Normalize Prospect List: the export parsed to zero rows. Check prospect_csv_path and that the file has a header row.');\n}\n\n// Header matching ignores case, spaces, punctuation and a leading BOM, so\n// \"# Employees\", \"#employees\" and \"Employees\" all resolve to the same field.\nconst norm = s => String(s == null ? '' : s).replace(/^\\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');\nconst headers = Object.keys(rows[0]);\nconst byNorm = {};\nfor (const h of headers) { byNorm[norm(h)] = h; }\n\nconst resolved = {};\nconst unresolved = [];\nfor (const [field, aliases] of Object.entries(map)) {\n  const list = Array.isArray(aliases) ? aliases : [aliases];\n  const hit = list.map(norm).find(a => byNorm[a]);\n  if (hit) { resolved[field] = byNorm[hit]; } else { unresolved.push(field); }\n}\n\n// Fail loud, not quiet. The company name is what the QA gate checks the draft\n// for (rule 3), so an unresolved company column would let generic mail pass the\n// gate on a technicality.\nif (!resolved.company) {\n  throw new Error('Normalize Prospect List: no company column resolved. Add the real header to apollo_column_map.company. Headers found: ' + headers.join(' | '));\n}\n// With no research column there is nothing to personalize from, and \"one\n// researched email per prospect\" would stop being true.\nconst research = ['title', 'industry', 'employee_count', 'company_domain'].filter(f => resolved[f]);\nif (research.length === 0) {\n  throw new Error('Normalize Prospect List: no research column resolved (title, industry, employee count or domain). Headers found: ' + headers.join(' | '));\n}\n\nconst val = (row, field) => {\n  if (!resolved[field]) return '';\n  const raw = row[resolved[field]];\n  return String(raw == null ? '' : raw).trim();\n};\n\n// Real addresses stop here. The destination is overridden before the send\n// anyway (Force Lab Recipient), so the flow keeps a masked form as proof the\n// row carried an address and drops the deliverable one. Nothing downstream,\n// including the outbox table and any screenshot of a run, sees a real inbox.\nconst maskEmail = e => {\n  const at = e.indexOf('@');\n  if (at < 1) return '';\n  return e.slice(0, 1) + '***@' + e.slice(at + 1);\n};\n\nconst out = [];\nrows.slice(0, limit).forEach((row, idx) => {\n  const company = val(row, 'company');\n  if (!company) return;\n  const first = val(row, 'first_name');\n  const last = val(row, 'last_name');\n  const employees = val(row, 'employee_count');\n  const notes = [\n    val(row, 'industry'),\n    employees ? employees + ' employees' : '',\n    [val(row, 'city'), val(row, 'state'), val(row, 'country')].filter(Boolean).join(', '),\n    val(row, 'company_domain'),\n    val(row, 'description'),\n  ].filter(Boolean).join(' | ');\n\n  out.push({ json: {\n    run_id: cfg.run_id,\n    prospect_id: val(row, 'prospect_id') || ('csv-' + (idx + 1)),\n    company: company,\n    contact: [first, last].filter(Boolean).join(' ') || 'there',\n    contact_title: val(row, 'title'),\n    prospect_email: maskEmail(val(row, 'email')),\n    prospect_email_masked: true,\n    website: val(row, 'company_domain'),\n    industry: val(row, 'industry'),\n    employee_count: employees ? (Number(String(employees).replace(/[^0-9]/g, '')) || null) : null,\n    research_notes: notes,\n    source: 'apollo_saved_search_csv_export',\n    csv_columns_resolved: Object.keys(resolved).join(','),\n    csv_columns_unresolved: unresolved.join(','),\n    qa_attempts: 0,\n    qa_reason: '',\n  } });\n});\n\nif (out.length === 0) {\n  throw new Error('Normalize Prospect List: every parsed row was missing a company name');\n}\nreturn out;\n"
+        "jsCode": "// Sourcing reads an Apollo saved-search CSV export, not the Apollo API: the Free\n// plan blocks every prospecting endpoint even with a master key (checked\n// 2026-09-08). Apollo writes a different header set per column preset, so the\n// column mapping lives in `apollo_column_map` on Load Run Config and this node\n// only resolves it. Nothing about the column set is hardcoded here.\nconst cfg = $('Load Run Config').first().json;\n\nlet map = cfg.apollo_column_map;\nif (typeof map === 'string') { map = JSON.parse(map); }\nif (!map || typeof map !== 'object') {\n  throw new Error('Normalize Prospect List: apollo_column_map is missing or unparseable on Load Run Config');\n}\n\nconst limit = Number(cfg.prospect_row_limit) || 20;\nconst rows = $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nif (rows.length === 0) {\n  throw new Error('Normalize Prospect List: the export parsed to zero rows. Check prospect_csv_path and that the file has a header row.');\n}\n\n// Header matching ignores case, spaces, punctuation and a leading BOM, so\n// \"# Employees\", \"#employees\" and \"Employees\" all resolve to the same field.\nconst norm = s => String(s == null ? '' : s).replace(/^\\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');\nconst headers = Object.keys(rows[0]);\nconst byNorm = {};\nfor (const h of headers) { byNorm[norm(h)] = h; }\n\nconst resolved = {};\nconst unresolved = [];\nfor (const [field, aliases] of Object.entries(map)) {\n  const list = Array.isArray(aliases) ? aliases : [aliases];\n  const hit = list.map(norm).find(a => byNorm[a]);\n  if (hit) { resolved[field] = byNorm[hit]; } else { unresolved.push(field); }\n}\n\n// Fail loud, not quiet. The company name is what the QA gate checks the draft\n// for (rule 3), so an unresolved company column would let generic mail pass the\n// gate on a technicality.\nif (!resolved.company) {\n  throw new Error('Normalize Prospect List: no company column resolved. Add the real header to apollo_column_map.company. Headers found: ' + headers.join(' | '));\n}\n// With no firmographic column there is nothing to draft from but the name, and\n// the email would be the same for every prospect.\nconst research = ['title', 'industry', 'employee_count', 'company_domain'].filter(f => resolved[f]);\nif (research.length === 0) {\n  throw new Error('Normalize Prospect List: no research column resolved (title, industry, employee count or domain). Headers found: ' + headers.join(' | '));\n}\n\nconst val = (row, field) => {\n  if (!resolved[field]) return '';\n  const raw = row[resolved[field]];\n  return String(raw == null ? '' : raw).trim();\n};\n\n// Real addresses stop here. The destination is overridden before the send\n// anyway (Force Lab Recipient), so the flow keeps a masked form as proof the\n// row carried an address and drops the deliverable one. Nothing downstream,\n// including the outbox table and any screenshot of a run, sees a real inbox.\nconst maskEmail = e => {\n  const at = e.indexOf('@');\n  if (at < 1) return '';\n  return e.slice(0, 1) + '***@' + e.slice(at + 1);\n};\n\nconst out = [];\nrows.slice(0, limit).forEach((row, idx) => {\n  const company = val(row, 'company');\n  if (!company) return;\n  const first = val(row, 'first_name');\n  const last = val(row, 'last_name');\n  const employees = val(row, 'employee_count');\n  const notes = [\n    val(row, 'industry'),\n    employees ? employees + ' employees' : '',\n    [val(row, 'city'), val(row, 'state'), val(row, 'country')].filter(Boolean).join(', '),\n    val(row, 'company_domain'),\n    val(row, 'description'),\n  ].filter(Boolean).join(' | ');\n\n  out.push({ json: {\n    run_id: cfg.run_id,\n    prospect_id: val(row, 'prospect_id') || ('csv-' + (idx + 1)),\n    company: company,\n    contact: [first, last].filter(Boolean).join(' ') || 'there',\n    contact_title: val(row, 'title'),\n    prospect_email: maskEmail(val(row, 'email')),\n    prospect_email_masked: true,\n    website: val(row, 'company_domain'),\n    industry: val(row, 'industry'),\n    employee_count: employees ? (Number(String(employees).replace(/[^0-9]/g, '')) || null) : null,\n    research_notes: notes,\n    source: 'apollo_shaped_csv',\n    csv_columns_resolved: Object.keys(resolved).join(','),\n    csv_columns_unresolved: unresolved.join(','),\n    qa_attempts: 0,\n    qa_reason: '',\n    row_index: idx,\n  } });\n});\n\nif (out.length === 0) {\n  throw new Error('Normalize Prospect List: every parsed row was missing a company name');\n}\nreturn out;\n"
       },
       "id": "c5-04",
       "name": "Normalize Prospect List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
+        880,
         0
       ]
     },
@@ -170,21 +182,21 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1300,
+        1160,
         0
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Takes a plain { company, contact } item. Nothing here reads batch state, so a\n// single-company call can feed this node directly.\nconst item = $json;\nconst company = String(item.company || item.company_name || '').trim();\nconst contact = String(item.contact || item.first_name || 'there').trim();\nconst title = String(item.contact_title || item.title || '').trim();\nconst research = String(\n  item.research_notes ||\n  [item.industry, item.employee_count ? item.employee_count + ' employees' : '', item.website]\n    .filter(Boolean).join(' | ')\n).trim();\n\nif (!company) {\n  throw new Error('Build Personalization Prompt needs a company name on the input item');\n}\n\nconst qaAttempts = Number(item.qa_attempts || 0);\nconst qaReason = String(item.qa_reason || '');\n\nconst rules = [\n  'Write one cold outbound opening email.',\n  'The body must be between 25 and 60 words. Count the words before answering.',\n  'The body must name the company exactly as \"' + company + '\".',\n  'Never write \"I hope this email finds you\", \"I hope you are doing well\", \"Dear Sir/Madam\" or \"To whom it may concern\".',\n  'Leave no template token unfilled. No {{ }}, no [Company], no [Name].',\n  'Never copy more than 15 words in a row from the research notes.',\n  'Plain sentences, no em dash, no exclamation marks.',\n  'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n];\n\nlet user = 'Prospect'\n  + '\\nContact: ' + contact + (title ? ' (' + title + ')' : '')\n  + '\\nCompany: ' + company\n  + (research ? '\\nResearch notes: ' + research : '')\n  + '\\n\\nRules\\n' + rules.map((r, i) => (i + 1) + '. ' + r).join('\\n');\n\nif (qaReason) {\n  user += '\\n\\nThe previous draft was rejected by the QA gate. Reason: ' + qaReason\n    + '\\nFix exactly that and keep every rule above. This is redraft attempt '\n    + qaAttempts + '.';\n}\n\nreturn { json: Object.assign({}, item, {\n  company: company,\n  contact: contact,\n  contact_title: title,\n  research_notes: research,\n  qa_attempts: qaAttempts,\n  qa_reason: qaReason,\n  system_prompt: 'You write short cold outbound emails for B2B sales. You answer with JSON only.',\n  user_prompt: user,\n}) };"
+        "jsCode": "// Takes a plain { company, contact } item. Nothing here reads batch state, so a\n// single-company call can feed this node directly.\nconst item = $json;\nconst company = String(item.company || item.company_name || '').trim();\nconst contact = String(item.contact || item.first_name || 'there').trim();\nconst title = String(item.contact_title || item.title || '').trim();\nconst research = String(\n  item.research_notes ||\n  [item.industry, item.employee_count ? item.employee_count + ' employees' : '', item.website]\n    .filter(Boolean).join(' | ')\n).trim();\n\nif (!company) {\n  throw new Error('Build Personalization Prompt needs a company name on the input item');\n}\n\nconst qaAttempts = Number(item.qa_attempts || 0);\nconst qaReason = String(item.qa_reason || '');\n\nconst rules = [\n  'Write one cold outbound opening email.',\n  'The body must be between 25 and 60 words. Count the words before answering.',\n  'The body must name the company exactly as \"' + company + '\".',\n  'Never write \"I hope this email finds you\", \"I hope you are doing well\", \"Dear Sir/Madam\" or \"To whom it may concern\".',\n  'Leave no template token unfilled. No {{ }}, no [Company], no [Name].',\n  'Never copy more than 15 words in a row from the research notes.',\n  'Plain sentences, no em dash, no exclamation marks.',\n  'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n];\n\n// drill_mode on Load Run Config: 'off' for real runs. 'reject_all' or\n// 'reject_alternate' (odd rows only) swap in rules that break the gate on purpose,\n// so the drill shows the gate refusing real model output.\nconst drill = String($('Load Run Config').first().json.drill_mode || 'off');\nconst forceBad = drill === 'reject_all' || (drill === 'reject_alternate' && Number(item.row_index) % 2 === 1);\nif (forceBad) {\n  rules.length = 0;\n  rules.push(\n    'Write one cold outbound opening email.',\n    'Start the body with exactly: I hope this email finds you well.',\n    'Do not mention the company by name anywhere.',\n    'Keep the body under 20 words.',\n    'Answer with JSON only: {\"subject\": \"...\", \"body\": \"...\"}',\n  );\n}\n\nlet user = 'Prospect'\n  + '\\nContact: ' + contact + (title ? ' (' + title + ')' : '')\n  + '\\nCompany: ' + company\n  + (research ? '\\nResearch notes: ' + research : '')\n  + '\\n\\nRules\\n' + rules.map((r, i) => (i + 1) + '. ' + r).join('\\n');\n\nif (qaReason) {\n  user += '\\n\\nThe previous draft was rejected by the QA gate. Reason: ' + qaReason\n    + '\\nFix exactly that and keep every rule above. This is redraft attempt '\n    + qaAttempts + '.';\n}\n\nreturn { json: Object.assign({}, item, {\n  company: company,\n  contact: contact,\n  contact_title: title,\n  research_notes: research,\n  qa_attempts: qaAttempts,\n  qa_reason: qaReason,\n  drill_forced_bad: forceBad,\n  system_prompt: 'You write short cold outbound emails for B2B sales. You answer with JSON only.',\n  user_prompt: user,\n}) };"
       },
       "id": "c5-06",
       "name": "Build Personalization Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
+        1380,
         0
       ]
     },
@@ -204,7 +216,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1820,
+        1600,
         0
       ],
       "onError": "continueErrorOutput",
@@ -227,7 +239,7 @@
       "typeVersion": 2,
       "position": [
         1820,
-        180
+        660
       ]
     },
     {
@@ -260,8 +272,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2080,
-        180
+        2040,
+        660
       ]
     },
     {
@@ -273,8 +285,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2340,
-        180
+        2260,
+        660
       ],
       "webhookId": "PLACEHOLDER"
     },
@@ -288,8 +300,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
-        360
+        2260,
+        960
       ]
     },
     {
@@ -305,7 +317,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2080,
+        1820,
         0
       ],
       "credentials": {
@@ -326,7 +338,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2340,
+        2040,
         0
       ]
     },
@@ -340,7 +352,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
+        2320,
         0
       ]
     },
@@ -374,7 +386,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2860,
+        2540,
         0
       ]
     },
@@ -388,8 +400,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
-        180
+        2760,
+        320
       ]
     },
     {
@@ -422,8 +434,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2600,
-        180
+        2980,
+        320
       ]
     },
     {
@@ -439,8 +451,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2600,
-        360
+        3500,
+        560
       ],
       "credentials": {
         "postgres": {
@@ -462,7 +474,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3120,
+        2820,
         0
       ],
       "credentials": {
@@ -470,56 +482,54 @@
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
-      "notes": "Persist before send. The row exists before Instantly is called, so a failed send loses nothing."
+      "notes": "Persist before send. The row exists before Gmail is called, so a failed send loses nothing."
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Recipient safety. Apollo returns real people; this is a portfolio lab, so the\n// destination is overridden to a controlled address before the send node runs.\n// The real prospect fields stay only in the draft text and the outbox row.\nconst cfg = $('Load Run Config').first().json;\nconst src = $('QA Gate').item.json;\nconst outboxId = $json.id;\n\nconst lab = String(cfg.lab_recipient_email || '').trim();\nconst allow = String(cfg.lab_recipient_allowlist || '')\n  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\n\nif (!lab) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is empty in Load Run Config. Refusing to send.');\n}\nif (lab.indexOf('SET_ME') === 0) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is still the placeholder. Refusing to send.');\n}\nif (allow.length && allow.indexOf(lab.toLowerCase()) === -1) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is not on lab_recipient_allowlist. Refusing to send.');\n}\n\nreturn { json: {\n  run_id: cfg.run_id,\n  outbox_id: outboxId,\n  send_to: lab,\n  prospect_email_suppressed: true,\n  company: src.company,\n  contact: src.contact,\n  contact_title: src.contact_title,\n  draft_subject: src.draft_subject,\n  draft_body: src.draft_body,\n} };"
+        "jsCode": "// Recipient safety. The prospect list carries prospect addresses; this is a lab,\n// so the destination is overridden to a controlled address before the send node\n// runs. The prospect fields stay only in the draft text and the outbox row.\nconst cfg = $('Load Run Config').first().json;\nconst src = $('QA Gate').item.json;\nconst outboxId = $json.id;\n\nconst lab = String(cfg.lab_recipient_email || '').trim();\nconst allow = String(cfg.lab_recipient_allowlist || '')\n  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\n\nif (!lab) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is empty in Load Run Config. Refusing to send.');\n}\nif (lab.indexOf('SET_ME') === 0) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is still the placeholder. Refusing to send.');\n}\nif (allow.length && allow.indexOf(lab.toLowerCase()) === -1) {\n  throw new Error('Force Lab Recipient: lab_recipient_email is not on lab_recipient_allowlist. Refusing to send.');\n}\n\n// drill_mode 'sender_failure' hands the sender an address with no domain, so the\n// send fails at Gmail and the error path runs. No third party is ever addressed.\nconst deliverTo = String(cfg.drill_mode || 'off') === 'sender_failure' ? 'sender-failure-drill' : lab;\n\nreturn { json: {\n  run_id: cfg.run_id,\n  outbox_id: outboxId,\n  send_to: lab,\n  deliver_to: deliverTo,\n  prospect_email_suppressed: true,\n  company: src.company,\n  contact: src.contact,\n  contact_title: src.contact_title,\n  draft_subject: src.draft_subject,\n  draft_body: src.draft_body,\n} };"
       },
       "id": "c5-20",
       "name": "Force Lab Recipient",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3040,
         0
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.instantly.ai/api/v2/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ (() => { const c = $('Load Run Config').first().json; const d = $json; const parts = String(d.contact || '').trim().split(/\\s+/).filter(Boolean); return { campaign: c.instantly_campaign_id, email: d.send_to, first_name: parts[0] || 'Lab', last_name: parts.slice(1).join(' ') || 'Recipient', company_name: d.company, personalization: d.draft_body, skip_if_in_campaign: false, custom_variables: { draft_subject: d.draft_subject, run_id: d.run_id, outbox_id: String(d.outbox_id) } }; })() }}",
-        "options": {}
+        "sendTo": "={{ $json.deliver_to }}",
+        "subject": "={{ '[lab] ' + $json.contact + ', ' + $json.company + ': ' + $json.draft_subject }}",
+        "emailType": "text",
+        "message": "={{ $json.draft_body }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "c5-21",
-      "name": "Send via Instantly",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "name": "Send via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
       "position": [
-        3640,
+        3260,
         0
       ],
-      "onError": "continueErrorOutput",
-      "retryOnFail": false,
-      "notes": "Error output is wired on purpose: a failed send must land on Mark Outbox Failed, never drop the row.",
+      "webhookId": "PLACEHOLDER",
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "PLACEHOLDER_INSTANTLY"
+        "gmailOAuth2": {
+          "name": "PLACEHOLDER_GMAIL"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbound_outbox\n   SET status = 'sent', sent_at = now(), send_to = $2, instantly_lead_id = $3\n WHERE id = $1;",
+        "query": "UPDATE outbound_outbox\n   SET status = CASE WHEN $3 <> '' THEN 'sent' ELSE 'send_failed' END,\n       sent_at = CASE WHEN $3 <> '' THEN now() END,\n       send_to = $2,\n       sender_message_id = NULLIF($3, ''),\n       error = CASE WHEN $3 = '' THEN 'Gmail answered without a message id' END\n WHERE id = $1\nRETURNING id, status;",
         "options": {
-          "queryReplacement": "={{ [ $('Force Lab Recipient').item.json.outbox_id, $('Force Lab Recipient').item.json.send_to, String($json.id || '') ] }}"
+          "queryReplacement": "={{ [ $('Force Lab Recipient').item.json.outbox_id, $('Force Lab Recipient').item.json.deliver_to, String($json.id || '') ] }}"
         }
       },
       "id": "c5-22",
@@ -527,8 +537,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3900,
-        -180
+        3500,
+        0
       ],
       "credentials": {
         "postgres": {
@@ -540,9 +550,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbound_outbox\n   SET status = 'failed', send_to = $2, error = $3\n WHERE id = $1;",
+        "query": "UPDATE outbound_outbox\n   SET status = 'send_failed', send_to = $2, error = $3\n WHERE id = $1\nRETURNING id, status;",
         "options": {
-          "queryReplacement": "={{ (() => { const f = $('Force Lab Recipient').item.json; const e = $json.error !== undefined ? $json.error : $json; const msg = (typeof e === 'string' ? e : String(e.message || e.description || JSON.stringify(e))).slice(0, 800); return [ f.outbox_id, f.send_to, msg ]; })() }}"
+          "queryReplacement": "={{ (() => { const f = $('Force Lab Recipient').item.json; const e = $json.error !== undefined ? $json.error : $json; const msg = (typeof e === 'string' ? e : String(e.message || e.description || JSON.stringify(e))).slice(0, 800); return [ f.outbox_id, f.deliver_to, msg ]; })() }}"
         }
       },
       "id": "c5-23",
@@ -550,8 +560,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3900,
-        180
+        3500,
+        320
       ],
       "credentials": {
         "postgres": {
@@ -562,14 +572,14 @@
     },
     {
       "parameters": {
-        "amount": 2
+        "amount": 1
       },
       "id": "c5-24",
       "name": "Throttle",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        4160,
+        3780,
         0
       ],
       "webhookId": "PLACEHOLDER"
@@ -587,21 +597,22 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1300,
-        -180
+        1380,
+        -300
       ],
       "credentials": {
         "postgres": {
           "name": "PLACEHOLDER_POSTGRES"
         }
       },
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "executeOnce": true
     },
     {
       "parameters": {
-        "content": "## AI-Personalized Outbound -- 4 stages, 26 working nodes\n\n**Stages:** Sourcing -> Drafting -> QA Gate -> Sending.\n\n**Flow:** Run Outbound Batch -> Load Run Config -> Pull Apollo Prospect List ->\nParse Apollo Export -> Normalize Prospect List -> Batch Prospects (5 at a time) ->\nBuild Personalization Prompt -> Draft Email (OpenAI) -> Record Draft Spend -> Extract Draft\n-> QA Gate -> Draft Cleared? -> (yes) Persist Outbox (pending) -> Force Lab Recipient\n-> Send via Instantly -> Mark Outbox Sent / Mark Outbox Failed -> Throttle -> Batch Prospects.\nWhen Batch Prospects runs dry it goes to Run Summary.\n\n**Sourcing reads a saved-search export, not an API.** Apollo's Free plan blocks every\nprospecting endpoint (`mixed_people/api_search`, `people/match` and the rest) even with a\nmaster key, so the prospect list arrives as a CSV export of a saved search. Pull Apollo\nProspect List reads the file at `prospect_csv_path`, Parse Apollo Export turns it into one\nitem per row, and Normalize Prospect List maps the columns. Apollo writes a different header\nset per column preset, so the mapping is data, not code: `apollo_column_map` in Load Run\nConfig lists candidate header names per field, and Normalize resolves them ignoring case,\nspaces and punctuation. It refuses to run when no company column resolves (the QA gate\nchecks the draft for the company name, so a silent miss would ship generic mail that passes\non a technicality) or when no research column resolves at all.\n\n**No real inbox travels through the flow.** The export carries real addresses. Normalize\nProspect List keeps only a masked form (`p***@company.example.com`) and drops the\ndeliverable one, so the outbox table and any screenshot of a run are safe by construction\nrather than by careful cropping. Real company, name, title and firmographics are kept,\nbecause that is what the personalization is built from.\n\n**QA Gate -- four deterministic rules, any one rejects the draft:**\n1. Body word count outside 25 to 60.\n2. A denylisted generic phrase (\"I hope this email finds you\", \"Dear Sir/Madam\",\n   \"To whom it may concern\", \"I hope you're doing well\", \"Dear [First Name]\") or an\n   unfilled template token ({{, [Company], [Name]).\n3. The body never names the prospect's company.\n4. More than 15 words copied verbatim from the research notes.\nA rejected draft goes to Redraft Loop, which attaches the exact rejection reason and\nrebuilds the prompt. Two redrafts maximum. After that the row is written as\n`needs_review` and the run moves on. Nothing is ever force-sent.\n\n**Real exponential backoff, not a flat retry.** Draft Email (OpenAI) has retryOnFail OFF.\nIts error output goes to Compute Draft Backoff, which computes\n`wait = 500ms * 2^attempt + jitter`, caps at 30s, and lets a Retry-After header win.\nDraft Should Retry? -> Draft Backoff Wait loops back into the call, three attempts max,\nthen Draft Give Up parks the prospect as needs_review.\n\n**Persist before send.** Persist Outbox (pending) writes the row and returns its id\nbefore Instantly is called. Send failures land on Mark Outbox Failed with the error\ntext. No draft is lost to a bad API call.\n\n**Recipient safety.** Force Lab Recipient sits between the outbox write and the send.\nIt replaces the destination with the controlled address from Load Run Config and refuses\nto run if that address is empty, still a placeholder, or off the allowlist. Real prospect\ndata is used for personalization only, never as a destination.\n\n**Spend accounting is its own node.** Record Draft Spend writes tokens and estimated cost\nper call to `outbound_spend`. A later visitor-facing slice reads that running total to\nenforce a daily cap without touching the drafting node.\n\n**Config-as-code:** every tunable lives in Load Run Config -- the export path, the row\nlimit and the column map, the loop batch size, the OpenAI model / max_tokens / temperature /\nprice per 1k tokens, the redraft cap, the Instantly campaign id, and the controlled recipient\naddress plus its allowlist. Nothing is hardcoded inline.\n\n**Setup on import:** assign PLACEHOLDER_OPENAI (HTTP Header Auth, `Authorization` =\n`Bearer <key>`), PLACEHOLDER_INSTANTLY (HTTP Header Auth, `Authorization` = `Bearer <key>`)\nand PLACEHOLDER_POSTGRES. No Apollo credential is needed, because there is no Apollo API\ncall. Then drop the saved-search export at `prospect_csv_path`, check the real header\nstrings against `apollo_column_map`, and fill `instantly_campaign_id`,\n`lab_recipient_email` and `lab_recipient_allowlist` in Load Run Config. Tables\n`outbound_outbox` and `outbound_spend` must exist first.\n",
-        "height": 620,
-        "width": 1500,
+        "content": "## AI-Personalized Outbound: 4 stages, 26 working nodes\n\n**Stages:** Sourcing, Drafting, QA Gate, Sending. Left to right on this canvas.\n\n**Flow:** Run Outbound Batch (webhook, POST, header auth) -> Load Run Config -> Pull Apollo Prospect List -> Parse Apollo Export -> Normalize Prospect List -> Batch Prospects (one prospect at a time) -> Build Personalization Prompt -> Draft Email (OpenAI) -> Record Draft Spend -> Extract Draft -> QA Gate -> Draft Cleared? -> (yes) Persist Outbox (pending) -> Force Lab Recipient -> Send via Gmail -> Mark Outbox Sent / Mark Outbox Failed -> Throttle -> Batch Prospects. When Batch Prospects runs dry it goes to Run Summary.\n\n**One prospect per loop pass, on purpose.** A prospect leaves the loop by one of three paths (sent, send failed, needs review), and a redraft takes longer than a clean pass. With five per pass, the paths of one batch reach Throttle at different times and each arrival advances Batch Prospects again (seen in lab execution 133: nine loop passes and five Run Summary rows for four batches). With one per pass, every prospect reaches Throttle exactly once, and Throttle waits one second before the next.\n\n**Sourcing reads a CSV in Apollo's export shape, not an API.** Apollo's Free plan blocks the prospecting endpoints, so the list arrives as a file at `prospect_csv_path`. In this lab the file is synthetic (generated, every address on example.com) and uses Apollo's own header strings. Normalize Prospect List maps the columns through `apollo_column_map` on Load Run Config, ignoring case, spaces and punctuation, and refuses to run when no company column resolves or no firmographic column resolves at all. Addresses are masked at this step, so the outbox never holds a deliverable prospect address.\n\n**QA Gate: four deterministic rules, any one rejects the draft.**\n1. Body word count outside 25 to 60.\n2. A denylisted stock phrase (\"I hope this email finds you\", \"Dear Sir/Madam\", \"To whom it may concern\", \"I hope you're doing well\", \"Dear [First Name]\") or an unfilled template token ({{, [Company], [Name]).\n3. The body never names the prospect's company.\n4. More than 15 words copied verbatim from the prospect's row.\nThese catch cheap-to-detect failures. They cannot judge whether an email is good. The prompt carries the same rules, so most drafts clear on the first pass. A rejected draft goes to Redraft Loop with the exact reason; two redrafts at most, then the row is written as `needs_review`. Nothing is force-sent.\n\n**Backoff on the model call.** Draft Email (OpenAI) has retryOnFail off. Its error output goes to Compute Draft Backoff (`500ms * 2^attempt + jitter`, capped at 30s, Retry-After wins), three attempts, then Draft Give Up parks the prospect as `needs_review`.\n\n**Persist before send.** Persist Outbox (pending) writes the row before Gmail is called. A message id back from Gmail flips it to `sent`; an error flips it to `send_failed` with the error text.\n\n**Recipient safety.** Force Lab Recipient replaces the destination with the lab address from Load Run Config and refuses to run if that address is empty, still a placeholder, or off the allowlist. Every message goes to the lab inbox.\n\n**Drills.** `drill_mode` on Load Run Config is `off` for real runs. `reject_all` and `reject_alternate` (odd rows) give the model rules that break the gate, so the gate refuses real model output. `sender_failure` hands Gmail an address with no domain, so the send fails and the error path runs.\n\n**Setup on import:** assign PLACEHOLDER_WEBHOOK_AUTH (Header Auth), PLACEHOLDER_OPENAI (HTTP Header Auth, `Authorization` = `Bearer <key>`), PLACEHOLDER_GMAIL (Gmail OAuth2) and PLACEHOLDER_POSTGRES. Drop the CSV at `prospect_csv_path` and fill `lab_recipient_email` and `lab_recipient_allowlist`. Tables `outbound_outbox` and `outbound_spend` must exist first.\n",
+        "height": 900,
+        "width": 1800,
         "color": 4
       },
       "id": "c5-26",
@@ -610,7 +621,7 @@
       "typeVersion": 1,
       "position": [
         0,
-        560
+        1220
       ]
     }
   ],
@@ -863,25 +874,7 @@
       "main": [
         [
           {
-            "node": "Send via Instantly",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send via Instantly": {
-      "main": [
-        [
-          {
-            "node": "Mark Outbox Sent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Mark Outbox Failed",
+            "node": "Send via Gmail",
             "type": "main",
             "index": 0
           }
@@ -926,6 +919,24 @@
         [
           {
             "node": "Normalize Prospect List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Mark Outbox Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Outbox Failed",
             "type": "main",
             "index": 0
           }
