@@ -1,61 +1,197 @@
 {
   "caseSlug": "ai-personalized-outbound",
-  "source": "n8n execution #83, 2026-09-10 18:42:36 MDT, 17 prospects from one Apollo saved-search export. Timings, counts and costs are read off that execution; the prospect in the outbox window is a stand-in, because the run itself used real companies.",
-  "totalMs": 19913,
+  "source": "n8n execution #140, 2026-10-10 18:30:37 MDT, lab run on 20 synthetic prospects in Apollo's export shape. Timings, counts and costs are read off that execution.",
+  "totalMs": 57619,
   "windows": [
-    { "id": "n8n", "kind": "log", "title": "n8n / AI-Personalized Outbound / execution #83" },
-    { "id": "outbox", "kind": "contact", "title": "outbound_outbox / one row after the run" },
-    { "id": "instantly", "kind": "slack", "title": "Instantly / GTM Lab Outbound / what the API answered" }
+    {
+      "id": "n8n",
+      "kind": "log",
+      "title": "n8n / AI-Personalized Outbound / execution #140"
+    },
+    {
+      "id": "outbox",
+      "kind": "contact",
+      "title": "outbound_outbox / the first row of the run"
+    },
+    {
+      "id": "gmail",
+      "kind": "slack",
+      "title": "Gmail / lab mailbox / what the sender answered"
+    }
   ],
   "steps": [
-    { "at": 28, "node": "Run Outbound Batch", "line": "batch run started, one saved-search export as the whole input" },
-    { "at": 29, "node": "Pull Apollo Prospect List", "line": "export read off disk, 1 file, no call to Apollo" },
-    { "at": 32, "node": "Parse Apollo Export", "line": "17 rows out of the CSV, header row read first" },
-    { "at": 54, "node": "Normalize Prospect List", "line": "12 of the 13 mapped columns resolved against this export's headers, description is absent from the preset", "tone": "warn" },
-    { "at": 69, "node": "Normalize Prospect List", "line": "17 prospects normalized, every deliverable address dropped at the boundary and only a masked form kept", "tone": "ok" },
-    { "at": 69, "node": "Batch Prospects", "line": "batch 1 of 4, five prospects" },
-    { "at": 81, "node": "Draft Email (OpenAI)", "line": "five drafts requested, one call per prospect...", "tone": "wait" },
-    { "at": 3276, "node": "Record Draft Spend", "line": "five drafts back in 3.195 s, US$0.000360 for the batch", "tone": "ok" },
-    { "at": 3310, "node": "QA Gate", "line": "four rules per draft: five passed, 35 to 43 words against the 25 to 60 rule", "tone": "ok" },
-    { "at": 3322, "node": "Persist Outbox (pending)", "line": "five rows written as pending, before the sender is touched at all", "window": "outbox" },
-    { "at": 3328, "node": "Force Lab Recipient", "line": "destination overridden to the lab address on all five, the prospect address is never the target" },
-    { "at": 3342, "node": "Send via Instantly", "line": "five leads pushed into the campaign, HTTP 200 each", "tone": "ok", "window": "instantly" },
-    { "at": 5595, "node": "Mark Outbox Sent", "line": "the five rows flip from pending to sent" },
-    { "at": 5602, "node": "Throttle", "line": "2 s pause before the next batch...", "tone": "wait" },
-    { "at": 7601, "node": "Batch Prospects", "line": "batch 2 of 4, five prospects" },
-    { "at": 7612, "node": "Draft Email (OpenAI)", "line": "2.262 s for five drafts, US$0.000359", "tone": "ok" },
-    { "at": 9894, "node": "QA Gate", "line": "five passed, 35 to 41 words", "tone": "ok" },
-    { "at": 9929, "node": "Send via Instantly", "line": "five persisted, then five pushed, HTTP 200 each", "tone": "ok" },
-    { "at": 10244, "node": "Throttle", "line": "2 s pause...", "tone": "wait" },
-    { "at": 12245, "node": "Batch Prospects", "line": "batch 3 of 4, five prospects" },
-    { "at": 12255, "node": "Draft Email (OpenAI)", "line": "1.882 s for five drafts, US$0.000365", "tone": "ok" },
-    { "at": 14162, "node": "QA Gate", "line": "five passed, 37 to 43 words", "tone": "ok" },
-    { "at": 14202, "node": "Send via Instantly", "line": "five persisted, then five pushed, HTTP 200 each", "tone": "ok" },
-    { "at": 14447, "node": "Throttle", "line": "2 s pause...", "tone": "wait" },
-    { "at": 16447, "node": "Batch Prospects", "line": "batch 4 of 4, the last two prospects" },
-    { "at": 16458, "node": "Draft Email (OpenAI)", "line": "1.133 s for two drafts, US$0.000143", "tone": "ok" },
-    { "at": 17629, "node": "QA Gate", "line": "two passed, 39 and 37 words", "tone": "ok" },
-    { "at": 17687, "node": "Send via Instantly", "line": "two pushed, HTTP 200 each", "tone": "ok" },
-    { "at": 19909, "node": "Run Summary", "line": "17 sourced, 17 drafted, 17 cleared the gate on the first pass, 17 sent. 4,886 tokens, US$0.001227. Done in 19.913 s", "tone": "done" }
+    {
+      "at": 12,
+      "node": "Run Outbound Batch",
+      "line": "POST received on the webhook, header token checked, batch run started"
+    },
+    {
+      "at": 13,
+      "node": "Pull Apollo Prospect List",
+      "line": "prospect file read off disk, one CSV, no call to Apollo"
+    },
+    {
+      "at": 17,
+      "node": "Parse Apollo Export",
+      "line": "20 rows out of the CSV, header row read first"
+    },
+    {
+      "at": 23,
+      "node": "Normalize Prospect List",
+      "line": "13 of the 13 mapped columns resolved against Apollo's header strings, description included",
+      "tone": "ok"
+    },
+    {
+      "at": 32,
+      "node": "Normalize Prospect List",
+      "line": "20 prospects normalized, each address cut down to a masked form at the boundary",
+      "tone": "ok"
+    },
+    {
+      "at": 32,
+      "node": "Batch Prospects",
+      "line": "prospect 1 of 20, one per pass"
+    },
+    {
+      "at": 40,
+      "node": "Draft Email (OpenAI)",
+      "line": "draft requested, the prospect's row as the only context...",
+      "tone": "wait"
+    },
+    {
+      "at": 1262,
+      "node": "Record Draft Spend",
+      "line": "draft back in 1.222s, 316 tokens, US$0.000079",
+      "tone": "ok"
+    },
+    {
+      "at": 1285,
+      "node": "QA Gate",
+      "line": "four rules: 41 words against 25 to 60, no stock phrase, company named, nothing copied. Cleared",
+      "tone": "ok"
+    },
+    {
+      "at": 1294,
+      "node": "Persist Outbox (pending)",
+      "line": "row written as pending, before the sender is touched",
+      "window": "outbox"
+    },
+    {
+      "at": 1298,
+      "node": "Force Lab Recipient",
+      "line": "destination overridden to the lab inbox, the prospect address is never the target"
+    },
+    {
+      "at": 1318,
+      "node": "Send via Gmail",
+      "line": "message handed to the lab mailbox...",
+      "tone": "wait"
+    },
+    {
+      "at": 1933,
+      "node": "Mark Outbox Sent",
+      "line": "Gmail answered with a message id in 0.615s, row flips to sent",
+      "tone": "ok",
+      "window": "gmail"
+    },
+    {
+      "at": 1938,
+      "node": "Throttle",
+      "line": "1s pause before the next prospect...",
+      "tone": "wait"
+    },
+    {
+      "at": 2939,
+      "node": "Batch Prospects",
+      "line": "prospect 2 of 20"
+    },
+    {
+      "at": 4172,
+      "node": "QA Gate",
+      "line": "draft back in 1.205s, 41 words, cleared",
+      "tone": "ok"
+    },
+    {
+      "at": 6601,
+      "node": "Mark Outbox Sent",
+      "line": "persisted, then handed to Gmail, message id back in 2.397s",
+      "tone": "ok"
+    },
+    {
+      "at": 7607,
+      "node": "Batch Prospects",
+      "line": "prospects 3 to 19: the same path each time, one prospect per pass, 1s apart"
+    },
+    {
+      "at": 54661,
+      "node": "Mark Outbox Sent",
+      "line": "17 more drafts cleared on the first pass (31 to 44 words), 17 more message ids back",
+      "tone": "ok"
+    },
+    {
+      "at": 54662,
+      "node": "Batch Prospects",
+      "line": "prospect 20 of 20, the last one"
+    },
+    {
+      "at": 56046,
+      "node": "QA Gate",
+      "line": "draft back in 1.342s, 41 words, cleared",
+      "tone": "ok"
+    },
+    {
+      "at": 56610,
+      "node": "Mark Outbox Sent",
+      "line": "handed to Gmail, message id back in 0.517s",
+      "tone": "ok"
+    },
+    {
+      "at": 57614,
+      "node": "Batch Prospects",
+      "line": "list exhausted, the loop ends"
+    },
+    {
+      "at": 57615,
+      "node": "Run Summary",
+      "line": "20 sourced, 20 drafted, 20 cleared the gate on the first pass, 20 handed to the lab mailbox. 6,414 tokens, US$0.001601. Done in 57.619s",
+      "tone": "done"
+    }
   ],
   "contact": {
-    "name": "Dana Whitfield (stand-in for a real prospect)",
-    "company": "Director of Revenue Operations, Northgate Analytics",
-    "email": "d***@northgate-analytics.example.com",
-    "created": "09/10/2026 6:42 PM MDT"
+    "name": "Dora Hickle (synthetic prospect)",
+    "company": "Revenue Operations Lead, Towne - Effertz",
+    "email": "d***@towne-effertz.example.com",
+    "created": "10/10/2026 6:30 PM MDT"
   },
   "slack": {
-    "bot": "Send via Instantly",
-    "time": "6:42 PM",
-    "headline": "Lead accepted into GTM Lab Outbound",
+    "bot": "Send via Gmail",
+    "time": "6:30 PM",
+    "headline": "Message handed to the lab mailbox, message id returned",
     "fields": [
-      { "label": "Campaign", "value": "GTM Lab Outbound, kept in Draft and never launched" },
-      { "label": "Recipient", "value": "one lab address, forced on every item before this node runs" },
-      { "label": "Subject", "value": "the campaign step's own variable, filled per lead" },
-      { "label": "Body", "value": "the approved draft, 38 words" },
-      { "label": "Pushes this run", "value": "17 accepted with HTTP 200" },
-      { "label": "Leads in the campaign", "value": "1, because the sender upserts by campaign and address" },
-      { "label": "Cost", "value": "4,886 tokens, US$0.001227, 19.913 s" }
+      {
+        "label": "Recipient",
+        "value": "the lab inbox, forced on every item before this node runs"
+      },
+      {
+        "label": "Subject",
+        "value": "[lab] Dora Hickle, Towne - Effertz: Enhancing Revenue Operations at Towne - Effertz"
+      },
+      {
+        "label": "Body",
+        "value": "the approved draft, 41 words"
+      },
+      {
+        "label": "Handed over this run",
+        "value": "20 of 20, one message id each"
+      },
+      {
+        "label": "Prospects reached",
+        "value": "none, every message went to the lab inbox"
+      },
+      {
+        "label": "Cost",
+        "value": "6,414 tokens, US$0.001601, 57.619s"
+      }
     ]
   }
 }
