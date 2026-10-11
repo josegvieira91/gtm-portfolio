@@ -2,70 +2,89 @@
 title: "TAM List Building & Enrichment Waterfall"
 slug: "tam-list-building-enrichment-waterfall"
 category: "Outbound"
-heroMetric: "Every account leaves the waterfall with a verdict"
+heroMetric: "40 accounts in, 16 written to HubSpot, 24 kept out with a verdict, 0 Clay credits spent"
 stack: ["Clay", "Google Sheets", "HubSpot", "n8n"]
 # Every value below was read off the 2026-09-11 lab run, not estimated.
 # 40 source rows, 20 enriched, 16 through the ICP rule, 0 of 100 Clay credits
-# spent. "Match rate" became "Coverage after the full waterfall" because the
-# source list is synthetic by policy, so both vendor legs miss by construction
-# and a single vendor match rate would be a number about the data rule rather
-# than about the flow.
+# spent. The CRM load is n8n execution #115 of the loader (13.974s, 16 updated,
+# 0 created), the last of four loader runs (#112 to #115). The 50% coverage is
+# set by the seed: the internal registry holds 20 of the 40 domains, and both
+# vendor legs miss every example.com domain by construction.
 metrics:
   - label: "Accounts enriched"
     value: "20 of 40"
   - label: "Coverage after the full waterfall"
     value: "50%"
-  - label: "Time per account, list row to enriched record"
-    value: "0.55s"
-export: "workflows/tam-list-building-enrichment-waterfall/clay-tam-enrichment-table.json"
+  - label: "Clay credits spent"
+    value: "0 of 100"
+export: "workflows/tam-list-building-enrichment-waterfall/"
 evidence:
   - src: "../../assets/cases/tam-list-building-enrichment-waterfall/01-clay-table.png"
     alt: "Clay table view of the TAM Enrichment waterfall, 40 of 40 rows complete, showing the Clay and LeadMagic legs returning company-not-found, the gate columns passing the domain through, and the internal registry lookup filling industry, headcount and city."
-    caption: "The waterfall in Clay after the run: both vendor legs came back empty on every row, the gate opened the next leg each time, and the internal registry filled 20 of 40. Click to open full size."
+    caption: "The receipt: the waterfall in Clay after the run. Both vendor legs came back empty on every row, the gate opened the next leg each time, and the internal registry filled 20 of 40. Click to open full size."
 diagramId: "case-03"
 featured: false
 draft: false
 ---
 
-A target account list is cheap to get and expensive to trust. The names are
-real, the firmographics are stale, and the first time a rep opens an account
-with the wrong headcount on it, the whole list loses its credibility.
-Enrichment fixes that, and it bills per answer, which is where the engineering
-starts.
-
-I built this on Clay's free plan: 100 data credits a month, 200 rows per table.
-That budget shaped the decisions below more than any technical preference did.
+Target account lists are easy to buy. The firmographics are usually stale,
+and enrichment bills per answer, so the order you call vendors in decides
+the cost. I built this waterfall on Clay's free plan, 100 data credits a
+month and 200 rows per table, and in the run replayed below 40 synthetic
+accounts went through three enrichment legs, 16 reached HubSpot, and the
+plan's credit counter did not move.
 
 ## How it works
 
 **Ordering the providers.** The list arrives from Google Sheets into a Clay
 table, deduplicated on domain as it lands. Three legs then run in sequence.
-Clay's own company enrichment goes first at one credit a row, a second provider
-follows, and the company's own internal records answer last. In a paying account
-I would flip that, because internal data is free and fresher than anything a
-vendor sells. I kept the vendor-first order because the brief locked it, and the
-cheaper ordering is the one I would argue for.
+Clay's own company enrichment goes first at one credit a row, LeadMagic
+follows, and the company's own internal registry answers last. I kept
+vendor-first because the case was meant to exercise the paid legs and their
+gates. On a paying account I would put the registry first, because internal
+data is free and fresher than anything a vendor sells.
 
 **What counts as a miss, and what a miss opens.** Clay's per-column run
 condition would not persist for me, so I built the cascade into the inputs
-instead. A formula column emits the domain only when the leg before it came back
-empty, and the next leg reads that column as its required key. A leg with no key
-never runs and cannot bill. The gate shows up in the table as a filled or blank
-cell, which reads better than a setting buried in a side panel.
+instead. A formula column emits the domain only when the leg before it came
+back empty, and the next leg reads that column as its required key. A leg
+with no key does not run, so it cannot bill. In this run that gate never
+closed: Clay's leg missed all 40 rows, LeadMagic then missed all 40, and
+every row went on to the registry. The skip path is built and visible in
+the table, but this run did not exercise it.
 
-**Why a repeat costs nothing.** Auto-run stays on with "keep existing results"
-checked, so only errored, empty or new cells ever fire. I re-ran the whole
-waterfall over ten rows to check that claim: Clay's own confirmation dialog
-quoted about 20 credits, and the counter moved by zero. Over the full 40-row run
-the workbook spent 0 of its 100 credits. Clay charges for a successful
-enrichment, and every domain on this list is a reserved example.com address that
-no vendor can match.
+**What a repeat costs.** Auto-run stays on with "keep existing results"
+checked, so only errored, empty or new cells should fire. I re-ran the
+waterfall over ten rows: the confirmation dialog quoted about 20 credits
+and the counter moved by zero. On this list that proves misses are free,
+not that filled cells are skipped, since every vendor cell was a miss. The
+skip setting only gets a real test on a list where a vendor matches. Over
+the full 40-row run the workbook spent 0 of its 100 credits, because Clay
+charges for a successful enrichment and every domain here is a reserved
+example.com address. The table's Sandbox Mode control was not checked for
+this run.
 
-**What the run proves, and what it does not.** The data rule for this portfolio
-is synthetic companies only, so both vendor legs miss on every row by
-construction. Twenty of the forty accounts were filled by the internal registry,
-sixteen passed the ICP rule, and those sixteen reached HubSpot matched on domain,
-so each write updated a company instead of creating a second one. The other
-twenty-four kept a reason: not found, or found and out of profile. That is the
-part worth defending. A list that quietly drops the accounts nobody could enrich
-is worse than a short list, because you can no longer tell a gap from a decision.
+**Verdicts, and the write to HubSpot.** I seeded the registry with 20 of
+the 40 domains, so the 50% describes the seed. What the run shows is that
+each of those 20 was filled by the registry after both vendors missed. The
+ICP rule is 25 to 500 employees, Canada or the United States, and one of
+seven industries; sixteen rows passed it. Clay's HubSpot connector would
+only sign in to a personal account, so an n8n workflow reads the output
+sheet and writes to HubSpot, matched on domain, one search at a time
+after the first loader run (#112) hit HubSpot's rate limit. In run #115
+all sixteen were already in the lab portal, so the create branch did not
+run. The other twenty-four kept a verdict: not enriched, or enriched and
+outside the rule. I would rather hand sales 16 accounts plus 24 labelled
+rejects than 16 accounts with no trace of the rest, because then nobody
+can tell a vendor gap from an ICP decision.
+
+The download is the case folder. The Clay file is a transcription of the
+table, column by column, because Clay free has no export; the loader file
+is a real n8n export.
+
+**What this run does not prove.** Both vendors miss every synthetic domain
+by construction, so it says nothing about vendor match rates, about what a
+real list would cost (up to one credit per enriched row on each vendor
+leg), or about whether a filled cell is skipped on a re-run. A closed gate
+never happened. The coverage figure is the seed, and the HubSpot write is
+sixteen updates with no create.
